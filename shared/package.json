@@ -1,0 +1,9 @@
+{
+  "name": "@app/shared",
+  "private": true,
+  "version": "1.0.0",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

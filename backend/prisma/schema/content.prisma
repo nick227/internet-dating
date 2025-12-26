@@ -1,0 +1,66 @@
+model Post {
+  id          BigInt     @id @default(autoincrement())
+  userId      BigInt
+  user        User       @relation(fields: [userId], references: [id])
+  visibility  Visibility @default(PUBLIC)
+  text        String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  media       PostMedia[]
+  likes       LikedPost[]
+  @@index([visibility, createdAt])
+  @@index([userId, createdAt])
+  @@index([deletedAt])
+}
+
+model Media {
+  id          BigInt   @id @default(autoincrement())
+  userId      BigInt
+  user        User     @relation(fields: [userId], references: [id])
+  ownerUserId BigInt
+  owner       User     @relation("MediaOwner", fields: [ownerUserId], references: [id])
+  type        MediaType
+  status      MediaStatus @default(PENDING)
+  visibility  Visibility  @default(PUBLIC)
+  storageKey  String?
+  variants    Json?
+  contentHash String?
+  mimeType    String?
+  sizeBytes   Int?
+  url         String
+  thumbUrl    String?
+  width       Int?
+  height      Int?
+  durationSec Int?
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+  avatarProfiles Profile[] @relation("ProfileAvatar")
+  heroProfiles   Profile[] @relation("ProfileHero")
+  postLinks   PostMedia[]
+  @@index([userId, createdAt])
+  @@index([ownerUserId, createdAt])
+  @@index([deletedAt])
+}
+
+model PostMedia {
+  id       BigInt @id @default(autoincrement())
+  postId   BigInt
+  mediaId  BigInt
+  order    Int    @default(0)
+  post     Post  @relation(fields: [postId], references: [id])
+  media    Media @relation(fields: [mediaId], references: [id])
+  @@unique([postId, mediaId])
+  @@index([postId, order])
+}
+
+model LikedPost {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  postId    BigInt
+  createdAt DateTime @default(now())
+  user      User @relation(fields: [userId], references: [id])
+  post      Post @relation(fields: [postId], references: [id])
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+}

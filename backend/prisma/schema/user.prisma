@@ -1,0 +1,68 @@
+model User {
+  id           BigInt   @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  profile      Profile?
+  posts        Post[]
+  media        Media[]
+  mediaOwned   Media[] @relation("MediaOwner")
+
+  LikesMade   Like[]  @relation("LikesMade")
+  LikesGot    Like[]  @relation("LikesGot")
+
+  matchesA     Match[]  @relation("MatchUserA")
+  matchesB     Match[]  @relation("MatchUserB")
+
+  conversationsA Conversation[] @relation("ConvUserA")
+  conversationsB Conversation[] @relation("ConvUserB")
+
+  messages     Message[] @relation("MessageSender")
+  receipts     MessageReceipt[]
+
+  LikedPosts   LikedPost[]
+
+  blocksMade   UserBlock[] @relation("BlocksMade")
+  blocksGot    UserBlock[] @relation("BlocksGot")
+
+  reportsMade  UserReport[] @relation("ReportsMade")
+  reportsGot   UserReport[] @relation("ReportsGot")
+
+  quizResults  QuizResult[]
+
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+model Profile {
+  id            BigInt @id @default(autoincrement())
+  userId        BigInt @unique
+  user          User   @relation(fields: [userId], references: [id])
+  avatarMediaId BigInt?
+  heroMediaId   BigInt?
+  avatarMedia   Media? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id])
+  heroMedia     Media? @relation("ProfileHero", fields: [heroMediaId], references: [id])
+  displayName   String?
+  bio           String?  @db.Text
+  birthdate     DateTime?
+  locationText  String?
+  lat           Decimal? @db.Decimal(9,6)
+  lng           Decimal? @db.Decimal(9,6)
+  gender        Gender        @default(UNSPECIFIED)
+  intent        DatingIntent  @default(UNSPECIFIED)
+  isVisible     Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  ratingsGiven  ProfileRating[] @relation("RatingsGiven")
+  ratingsGot    ProfileRating[] @relation("RatingsGot")
+  top5Lists     Top5List[]
+  @@index([isVisible, intent, locationText])
+  @@index([avatarMediaId])
+  @@index([heroMediaId])
+  @@index([lat, lng])
+  @@index([deletedAt])
+}

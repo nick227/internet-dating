@@ -1,0 +1,27 @@
+model Like {
+  id          BigInt      @id @default(autoincrement())
+  fromUserId  BigInt
+  toUserId    BigInt
+  action      LikeAction
+  createdAt   DateTime    @default(now())
+  fromUser    User @relation("LikesMade", fields: [fromUserId], references: [id])
+  toUser      User @relation("LikesGot",  fields: [toUserId], references: [id])
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, action, createdAt])
+  @@index([fromUserId, createdAt])
+}
+
+model Match {
+  id         BigInt     @id @default(autoincrement())
+  userAId    BigInt
+  userBId    BigInt
+  state      MatchState @default(ACTIVE)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  closedAt   DateTime?
+  userA      User @relation("MatchUserA", fields: [userAId], references: [id])
+  userB      User @relation("MatchUserB", fields: [userBId], references: [id])
+  conversation Conversation?
+  @@unique([userAId, userBId])
+  @@index([state, updatedAt])
+}

@@ -1,0 +1,51 @@
+enum Visibility { 
+    PUBLIC 
+    PRIVATE 
+}
+
+enum MediaType { 
+    IMAGE 
+    VIDEO 
+}
+
+enum MediaStatus {
+    PENDING
+    READY
+    FAILED
+}
+
+enum LikeAction { 
+    LIKE 
+    DISLIKE 
+}
+
+enum MatchState { 
+    ACTIVE 
+    BLOCKED 
+    CLOSED 
+}
+
+enum Gender { 
+    UNSPECIFIED 
+    MALE 
+    FEMALE 
+    NONBINARY 
+    OTHER 
+}
+
+enum DatingIntent {
+     UNSPECIFIED 
+     FRIENDS 
+     CASUAL 
+     LONG_TERM 
+     MARRIAGE 
+}
+
+enum ReportReason {
+     SPAM 
+     HARASSMENT 
+     IMPERSONATION 
+     NUDITY 
+     HATE 
+     OTHER 
+}

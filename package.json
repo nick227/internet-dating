@@ -1,0 +1,14 @@
+
+{
+  "name": "internet-date",
+  "private": true,
+  "type": "module",
+  "workspaces": ["backend", "frontend", "shared"],
+  "scripts": {
+    "dev:backend": "npm run -w backend dev",
+    "dev:frontend": "npm run -w frontend dev",
+    "dev:all": "npm run -ws --if-present --parallel dev",
+    "build": "npm run build -w shared && npm run build -w frontend && npm run build -w backend",
+    "start": "npm run start -w backend"
+  }
+}

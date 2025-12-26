@@ -1,0 +1,43 @@
+model Quiz {
+  id        BigInt   @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  questions QuizQuestion[]
+  results   QuizResult[]
+}
+
+model QuizQuestion {
+  id        BigInt   @id @default(autoincrement())
+  quizId    BigInt
+  prompt    String   @db.Text
+  order     Int
+  quiz      Quiz @relation(fields: [quizId], references: [id])
+  options   QuizOption[]
+  @@unique([quizId, order])
+}
+
+model QuizOption {
+  id          BigInt @id @default(autoincrement())
+  questionId  BigInt
+  label       String
+  value       String
+  order       Int
+  question    QuizQuestion @relation(fields: [questionId], references: [id])
+  @@unique([questionId, order])
+}
+
+model QuizResult {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  quizId    BigInt
+  answers   Json
+  scoreVec  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User @relation(fields: [userId], references: [id])
+  quiz      Quiz @relation(fields: [quizId], references: [id])
+  @@unique([userId, quizId])
+}

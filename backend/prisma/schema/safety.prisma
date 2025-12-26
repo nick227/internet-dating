@@ -1,0 +1,21 @@
+model UserBlock {
+  id         BigInt   @id @default(autoincrement())
+  blockerId  BigInt
+  blockedId  BigInt
+  createdAt  DateTime @default(now())
+  blocker    User @relation("BlocksMade", fields: [blockerId], references: [id])
+  blocked    User @relation("BlocksGot",  fields: [blockedId], references: [id])
+  @@unique([blockerId, blockedId])
+}
+
+model UserReport {
+  id         BigInt       @id @default(autoincrement())
+  reporterId BigInt
+  targetId   BigInt
+  reason     ReportReason
+  details    String?      @db.Text
+  createdAt  DateTime     @default(now())
+  reporter   User @relation("ReportsMade", fields: [reporterId], references: [id])
+  target     User @relation("ReportsGot",  fields: [targetId], references: [id])
+  @@index([targetId, createdAt])
+}
