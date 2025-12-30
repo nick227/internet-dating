@@ -2,44 +2,105 @@ import type { DomainRegistry } from '../../types.js';
 import { Auth } from '../../../lib/auth/rules.js';
 import { prisma } from '../../../lib/prisma/client.js';
 import { json } from '../../../lib/http/json.js';
-import { parsePositiveBigInt } from '../../../lib/http/parse.js';
+import { getCompatibilityMap, resolveCompatibility } from '../../../services/compatibility/compatibilityService.js';
+import { parseLimit, parseOptionalPositiveBigInt, parsePositiveBigInt } from '../../../lib/http/parse.js';
 import { toAvatarUrl } from '../../../services/media/presenter.js';
 
 function orderedPair(a: bigint, b: bigint) {
   return a < b ? { userAId: a, userBId: b } : { userAId: b, userBId: a };
 }
 
+type SuggestionSort =
+  | 'overall'
+  | 'ratings'
+  | 'ratings.attractive'
+  | 'ratings.smart'
+  | 'ratings.funny'
+  | 'ratings.interesting'
+  | 'ratings.fit'
+  | 'interests'
+  | 'nearby'
+  | 'new';
+
+function normalizeSuggestionSort(value: unknown): SuggestionSort {
+  if (typeof value !== 'string') return 'overall';
+  switch (value) {
+    case 'overall':
+    case 'ratings':
+    case 'ratings.attractive':
+    case 'ratings.smart':
+    case 'ratings.funny':
+    case 'ratings.interesting':
+    case 'ratings.fit':
+    case 'interests':
+    case 'nearby':
+    case 'new':
+      return value;
+    default:
+      return 'overall';
+  }
+}
+
+function suggestionOrder(sort: SuggestionSort): Array<{ scoreRatingsQuality?: 'desc' | 'asc'; ratingAttractive?: 'desc' | 'asc'; ratingSmart?: 'desc' | 'asc'; ratingFunny?: 'desc' | 'asc'; ratingInteresting?: 'desc' | 'asc'; scoreRatingsFit?: 'desc' | 'asc'; scoreInterests?: 'desc' | 'asc'; distanceKm?: 'desc' | 'asc'; scoreNew?: 'desc' | 'asc'; score?: 'desc' | 'asc'; candidateUserId?: 'desc' | 'asc' }> {
+  switch (sort) {
+    case 'ratings':
+      return [{ scoreRatingsQuality: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'ratings.attractive':
+      return [{ ratingAttractive: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'ratings.smart':
+      return [{ ratingSmart: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'ratings.funny':
+      return [{ ratingFunny: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'ratings.interesting':
+      return [{ ratingInteresting: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'ratings.fit':
+      return [{ scoreRatingsFit: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'interests':
+      return [{ scoreInterests: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'nearby':
+      return [{ distanceKm: 'asc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'new':
+      return [{ scoreNew: 'desc' }, { score: 'desc' }, { candidateUserId: 'desc' }];
+    case 'overall':
+    default:
+      return [{ score: 'desc' }, { candidateUserId: 'desc' }];
+  }
+}
+
 export const matchesDomain: DomainRegistry = {
   domain: 'matches',
   routes: [
     {
-      id: 'matches.POST./swipes',
+      id: 'matches.POST./likes',
       method: 'POST',
-      path: '/swipes',
+      path: '/likes',
       auth: Auth.user(),
-      summary: 'Like / pass',
+      summary: 'Like / dislike',
       tags: ['matches'],
       handler: async (req, res) => {
         const fromUserId = req.ctx.userId!;
-        const { toUserId, action } = (req.body ?? {}) as { toUserId?: string|number; action?: 'LIKE'|'PASS' };
-        if (!toUserId || (action !== 'LIKE' && action !== 'PASS')) return json(res, { error: 'toUserId and action required' }, 400);
+        const { toUserId, action } = (req.body ?? {}) as { toUserId?: string|number; action?: 'LIKE'|'DISLIKE'|'PASS' };
+        const normalizedAction = action === 'PASS' ? 'DISLIKE' : action;
+        if (!toUserId || (normalizedAction !== 'LIKE' && normalizedAction !== 'DISLIKE')) {
+          return json(res, { error: 'toUserId and action required' }, 400);
+        }
 
         const toParsed = parsePositiveBigInt(toUserId, 'toUserId');
         if (!toParsed.ok) return json(res, { error: toParsed.error }, 400);
         const toId = toParsed.value;
-        if (toId === fromUserId) return json(res, { error: 'Cannot swipe yourself' }, 400);
+        if (toId === fromUserId) return json(res, { error: 'Cannot like or dislike yourself' }, 400);
 
-        await prisma.swipe.upsert({
+        await prisma.like.upsert({
           where: { fromUserId_toUserId: { fromUserId, toUserId: toId } },
-          update: { action },
-          create: { fromUserId, toUserId: toId, action }
+          update: { action: normalizedAction },
+          create: { fromUserId, toUserId: toId, action: normalizedAction }
         });
 
         let matched = false;
         let matchId: bigint | null = null;
 
-        if (action === 'LIKE') {
-          const reciprocal = await prisma.swipe.findUnique({
+        if (normalizedAction === 'LIKE') {
+          const reciprocal = await prisma.like.findUnique({
             where: { fromUserId_toUserId: { fromUserId: toId, toUserId: fromUserId } },
             select: { action: true }
           });
@@ -106,6 +167,9 @@ export const matchesDomain: DomainRegistry = {
           }
         });
 
+        const otherUserIds = matches.map((m) => (m.userAId === me ? m.userBId : m.userAId));
+        const compatibilityMap = await getCompatibilityMap(me, otherUserIds);
+
         return json(res, {
           matches: matches.map(m => ({
             ...m,
@@ -116,7 +180,8 @@ export const matchesDomain: DomainRegistry = {
                     const { avatarMedia, ...profileData } = m.userA.profile;
                     return { ...profileData, avatarUrl: toAvatarUrl(avatarMedia) };
                   })()
-                : null
+                : null,
+              compatibility: m.userAId === me ? null : resolveCompatibility(me, compatibilityMap, m.userAId)
             },
             userB: {
               ...m.userB,
@@ -125,9 +190,94 @@ export const matchesDomain: DomainRegistry = {
                     const { avatarMedia, ...profileData } = m.userB.profile;
                     return { ...profileData, avatarUrl: toAvatarUrl(avatarMedia) };
                   })()
-                : null
+                : null,
+              compatibility: m.userBId === me ? null : resolveCompatibility(me, compatibilityMap, m.userBId)
             }
           }))
+        });
+      }
+    },
+    {
+      id: 'matches.GET./suggestions',
+      method: 'GET',
+      path: '/suggestions',
+      auth: Auth.user(),
+      summary: 'List match suggestions',
+      tags: ['matches'],
+      handler: async (req, res) => {
+        const me = req.ctx.userId!;
+        const takeParsed = parseLimit(req.query.take, 20, 50);
+        if (!takeParsed.ok) return json(res, { error: takeParsed.error }, 400);
+        const cursorParsed = parseOptionalPositiveBigInt(req.query.cursorId, 'cursorId');
+        if (!cursorParsed.ok) return json(res, { error: cursorParsed.error }, 400);
+
+        const take = takeParsed.value;
+        const cursorId = cursorParsed.value;
+        const sort = normalizeSuggestionSort(req.query.type);
+        const orderBy = suggestionOrder(sort);
+        const mediaSelect = {
+          id: true,
+          type: true,
+          url: true,
+          thumbUrl: true,
+          width: true,
+          height: true,
+          durationSec: true,
+          storageKey: true,
+          variants: true
+        };
+
+        const suggestions = await prisma.matchScore.findMany({
+          where: {
+            userId: me,
+            ...(sort === 'nearby' ? { distanceKm: { not: null } } : {})
+          },
+          orderBy,
+          take,
+          ...(cursorId
+            ? { cursor: { userId_candidateUserId: { userId: me, candidateUserId: cursorId } }, skip: 1 }
+            : {}),
+          select: {
+            candidateUserId: true,
+            score: true,
+            reasons: true,
+            candidate: {
+              select: {
+                id: true,
+                profile: {
+                  select: {
+                    displayName: true,
+                    locationText: true,
+                    intent: true,
+                    avatarMedia: { select: mediaSelect }
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        const nextCursorId = suggestions.length === take ? suggestions[suggestions.length - 1]!.candidateUserId : null;
+        const candidateIds = suggestions.map((s) => s.candidateUserId);
+        const compatibilityMap = await getCompatibilityMap(me, candidateIds);
+
+        return json(res, {
+          suggestions: suggestions.map((s) => {
+            const profile = s.candidate?.profile
+              ? (() => {
+                  const { avatarMedia, ...profileData } = s.candidate.profile;
+                  return { ...profileData, avatarUrl: toAvatarUrl(avatarMedia) };
+                })()
+              : null;
+            return {
+              userId: s.candidateUserId,
+              profile,
+              score: s.score,
+              reasons: s.reasons ?? null,
+              compatibility: resolveCompatibility(me, compatibilityMap, s.candidateUserId)
+            };
+          }),
+          nextCursorId
         });
       }
     }

@@ -1,16 +1,16 @@
 model ProfileRating {
   id           BigInt @id @default(autoincrement())
-  raterUserId  BigInt
-  targetUserId BigInt
+  raterProfileId  BigInt
+  targetProfileId BigInt
   attractive   Int
   smart        Int
   funny        Int
   interesting  Int
   createdAt    DateTime @default(now())
-  rater        Profile @relation("RatingsGiven", fields: [raterUserId], references: [userId])
-  target       Profile @relation("RatingsGot",   fields: [targetUserId], references: [userId])
-  @@unique([raterUserId, targetUserId])
-  @@index([targetUserId, createdAt])
+  rater        Profile @relation("RatingsGiven", fields: [raterProfileId], references: [id])
+  target       Profile @relation("RatingsGot",   fields: [targetProfileId], references: [id])
+  @@unique([raterProfileId, targetProfileId])
+  @@index([targetProfileId, createdAt])
 }
 
 model Top5List {

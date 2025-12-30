@@ -14,7 +14,7 @@ const HERO_SLOTS = [
   'heroMosaic__tile--c',
   'heroMosaic__tile--d',
   'heroMosaic__tile--e',
-  'heroMosaic__tile--f'
+  'heroMosaic__tile--f',
 ] as const
 
 type HeroMediaItem = {
@@ -53,7 +53,7 @@ function buildHeroItems(profile?: ProfileResponse): HeroMediaItem[] {
       type,
       src: profile.heroUrl,
       preview: profile.heroUrl,
-      alt: `${name} hero`
+      alt: `${name} hero`,
     })
   }
 
@@ -67,7 +67,7 @@ function buildHeroItems(profile?: ProfileResponse): HeroMediaItem[] {
       type,
       src,
       preview: media.thumbUrl ?? src,
-      alt: `${name} ${label}`
+      alt: `${name} ${label}`,
     })
   }
 
@@ -77,6 +77,7 @@ function buildHeroItems(profile?: ProfileResponse): HeroMediaItem[] {
 export function HeroSection({ profile }: HeroSectionProps) {
   const nav = useNavigate()
   const presenceStatus = usePresence(profile?.userId)
+  const compatibilityLabel = formatCompatibility(profile?.compatibility ?? null)
   const presenceLabel =
     presenceStatus === 'online'
       ? 'Online now'
@@ -111,7 +112,12 @@ export function HeroSection({ profile }: HeroSectionProps) {
             preload="metadata"
           />
         ) : (
-          <img className="heroMosaic__media" src={item.preview ?? item.src} alt={item.alt} loading="lazy" />
+          <img
+            className="heroMosaic__media"
+            src={item.preview ?? item.src}
+            alt={item.alt}
+            loading="lazy"
+          />
         )}
         {isVideo && <div className="heroMosaic__badge">Video</div>}
       </div>
@@ -119,38 +125,55 @@ export function HeroSection({ profile }: HeroSectionProps) {
   })
 
   return (
-        <div className="profile__hero">
-          <div className="profile__heroFallback" aria-hidden="true" />
-          <div className="profile__heroMedia">{slots}</div>
-          <div className="profile__heroScrim" />
-          <div className="profile__topBar">
-            <IconButton label="Back" onClick={() => nav(-1)}>
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </IconButton>
-            <IconButton label="More" onClick={() => alert('TODO: menu')}>
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                <circle cx="5" cy="12" r="1.6" fill="currentColor" />
-                <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-                <circle cx="19" cy="12" r="1.6" fill="currentColor" />
-              </svg>
-            </IconButton>
+    <div className="profile__hero">
+      <div className="profile__heroFallback" aria-hidden="true" />
+      <div className="profile__heroMedia">{slots}</div>
+      <div className="profile__heroScrim" />
+      <div className="profile__topBar">
+        <IconButton label="Back" onClick={() => nav(-1)}>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d="M15 6l-6 6 6 6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </IconButton>
+        <IconButton label="More" onClick={() => alert('TODO: menu')}>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+            <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+            <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+          </svg>
+        </IconButton>
+      </div>
+
+      <div className="profile__heroContent">
+        <div className="u-stack">
+          <div className="profile__heroNameRow">
+            <h2 className="profile__heroName u-clamp-1">{profile?.name}</h2>
+            {profile?.age && <span className="profile__heroAge">{profile.age}</span>}
           </div>
-  
-          <div style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
-            <div className="u-stack">
-              <div className="riverCard__name">
-                <h2 className="u-clamp-1">{profile?.name}</h2>
-                <span>{profile?.age ? String(profile.age) : ''}</span>
-              </div>
-              <div className="riverCard__chips">
-                {profile?.locationText && <Pill>{profile.locationText}</Pill>}
-                {profile?.intent && <Pill>{prettyIntent(profile.intent)}</Pill>}
-                {presenceLabel && <Pill>{presenceLabel}</Pill>}
-              </div>
-            </div>
+          <div className="riverCard__chips">
+            {profile?.locationText && <Pill>{profile.locationText}</Pill>}
+            {profile?.intent && <Pill>{prettyIntent(profile.intent)}</Pill>}
+            {presenceLabel && <Pill>{presenceLabel}</Pill>}
+            {compatibilityLabel && <Pill>{compatibilityLabel}</Pill>}
           </div>
         </div>
+      </div>
+    </div>
   )
+}
+
+function formatCompatibility(compatibility: ProfileResponse['compatibility'] | null) {
+  if (!compatibility) return null
+  if (compatibility.status !== 'READY' || compatibility.score == null) {
+    return 'Compatibility N/A'
+  }
+  const score = Math.round(compatibility.score * 100)
+  return `Compatibility ${score}%`
 }

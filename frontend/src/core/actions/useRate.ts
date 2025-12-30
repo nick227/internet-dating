@@ -6,7 +6,12 @@ export function useRate(userId: Id) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function submit(body: { attractive: number; smart: number; funny: number; interesting: number }) {
+  async function submit(body: {
+    attractive: number
+    smart: number
+    funny: number
+    interesting: number
+  }) {
     setLoading(true)
     setError(null)
     try {

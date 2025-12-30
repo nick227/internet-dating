@@ -26,34 +26,40 @@ export function useAutosaveField({ value, onSave, debounceMs = 900 }: Options) {
     skipRef.current = true
   }, [value])
 
-  const runSave = useCallback(async (nextValue: string) => {
-    const seq = ++saveSeq.current
-    setStatus('saving')
-    setError(null)
-    try {
-      await onSave(nextValue)
-      if (saveSeq.current !== seq) return
-      lastSaved.current = nextValue
-      setStatus('saved')
-    } catch (err) {
-      if (saveSeq.current !== seq) return
-      const message = err instanceof Error ? err.message : 'Failed to save'
-      setError(message)
-      setStatus('error')
-    }
-  }, [onSave])
+  const runSave = useCallback(
+    async (nextValue: string) => {
+      const seq = ++saveSeq.current
+      setStatus('saving')
+      setError(null)
+      try {
+        await onSave(nextValue)
+        if (saveSeq.current !== seq) return
+        lastSaved.current = nextValue
+        setStatus('saved')
+      } catch (err) {
+        if (saveSeq.current !== seq) return
+        const message = err instanceof Error ? err.message : 'Failed to save'
+        setError(message)
+        setStatus('error')
+      }
+    },
+    [onSave]
+  )
 
-  const scheduleSave = useCallback((nextValue: string, immediate = false) => {
-    if (timeoutRef.current != null) {
-      window.clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
-    }
-    if (immediate) {
-      runSave(nextValue)
-      return
-    }
-    timeoutRef.current = window.setTimeout(() => runSave(nextValue), debounceMs)
-  }, [debounceMs, runSave])
+  const scheduleSave = useCallback(
+    (nextValue: string, immediate = false) => {
+      if (timeoutRef.current != null) {
+        window.clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      if (immediate) {
+        runSave(nextValue)
+        return
+      }
+      timeoutRef.current = window.setTimeout(() => runSave(nextValue), debounceMs)
+    },
+    [debounceMs, runSave]
+  )
 
   useEffect(() => {
     if (skipRef.current) {

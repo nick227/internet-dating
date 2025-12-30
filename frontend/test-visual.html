@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visual Test - CSS & Colors</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #2a2a2a;
+      border-radius: 8px;
+    }
+    .color-box {
+      width: 100px;
+      height: 100px;
+      border-radius: 8px;
+      margin: 10px;
+      display: inline-block;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    .pass { border-left: 4px solid #22c55e; }
+    .fail { border-left: 4px solid #fb7185; }
+    button { padding: 10px 20px; margin: 10px 5px; background: #a855f7; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    pre { background: #0a0a0a; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>🎨 Visual Test - CSS & Colors</h1>
+  <p>This page tests if critical CSS and colors are loading correctly.</p>
+  
+  <button onclick="runTests()">Run Tests</button>
+  <button onclick="checkMainApp()">Check Main App</button>
+  
+  <div id="results"></div>
+  
+  <script>
+    function runTests() {
+      const results = []
+      const resultsDiv = document.getElementById('results')
+      
+      // Test 1: Critical CSS
+      const criticalCss = document.getElementById('critical-css')
+      const cssLoaded = !!criticalCss?.textContent
+      results.push({
+        name: 'Critical CSS Loaded',
+        pass: cssLoaded,
+        detail: cssLoaded ? 'Found style#critical-css in <head>' : 'Missing style#critical-css',
+        code: cssLoaded ? criticalCss.textContent.substring(0, 200) + '...' : 'N/A'
+      })
+      
+      // Test 2: CSS Variables
+      const root = document.documentElement
+      const vars = {
+        '--bg': getComputedStyle(root).getPropertyValue('--bg').trim(),
+        '--text': getComputedStyle(root).getPropertyValue('--text').trim(),
+        '--panel': getComputedStyle(root).getPropertyValue('--panel').trim(),
+        '--accent': getComputedStyle(root).getPropertyValue('--accent').trim(),
+      }
+      const varsLoaded = Object.values(vars).every(v => v)
+      results.push({
+        name: 'CSS Variables Loaded',
+        pass: varsLoaded,
+        detail: varsLoaded ? 'All variables defined' : 'Some variables missing',
+        code: JSON.stringify(vars, null, 2)
+      })
+      
+      // Test 3: Background Color
+      const bodyBg = getComputedStyle(document.body).backgroundColor
+      const isDark = bodyBg.includes('7, 7, 10') || bodyBg === 'rgb(7, 7, 10)'
+      results.push({
+        name: 'Background Color',
+        pass: isDark,
+        detail: `Body background: ${bodyBg}`,
+        code: `Expected: rgb(7, 7, 10) or rgba(7, 7, 10, ...)\nReceived: ${bodyBg}`
+      })
+      
+      // Test 4: Text Color
+      const textColor = getComputedStyle(document.body).color
+      const isLight = textColor.includes('255, 255, 255')
+      results.push({
+        name: 'Text Color',
+        pass: isLight,
+        detail: `Body text color: ${textColor}`,
+        code: `Expected: rgba(255, 255, 255, ...)\nReceived: ${textColor}`
+      })
+      
+      // Render Results
+      let html = '<h2>Test Results</h2>'
+      results.forEach(result => {
+        html += `
+          <div class="test-section ${result.pass ? 'pass' : 'fail'}">
+            <h3>${result.pass ? '✅' : '❌'} ${result.name}</h3>
+            <p>${result.detail}</p>
+            <pre>${result.code}</pre>
+          </div>
+        `
+      })
+      
+      // Color Preview
+      html += '<div class="test-section"><h3>Color Preview</h3>'
+      Object.entries(vars).forEach(([name, value]) => {
+        if (value) {
+          html += `
+            <div style="display: inline-block; margin: 10px; text-align: center;">
+              <div class="color-box" style="background: ${value};"></div>
+              <div style="font-size: 12px; margin-top: 5px;">${name}<br>${value}</div>
+            </div>
+          `
+        }
+      })
+      html += '</div>'
+      
+      resultsDiv.innerHTML = html
+    }
+    
+    function checkMainApp() {
+      // Open main app in new window and run tests
+      const win = window.open('http://localhost:5173', '_blank')
+      setTimeout(() => {
+        if (win) {
+          win.addEventListener('load', () => {
+            setTimeout(() => {
+              const script = win.document.createElement('script')
+              script.textContent = `
+                console.log('🧪 Running tests on main app...')
+                const criticalCss = document.getElementById('critical-css')
+                console.log('Critical CSS:', criticalCss ? '✅' : '❌')
+                const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg')
+                console.log('CSS Variable --bg:', bg || '❌ Missing')
+                const bodyBg = getComputedStyle(document.body).backgroundColor
+                console.log('Body background:', bodyBg)
+                const cards = document.querySelectorAll('.riverCard')
+                console.log('Cards:', cards.length > 0 ? \`✅ \${cards.length} cards\` : '❌ No cards')
+              `
+              win.document.head.appendChild(script)
+            }, 2000)
+          })
+        }
+      }, 1000)
+    }
+    
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      setTimeout(runTests, 500)
+    })
+  </script>
+</body>
+</html>

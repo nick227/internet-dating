@@ -1,25 +1,30 @@
 import { ReactNode } from 'react'
+import { Avatar } from '../ui/Avatar'
 
 type TopBarProps = {
   title: string
   displayName?: string | null
+  avatarUrl?: string | null
   isLoggedIn: boolean
   loading?: boolean
   onHome: () => void
   onLogin: () => void
   onSignup: () => void
   onLogout: () => void
+  onUserClick?: () => void
 }
 
 export function TopBar({
   title,
   displayName,
+  avatarUrl,
   isLoggedIn,
   loading,
   onHome,
   onLogin,
   onSignup,
-  onLogout
+  onLogout,
+  onUserClick,
 }: TopBarProps) {
   let actions: ReactNode
   if (loading) {
@@ -27,7 +32,14 @@ export function TopBar({
   } else if (isLoggedIn) {
     actions = (
       <>
-        <span className="topBar__user">{displayName ?? 'Account'}</span>
+        <button
+          type="button"
+          className="topBar__userAvatar"
+          onClick={onUserClick}
+          aria-label="Account settings"
+        >
+          <Avatar name={displayName ?? 'Account'} size="sm" src={avatarUrl ?? null} />
+        </button>
         <button type="button" className="topBar__link" onClick={onLogout}>
           Logout
         </button>

@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useInbox } from '../../core/messaging/useInbox'
 import { Avatar } from '../ui/Avatar'
@@ -6,7 +5,7 @@ import { Avatar } from '../ui/Avatar'
 export function InboxPage() {
   const nav = useNavigate()
   const { data, loading, error, refresh } = useInbox()
-  const conversations = useMemo(() => data?.conversations ?? [], [data?.conversations])
+  const conversations = data?.conversations ?? []
 
   return (
     <div className="inbox u-hide-scroll">
@@ -18,14 +17,14 @@ export function InboxPage() {
           </button>
         </div>
 
-        {loading && (
-          <div className="u-muted u-mt-4">Loading conversations...</div>
-        )}
+        {loading && <div className="u-muted u-mt-4">Loading conversations...</div>}
 
-        {error && (
+        {Boolean(error) && (
           <div className="u-glass u-pad-4 u-mt-4" style={{ borderRadius: 'var(--r-4)' }}>
             <div style={{ fontSize: 'var(--fs-3)' }}>Inbox error</div>
-            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>{String(error)}</div>
+            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>
+              {String(error)}
+            </div>
           </div>
         )}
 
@@ -39,7 +38,7 @@ export function InboxPage() {
         )}
 
         <div className="inbox__list u-mt-4">
-          {conversations.map((c) => {
+          {conversations.map(c => {
             const name = c.otherUser.profile?.displayName ?? `User ${c.otherUser.id}`
             const lastBody = c.lastMessage?.body ?? 'Say hello'
             const timestamp = c.lastMessage?.createdAt ?? c.updatedAt

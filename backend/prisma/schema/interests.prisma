@@ -1,0 +1,61 @@
+model InterestSubject {
+  id        BigInt   @id @default(autoincrement())
+  key       String   @unique
+  label     String
+  createdAt DateTime @default(now())
+  interests Interest[]
+  userLinks UserInterest[]
+}
+
+model Interest {
+  id        BigInt   @id @default(autoincrement())
+  subjectId BigInt
+  key       String
+  label     String
+  createdAt DateTime @default(now())
+  subject   InterestSubject @relation(fields: [subjectId], references: [id])
+  userLinks UserInterest[]
+  @@unique([subjectId, key])
+  @@index([subjectId, key])
+}
+
+model UserInterest {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt
+  subjectId  BigInt
+  interestId BigInt
+  createdAt  DateTime @default(now())
+  user       User            @relation(fields: [userId], references: [id])
+  subject    InterestSubject @relation(fields: [subjectId], references: [id])
+  interest   Interest        @relation(fields: [interestId], references: [id])
+  @@unique([userId, subjectId, interestId])
+  @@index([userId, createdAt])
+  @@index([subjectId, interestId])
+}
+
+model MatchScore {
+  userId          BigInt
+  candidateUserId BigInt
+  score           Float
+  algorithmVersion String?
+  scoreQuiz       Float?
+  scoreInterests  Float?
+  scoreRatingsQuality Float?
+  scoreRatingsFit Float?
+  scoreNew        Float?
+  scoreNearby     Float?
+  ratingAttractive Float?
+  ratingSmart      Float?
+  ratingFunny      Float?
+  ratingInteresting Float?
+  distanceKm      Float?
+  reasons         Json?
+  scoredAt        DateTime @default(now())  // When score was computed (for freshness contract)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User @relation("MatchScoreUser", fields: [userId], references: [id])
+  candidate       User @relation("MatchScoreCandidate", fields: [candidateUserId], references: [id])
+  @@id([userId, candidateUserId])
+  @@index([userId, score])
+  @@index([userId, scoredAt])
+}

@@ -1,23 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
-import { useCurrentUser } from '../../core/auth/useCurrentUser'
+import { useAuth } from '../../core/auth/useAuth'
 import { useActiveQuiz } from '../../core/quiz/useActiveQuiz'
+import { getErrorMessage } from '../../core/utils/errors'
 import { InlineField } from '../form/InlineField'
 import { InlineTextarea } from '../form/InlineTextarea'
 
 type AnswerMap = Record<string, string>
 
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (typeof error === 'string') return error
-  if (error instanceof Error && error.message) return error.message
-  return fallback
-}
-
 export function QuizPage() {
   const nav = useNavigate()
   const location = useLocation()
-  const { userId } = useCurrentUser()
+  const { userId } = useAuth()
   const { data, loading, error } = useActiveQuiz()
   const quiz = data?.quiz ?? null
   const errorMessage = error == null ? null : getErrorMessage(error, 'Failed to load quiz.')
@@ -49,7 +44,7 @@ export function QuizPage() {
 
   function handleSelect(value: string) {
     if (!current) return
-    setAnswers((prev) => ({ ...prev, [String(current.id)]: value }))
+    setAnswers(prev => ({ ...prev, [String(current.id)]: value }))
   }
 
   async function handleSubmit() {
@@ -78,7 +73,9 @@ export function QuizPage() {
         {errorMessage && (
           <div className="u-glass u-pad-4 u-mt-4" style={{ borderRadius: 'var(--r-4)' }}>
             <div style={{ fontSize: 'var(--fs-3)' }}>Quiz error</div>
-            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>{errorMessage}</div>
+            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>
+              {errorMessage}
+            </div>
           </div>
         )}
         {!loading && !errorMessage && !quiz && (
@@ -104,7 +101,7 @@ export function QuizPage() {
                 <button
                   className={`topBar__btn${editMode ? ' topBar__btn--primary' : ''}`}
                   type="button"
-                  onClick={() => setEditMode((value) => !value)}
+                  onClick={() => setEditMode(value => !value)}
                 >
                   {editMode ? 'Editing' : 'Edit'}
                 </button>
@@ -115,10 +112,10 @@ export function QuizPage() {
                 <InlineField
                   label="Quiz title"
                   value={activeQuiz.title}
-                  onSave={async (value) => {
+                  onSave={async value => {
                     if (!value) return
                     const res = await api.quizzes.update(activeQuiz.id, { title: value })
-                    setQuizDraft((prev) => (prev ? { ...prev, title: res.title } : prev))
+                    setQuizDraft(prev => (prev ? { ...prev, title: res.title } : prev))
                   }}
                 />
                 <InlineTextarea
@@ -126,16 +123,18 @@ export function QuizPage() {
                   value={current.prompt}
                   placeholder="Question prompt"
                   maxLength={220}
-                  onSave={async (value) => {
+                  onSave={async value => {
                     if (!value) return
-                    const res = await api.quizzes.updateQuestion(activeQuiz.id, current.id, { prompt: value })
-                    setQuizDraft((prev) =>
+                    const res = await api.quizzes.updateQuestion(activeQuiz.id, current.id, {
+                      prompt: value,
+                    })
+                    setQuizDraft(prev =>
                       prev
                         ? {
                             ...prev,
-                            questions: prev.questions.map((q) =>
+                            questions: prev.questions.map(q =>
                               String(q.id) === String(current.id) ? { ...q, prompt: res.prompt } : q
-                            )
+                            ),
                           }
                         : prev
                     )
@@ -147,25 +146,30 @@ export function QuizPage() {
                       key={String(opt.id)}
                       label={`Option ${idx + 1}`}
                       value={opt.label}
-                      onSave={async (value) => {
+                      onSave={async value => {
                         if (!value) return
-                        const res = await api.quizzes.updateOption(activeQuiz.id, current.id, opt.id, { label: value })
-                        setQuizDraft((prev) =>
+                        const res = await api.quizzes.updateOption(
+                          activeQuiz.id,
+                          current.id,
+                          opt.id,
+                          { label: value }
+                        )
+                        setQuizDraft(prev =>
                           prev
                             ? {
                                 ...prev,
-                                questions: prev.questions.map((q) =>
+                                questions: prev.questions.map(q =>
                                   String(q.id) === String(current.id)
                                     ? {
                                         ...q,
-                                        options: q.options.map((o) =>
+                                        options: q.options.map(o =>
                                           String(o.id) === String(opt.id)
                                             ? { ...o, label: res.label }
                                             : o
-                                        )
+                                        ),
                                       }
                                     : q
-                                )
+                                ),
                               }
                             : prev
                         )
@@ -178,7 +182,7 @@ export function QuizPage() {
               <>
                 <div className="quiz__prompt">{current.prompt}</div>
                 <div className="quiz__options">
-                  {current.options.map((opt) => {
+                  {current.options.map(opt => {
                     const active = selected === opt.value
                     return (
                       <button
@@ -203,7 +207,7 @@ export function QuizPage() {
                 <button
                   className="actionBtn"
                   type="button"
-                  onClick={() => setStep((s) => Math.max(0, s - 1))}
+                  onClick={() => setStep(s => Math.max(0, s - 1))}
                   disabled={step === 0}
                 >
                   Back
@@ -212,7 +216,7 @@ export function QuizPage() {
                   <button
                     className="actionBtn actionBtn--like"
                     type="button"
-                    onClick={() => setStep((s) => Math.min(questions.length - 1, s + 1))}
+                    onClick={() => setStep(s => Math.min(questions.length - 1, s + 1))}
                     disabled={!editMode && !selected}
                   >
                     Next
@@ -233,9 +237,7 @@ export function QuizPage() {
           </div>
         )}
 
-        {message && (
-          <div className="u-muted u-mt-4">{message}</div>
-        )}
+        {message && <div className="u-muted u-mt-4">{message}</div>}
       </div>
     </div>
   )

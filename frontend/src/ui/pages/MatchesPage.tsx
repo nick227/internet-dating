@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCurrentUser } from '../../core/auth/useCurrentUser'
+import { useAuth } from '../../core/auth/useAuth'
 import { useMatches } from '../../core/matches/useMatches'
 import { prettyIntent } from '../../core/format/prettyIntent'
 import { Avatar } from '../ui/Avatar'
 
 export function MatchesPage() {
   const nav = useNavigate()
-  const { userId } = useCurrentUser()
+  const { userId } = useAuth()
   const { data, loading, error, refresh } = useMatches()
   const matches = useMemo(() => data?.matches ?? [], [data?.matches])
 
@@ -23,10 +23,12 @@ export function MatchesPage() {
 
         {loading && <div className="u-muted u-mt-4">Loading matches...</div>}
 
-        {error && (
+        {Boolean(error) && (
           <div className="u-glass u-pad-4 u-mt-4" style={{ borderRadius: 'var(--r-4)' }}>
             <div style={{ fontSize: 'var(--fs-3)' }}>Match error</div>
-            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>{String(error)}</div>
+            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>
+              {String(error)}
+            </div>
           </div>
         )}
 
@@ -40,7 +42,7 @@ export function MatchesPage() {
         )}
 
         <div className="matches__list u-mt-4">
-          {matches.map((match) => {
+          {matches.map(match => {
             const isA = String(match.userAId) === String(userId ?? '')
             const other = isA ? match.userB : match.userA
             const name = other.profile?.displayName ?? `User ${other.id}`

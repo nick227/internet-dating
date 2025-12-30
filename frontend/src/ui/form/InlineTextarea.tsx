@@ -22,15 +22,15 @@ export function InlineTextarea({
   debounceMs,
   maxLength,
   onSave,
-  onDetectMedia
+  onDetectMedia,
 }: Props) {
   const normalized = useMemo(() => value ?? '', [value])
   const { draft, setDraft, status, error, flush } = useAutosaveField({
     value: normalized,
     debounceMs,
-    onSave: async (nextValue) => {
+    onSave: async nextValue => {
       await onSave(nextValue.length ? nextValue : null)
-    }
+    },
   })
 
   return (

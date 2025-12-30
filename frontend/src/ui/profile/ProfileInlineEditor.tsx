@@ -1,4 +1,5 @@
 import type { Id, ProfileResponse, DatingIntent, Gender } from '../../api/types'
+// eslint-disable-next-line no-restricted-imports
 import type { ApiProfilePatchBody } from '../../api/contracts'
 import { api } from '../../api/client'
 import { InlineField } from '../form/InlineField'
@@ -10,7 +11,7 @@ const intentOptions: { value: DatingIntent; label: string }[] = [
   { value: 'FRIENDS', label: 'Friends' },
   { value: 'CASUAL', label: 'Casual' },
   { value: 'LONG_TERM', label: 'Long term' },
-  { value: 'MARRIAGE', label: 'Marriage' }
+  { value: 'MARRIAGE', label: 'Marriage' },
 ]
 
 const genderOptions: { value: Gender; label: string }[] = [
@@ -18,12 +19,12 @@ const genderOptions: { value: Gender; label: string }[] = [
   { value: 'MALE', label: 'Male' },
   { value: 'FEMALE', label: 'Female' },
   { value: 'NONBINARY', label: 'Nonbinary' },
-  { value: 'OTHER', label: 'Other' }
+  { value: 'OTHER', label: 'Other' },
 ]
 
 const visibilityOptions = [
   { value: 'visible', label: 'Visible' },
-  { value: 'hidden', label: 'Hidden' }
+  { value: 'hidden', label: 'Hidden' },
 ]
 
 type Props = {
@@ -40,13 +41,13 @@ export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props)
   return (
     <div className="u-glass profile__card">
       <div className="u-stack">
-        <div style={{ fontSize: 'var(--fs-4)', fontWeight: 650 }}>Edit profile</div>
+        <div className="profile__sectionTitle">Edit profile</div>
 
         <InlineField
           label="Display name"
           value={profile.name}
           placeholder="Name"
-          onSave={async (value) => {
+          onSave={async value => {
             await savePatch({ displayName: value })
             onProfileChange({ name: value ?? '' })
           }}
@@ -58,7 +59,7 @@ export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props)
           placeholder="Share a few lines about you"
           maxLength={240}
           helper="Keep it short and specific."
-          onSave={async (value) => {
+          onSave={async value => {
             await savePatch({ bio: value })
             onProfileChange({ bio: value ?? undefined })
           }}
@@ -69,7 +70,7 @@ export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props)
             label="Location"
             value={profile.locationText ?? ''}
             placeholder="City, State"
-            onSave={async (value) => {
+            onSave={async value => {
               await savePatch({ locationText: value })
               onProfileChange({ locationText: value ?? undefined })
             }}
@@ -78,7 +79,7 @@ export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props)
             label="Birthdate"
             value={toInputDate(profile.birthdate) ?? ''}
             type="date"
-            onSave={async (value) => {
+            onSave={async value => {
               const next = value && value.length ? value : null
               await savePatch({ birthdate: next })
               onProfileChange({ birthdate: next ?? undefined })
@@ -90,9 +91,10 @@ export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props)
           label="Intent"
           value={profile.intent ?? 'UNSPECIFIED'}
           options={intentOptions}
-          onSave={async (value) => {
-            await savePatch({ intent: value })
-            onProfileChange({ intent: value ?? 'UNSPECIFIED' })
+          onSave={async value => {
+            const intentValue: DatingIntent = value ?? 'UNSPECIFIED'
+            await savePatch({ intent: intentValue })
+            onProfileChange({ intent: intentValue })
           }}
         />
 
@@ -100,9 +102,10 @@ export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props)
           label="Gender"
           value={profile.gender ?? 'UNSPECIFIED'}
           options={genderOptions}
-          onSave={async (value) => {
-            await savePatch({ gender: value })
-            onProfileChange({ gender: value ?? 'UNSPECIFIED' })
+          onSave={async value => {
+            const genderValue: Gender = value ?? 'UNSPECIFIED'
+            await savePatch({ gender: genderValue })
+            onProfileChange({ gender: genderValue })
           }}
         />
 
@@ -110,7 +113,7 @@ export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props)
           label="Visibility"
           value={profile.isVisible === false ? 'hidden' : 'visible'}
           options={visibilityOptions}
-          onSave={async (value) => {
+          onSave={async value => {
             const isVisible = value !== 'hidden'
             await savePatch({ isVisible })
             onProfileChange({ isVisible })

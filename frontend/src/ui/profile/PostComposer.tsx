@@ -27,15 +27,15 @@ export function PostComposer({ onPosted }: Props) {
     setError(null)
     setMessage(null)
     try {
-      const mediaIds: Array<string | number> = []
+      const mediaIds: string[] = []
       for (const file of files) {
         const upload = await api.media.upload(file)
-        mediaIds.push(upload.mediaId)
+        mediaIds.push(String(upload.mediaId))
       }
       await api.posts.create({
         text: body ? body : null,
         visibility: 'PUBLIC',
-        mediaIds: mediaIds.length ? mediaIds : undefined
+        mediaIds: mediaIds.length ? mediaIds : undefined,
       })
       setText('')
       setFiles([])
@@ -53,7 +53,7 @@ export function PostComposer({ onPosted }: Props) {
   return (
     <div className="u-glass profile__card">
       <div className="u-stack">
-        <div style={{ fontSize: 'var(--fs-4)', fontWeight: 650 }}>New post</div>
+        <div className="profile__sectionTitle">New post</div>
         <SmartTextarea
           value={text}
           onChange={setText}
@@ -62,8 +62,8 @@ export function PostComposer({ onPosted }: Props) {
           onDetectMedia={setDetected}
           replaceOnDetect={false}
         />
-        <div className="u-row-between" style={{ gap: 12, flexWrap: 'wrap' }}>
-          <div className="u-row" style={{ gap: 10, flexWrap: 'wrap' }}>
+        <div className="u-row-between u-gap-3 u-wrap">
+          <div className="u-row u-gap-3 u-wrap">
             <button
               className="topBar__btn"
               type="button"
@@ -82,13 +82,14 @@ export function PostComposer({ onPosted }: Props) {
                 Clear ({files.length})
               </button>
             )}
-            <span className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>
-              {files.length > 0 ? `${files.length} file${files.length > 1 ? 's' : ''} selected` : 'No media selected'}
+            <span className="profile__meta">
+              {files.length > 0
+                ? `${files.length} file${files.length > 1 ? 's' : ''} selected`
+                : 'No media selected'}
             </span>
           </div>
           <button
-            className="actionBtn actionBtn--like"
-            style={{ flex: 'unset', height: 44, padding: '0 16px' }}
+            className="actionBtn actionBtn--like profile__composerButton"
             type="button"
             onClick={handleSubmit}
             disabled={busy}
@@ -102,30 +103,20 @@ export function PostComposer({ onPosted }: Props) {
           type="file"
           accept={ACCEPTED_TYPES}
           multiple
-          onChange={(event) => {
+          onChange={event => {
             const list = Array.from(event.currentTarget.files ?? [])
             event.currentTarget.value = ''
             if (list.length) setFiles(list)
           }}
         />
-        <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>
-          Uploads each photo before publishing the post.
-        </div>
+        <div className="profile__meta">Uploads each photo before publishing the post.</div>
         {detected.length > 0 && (
-          <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>
+          <div className="profile__meta">
             Detected {detected.length} link{detected.length > 1 ? 's' : ''}. Embeds coming soon.
           </div>
         )}
-        {error && (
-          <div style={{ color: 'rgba(251,113,133,.9)', fontSize: 'var(--fs-2)' }}>
-            {error}
-          </div>
-        )}
-        {message && (
-          <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>
-            {message}
-          </div>
-        )}
+        {error && <div className="profile__error">{error}</div>}
+        {message && <div className="profile__meta">{message}</div>}
       </div>
     </div>
   )

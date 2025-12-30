@@ -1,0 +1,15 @@
+model FeedSeen {
+  id           BigInt       @id @default(autoincrement())
+  viewerUserId BigInt
+  itemType     FeedItemType
+  itemId       BigInt
+  seenAt       DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  viewer User @relation(fields: [viewerUserId], references: [id])
+
+  @@unique([viewerUserId, itemType, itemId])
+  @@index([viewerUserId, seenAt])
+  @@index([itemType, itemId])
+}

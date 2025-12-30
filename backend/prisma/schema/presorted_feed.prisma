@@ -1,0 +1,17 @@
+model PresortedFeedSegment {
+  id               BigInt   @id @default(autoincrement())
+  userId           BigInt
+  segmentIndex     Int      // 0, 1, 2 (first 20, next 20, next 20)
+  items            Json     // Array of precomputed feed items
+  phase1Json       String?  @db.Text // Pre-serialized Phase-1 JSON (minimal fields)
+  computedAt       DateTime @default(now())
+  algorithmVersion String   @default("v1")
+  expiresAt        DateTime
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, segmentIndex])
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@map("PresortedFeedSegment")
+}

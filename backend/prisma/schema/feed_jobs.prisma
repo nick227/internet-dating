@@ -1,0 +1,46 @@
+model PostFeatures {
+  id         BigInt  @id @default(autoincrement())
+  postId     BigInt  @unique
+  post       Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  topics     Json?
+  quality    Float?
+  nsfw       Boolean @default(false)
+  computedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([quality])
+  @@index([nsfw])
+  @@index([computedAt])
+}
+
+model TrendingScore {
+  id         BigInt  @id @default(autoincrement())
+  postId     BigInt  @unique
+  post       Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  popularity Float   @default(0)
+  velocity   Float   @default(0)
+  peakTime   DateTime?
+  computedAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([popularity])
+  @@index([velocity])
+  @@index([expiresAt])
+  @@index([computedAt])
+}
+
+model UserAffinityProfile {
+  id                 BigInt  @id @default(autoincrement())
+  userId             BigInt  @unique
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topCreators        Json?
+  topTopics          Json?
+  contentTypePrefs   Json?
+  engagementVelocity Float   @default(0)
+  explorationFactor  Float   @default(0.5)
+  computedAt         DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+  @@index([computedAt])
+}

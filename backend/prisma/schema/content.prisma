@@ -9,8 +9,10 @@ model Post {
   deletedAt   DateTime?
   media       PostMedia[]
   likes       LikedPost[]
-  @@index([visibility, createdAt])
-  @@index([userId, createdAt])
+  features    PostFeatures?
+  trending    TrendingScore?
+  @@index([visibility, deletedAt, createdAt])
+  @@index([userId, deletedAt, createdAt])
   @@index([deletedAt])
 }
 
@@ -38,8 +40,8 @@ model Media {
   avatarProfiles Profile[] @relation("ProfileAvatar")
   heroProfiles   Profile[] @relation("ProfileHero")
   postLinks   PostMedia[]
-  @@index([userId, createdAt])
-  @@index([ownerUserId, createdAt])
+  @@index([userId, deletedAt, createdAt])
+  @@index([ownerUserId, deletedAt, createdAt])
   @@index([deletedAt])
 }
 

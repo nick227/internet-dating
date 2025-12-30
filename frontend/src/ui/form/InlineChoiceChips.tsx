@@ -12,7 +12,13 @@ type Props<T extends string> = {
   onSave: (value: T | null) => Promise<void>
 }
 
-export function InlineChoiceChips<T extends string>({ label, value, options, helper, onSave }: Props<T>) {
+export function InlineChoiceChips<T extends string>({
+  label,
+  value,
+  options,
+  helper,
+  onSave,
+}: Props<T>) {
   const [current, setCurrent] = useState<T | ''>(value ?? '')
   const [status, setStatus] = useState<AutosaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -47,7 +53,7 @@ export function InlineChoiceChips<T extends string>({ label, value, options, hel
         <InlineStatus status={status} error={error} />
       </div>
       <div className="inlineChips">
-        {options.map((option) => (
+        {options.map(option => (
           <button
             key={option.value}
             type="button"

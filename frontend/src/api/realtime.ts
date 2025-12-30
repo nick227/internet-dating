@@ -1,4 +1,9 @@
-import type { ServerEventType, WsEvents, WsMessage, WsSubscribeTopic } from '@app/shared/ws/contracts'
+import type {
+  ServerEventType,
+  WsEvents,
+  WsMessage,
+  WsSubscribeTopic,
+} from '@app/shared/ws/contracts'
 import { API_BASE_URL } from '../config/env'
 import { createWsClient } from './wsClient'
 
@@ -12,11 +17,12 @@ export const realtime = {
   disconnect: () => client.disconnect(),
   send: client.send,
   subscribe: (topics: WsSubscribeTopic[]) => client.subscribe(topics),
-  on: <T extends ServerEventType>(type: T, handler: RealtimeHandler<T>) => client.on(type, handler)
+  on: <T extends ServerEventType>(type: T, handler: RealtimeHandler<T>) => client.on(type, handler),
 }
 
 function buildWsUrl(apiBaseUrl: string) {
-  const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'
+  const fallbackOrigin =
+    typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'
   let url: URL
   try {
     url = new URL(apiBaseUrl, fallbackOrigin)

@@ -1,0 +1,19 @@
+model UserCompatibility {
+  viewerUserId BigInt
+  targetUserId BigInt
+  status       CompatibilityStatus @default(INSUFFICIENT_DATA)
+  score        Float?
+  algorithmVersion String?
+  reasons      Json?
+  computedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  viewer User @relation("CompatibilityViewer", fields: [viewerUserId], references: [id])
+  target User @relation("CompatibilityTarget", fields: [targetUserId], references: [id])
+
+  @@id([viewerUserId, targetUserId])
+  @@index([viewerUserId, score])
+  @@index([viewerUserId, computedAt])
+  @@index([targetUserId, score])
+}

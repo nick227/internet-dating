@@ -3,6 +3,7 @@ import { Readable } from 'stream';
 import imageSize from 'image-size';
 import type { Express } from 'express';
 import { prisma } from '../../lib/prisma/client.js';
+import { hasProfileAccess } from '../access/profileAccessService.js';
 import { LocalStorageProvider } from './localStorageProvider.js';
 import { MEDIA_UPLOAD_ROOT } from './config.js';
 import { buildMediaUrls } from './urlBuilder.js';
@@ -130,7 +131,8 @@ export const mediaService = {
     });
     if (!media) throw new MediaError('Media not found', 404);
     if (media.visibility === 'PRIVATE' && media.ownerUserId !== viewerId) {
-      throw new MediaError('Forbidden', 403);
+      const allowed = await hasProfileAccess(media.ownerUserId, viewerId ?? null);
+      if (!allowed) throw new MediaError('Forbidden', 403);
     }
 
     const urls = buildMediaUrls(media);
@@ -159,7 +161,8 @@ export const mediaService = {
     });
     if (!media || !media.storageKey) throw new MediaError('Media not found', 404);
     if (media.visibility === 'PRIVATE' && media.ownerUserId !== viewerId) {
-      throw new MediaError('Forbidden', 403);
+      const allowed = await hasProfileAccess(media.ownerUserId, viewerId ?? null);
+      if (!allowed) throw new MediaError('Forbidden', 403);
     }
     if (media.status !== 'READY') {
       throw new MediaError('Media not ready', 409);

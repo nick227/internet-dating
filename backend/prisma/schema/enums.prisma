@@ -49,3 +49,32 @@ enum ReportReason {
      HATE 
      OTHER 
 }
+
+enum ProfileAccessStatus {
+     PENDING
+     GRANTED
+     DENIED
+     REVOKED
+}
+
+enum JobRunStatus {
+     RUNNING
+     SUCCESS
+     FAILED
+}
+
+enum JobTrigger {
+     CRON
+     EVENT
+     MANUAL
+}
+
+enum CompatibilityStatus {
+     READY
+     INSUFFICIENT_DATA
+}
+
+enum FeedItemType {
+     POST
+     SUGGESTION
+}

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { MessageHelpers } from './MessageHelpers'
 
 export type DetectedMedia = {
   kind: 'youtube' | 'image'
@@ -14,6 +15,10 @@ type Props = {
   onDetectMedia?: (items: DetectedMedia[]) => void
   replaceOnDetect?: boolean
   onBlur?: () => void
+  messageSuggestions?: string[]
+  onSuggestionSelect?: (message: string) => void
+  onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
+  className?: string
 }
 
 const URL_REGEX = /\bhttps?:\/\/[^\s]+/gi
@@ -26,10 +31,15 @@ export function SmartTextarea({
   maxLength,
   onDetectMedia,
   replaceOnDetect = false,
-  onBlur
+  onBlur,
+  messageSuggestions = [],
+  onSuggestionSelect,
+  onKeyDown,
+  className,
 }: Props) {
   const ref = useRef<HTMLDivElement | null>(null)
   const lastValue = useRef(value)
+  const [isFocused, setIsFocused] = useState(false)
 
   useEffect(() => {
     if (!ref.current) return
@@ -43,6 +53,7 @@ export function SmartTextarea({
 
   const emitChange = () => {
     const text = ref.current?.innerText ?? ''
+    if (text === lastValue.current) return
     lastValue.current = text
     onChange(text)
   }
@@ -51,12 +62,15 @@ export function SmartTextarea({
     const text = ref.current?.innerText ?? ''
     if (!text || !onDetectMedia) return
     const matches = text.match(URL_REGEX) ?? []
-    const detected = matches.map((url) => classifyUrl(url)).filter(Boolean) as DetectedMedia[]
+    const detected = matches.map(url => classifyUrl(url)).filter(Boolean) as DetectedMedia[]
     if (!detected.length) return
     onDetectMedia(detected)
     if (replaceOnDetect) {
-      const replaceSet = new Set(detected.map((item) => item.url))
-      const cleaned = text.replace(URL_REGEX, (url) => (replaceSet.has(url) ? '' : url)).replace(/\s{2,}/g, ' ').trim()
+      const replaceSet = new Set(detected.map(item => item.url))
+      const cleaned = text
+        .replace(URL_REGEX, url => (replaceSet.has(url) ? '' : url))
+        .replace(/\s{2,}/g, ' ')
+        .trim()
       if (cleaned !== text) {
         lastValue.current = cleaned
         if (ref.current) ref.current.innerText = cleaned
@@ -65,8 +79,51 @@ export function SmartTextarea({
     }
   }
 
+  const handleFocus = () => {
+    setIsFocused(true)
+  }
+
+  const handleBlur = () => {
+    setIsFocused(false)
+    emitChange()
+    detectMedia()
+    onBlur?.()
+  }
+
+  const handleSuggestionSelect = (message: string) => {
+    if (onSuggestionSelect) {
+      onSuggestionSelect(message)
+    } else {
+      onChange(message)
+      if (ref.current) {
+        ref.current.innerText = message
+        lastValue.current = message
+      }
+    }
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (maxLength != null) {
+      const text = ref.current?.innerText ?? ''
+      if (text.length >= maxLength && event.key.length === 1 && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault()
+        return
+      }
+    }
+    onKeyDown?.(event)
+  }
+
   return (
-    <div className={`smartTextarea${disabled ? ' smartTextarea--disabled' : ''}`}>
+    <div
+      className={`smartTextarea${disabled ? ' smartTextarea--disabled' : ''}${className ? ` ${className}` : ''}`}
+    >
+      {messageSuggestions.length > 0 && (
+        <MessageHelpers
+          suggestions={messageSuggestions}
+          onSelect={handleSuggestionSelect}
+          visible={isFocused && value.trim().length === 0}
+        />
+      )}
       <div
         ref={ref}
         className="smartTextarea__input"
@@ -78,23 +135,14 @@ export function SmartTextarea({
         spellCheck
         suppressContentEditableWarning
         onInput={emitChange}
-        onBlur={() => {
-          emitChange()
-          detectMedia()
-          onBlur?.()
-        }}
-        onPaste={(event) => {
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onPaste={event => {
           event.preventDefault()
           const text = event.clipboardData.getData('text/plain')
           document.execCommand('insertText', false, text)
         }}
-        onKeyDown={(event) => {
-          if (maxLength == null) return
-          const text = ref.current?.innerText ?? ''
-          if (text.length >= maxLength && event.key.length === 1 && !event.metaKey && !event.ctrlKey) {
-            event.preventDefault()
-          }
-        }}
+        onKeyDown={handleKeyDown}
       />
       {maxLength != null && (
         <div className="smartTextarea__counter">

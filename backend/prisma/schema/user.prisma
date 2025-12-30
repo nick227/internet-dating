@@ -33,6 +33,19 @@ model User {
 
   quizResults  QuizResult[]
 
+  interests   UserInterest[]
+  matchScores MatchScore[] @relation("MatchScoreUser")
+  matchScoresAsCandidate MatchScore[] @relation("MatchScoreCandidate")
+  compatibilityGiven UserCompatibility[] @relation("CompatibilityViewer")
+  compatibilityReceived UserCompatibility[] @relation("CompatibilityTarget")
+  feedSeen FeedSeen[]
+  preference  UserPreference?
+  affinityProfile UserAffinityProfile?
+
+  profileAccessGranted  ProfileAccess[] @relation("ProfileAccessOwner")
+  profileAccessReceived ProfileAccess[] @relation("ProfileAccessViewer")
+  presortedFeedSegments PresortedFeedSegment[]
+
   @@index([createdAt])
   @@index([deletedAt])
 }

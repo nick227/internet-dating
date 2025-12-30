@@ -262,10 +262,10 @@ async function main() {
   let messageId: string | null = null;
   let quizId: bigint | null = null;
   let quizCreated = false;
-  let swipesAttempted = false;
+  let likesAttempted = false;
 
   const supportsSavedPost = typeof (prisma as any).savedPost?.upsert === 'function';
-  const supportsSwipe = typeof (prisma as any).swipe?.upsert === 'function';
+  const supportsLike = typeof (prisma as any).like?.upsert === 'function';
 
   let dbOk = true;
   await runStep('db-connect', async () => {
@@ -390,25 +390,25 @@ async function main() {
       if (!res.ok || !res.json?.ok) throw new Error(`Unexpected response: ${res.status}`);
     }, dbOk && userAId && postId ? (supportsSavedPost ? undefined : 'prisma.savedPost missing (schema mismatch)') : 'db unavailable or missing data');
 
-    await runStep('swipe-a-like', async () => {
+    await runStep('like-a', async () => {
       if (!userAId || !userBId) throw new Error('missing users');
-      swipesAttempted = true;
-      const res = await apiRequest('POST', baseUrl, '/api/swipes', {
+      likesAttempted = true;
+      const res = await apiRequest('POST', baseUrl, '/api/likes', {
         cookieJar: cookieJarA,
         body: { toUserId: userBId, action: 'LIKE' }
       });
       if (!res.ok || !res.json?.ok) throw new Error(`Unexpected response: ${res.status}`);
-    }, dbOk && userAId && userBId ? (supportsSwipe ? undefined : 'prisma.swipe missing (schema mismatch)') : 'db unavailable or missing user');
+    }, dbOk && userAId && userBId ? (supportsLike ? undefined : 'prisma.like missing (schema mismatch)') : 'db unavailable or missing user');
 
-    await runStep('swipe-b-like', async () => {
+    await runStep('like-b', async () => {
       if (!userAId || !userBId) throw new Error('missing users');
-      swipesAttempted = true;
-      const res = await apiRequest('POST', baseUrl, '/api/swipes', {
+      likesAttempted = true;
+      const res = await apiRequest('POST', baseUrl, '/api/likes', {
         cookieJar: cookieJarB,
         body: { toUserId: userAId, action: 'LIKE' }
       });
       if (!res.ok || !res.json?.ok) throw new Error(`Unexpected response: ${res.status}`);
-    }, dbOk && userAId && userBId ? (supportsSwipe ? undefined : 'prisma.swipe missing (schema mismatch)') : 'db unavailable or missing user');
+    }, dbOk && userAId && userBId ? (supportsLike ? undefined : 'prisma.like missing (schema mismatch)') : 'db unavailable or missing user');
 
     await runStep('matches', async () => {
       if (!userAId) throw new Error('missing userAId');
@@ -417,7 +417,7 @@ async function main() {
       });
       if (!res.ok || !Array.isArray(res.json?.matches)) throw new Error(`Unexpected response: ${res.status}`);
       conversationId = res.json.matches[0]?.conversation?.id ?? null;
-      if (swipesAttempted && !conversationId) throw new Error('No conversation id');
+      if (likesAttempted && !conversationId) throw new Error('No conversation id');
     }, dbOk && userAId ? undefined : 'db unavailable or missing user');
 
     await runStep('inbox', async () => {

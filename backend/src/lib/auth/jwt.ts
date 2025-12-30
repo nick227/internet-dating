@@ -13,15 +13,17 @@ function env(name: string): string {
 }
 
 export function signAccessToken(payload: JwtPayload) {
+  const expiresIn = process.env.JWT_ACCESS_TTL ?? '15m';
   return jwt.sign(payload, env('JWT_ACCESS_SECRET'), {
-    expiresIn: process.env.JWT_ACCESS_TTL ?? '15m'
-  });
+    expiresIn
+  } as jwt.SignOptions);
 }
 
 export function signRefreshToken(payload: JwtPayload) {
+  const expiresIn = process.env.JWT_REFRESH_TTL ?? '30d';
   return jwt.sign(payload, env('JWT_REFRESH_SECRET'), {
-    expiresIn: process.env.JWT_REFRESH_TTL ?? '30d'
-  });
+    expiresIn
+  } as jwt.SignOptions);
 }
 
 export function verifyAccessToken(token: string): JwtPayload {

@@ -95,6 +95,9 @@ export interface paths {
         query?: {
           cursorId?: components["schemas"]["Id"];
           take?: number;
+          debug?: boolean;
+          seed?: number;
+          markSeen?: boolean;
         };
       };
       responses: {
@@ -126,6 +129,14 @@ export interface paths {
     };
   };
   "/api/posts/{postId}": {
+    /** Delete post */
+    delete: {
+      parameters: {
+        path: {
+          postId: components["schemas"]["Id"];
+        };
+      };
+    };
     /** Update post */
     patch: {
       parameters: {
@@ -144,6 +155,17 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["PostPatchResponse"];
           };
+        };
+      };
+    };
+  };
+  "/api/posts/{postId}/media/{mediaId}": {
+    /** Remove media from post */
+    delete: {
+      parameters: {
+        path: {
+          postId: components["schemas"]["Id"];
+          mediaId: components["schemas"]["Id"];
         };
       };
     };
@@ -205,6 +227,47 @@ export interface paths {
       };
     };
   };
+  "/api/profiles/{userId}/access-requests": {
+    /** Request access to private profile content */
+    post: {
+      parameters: {
+        path: {
+          userId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ProfileAccessResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/profiles/{userId}/access-grants": {
+    /** Grant access to private profile content */
+    post: {
+      parameters: {
+        path: {
+          userId: components["schemas"]["Id"];
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ProfileAccessGrantBody"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ProfileAccessResponse"];
+          };
+        };
+      };
+    };
+  };
   "/api/profiles/{userId}/rate": {
     /** Rate profile */
     post: {
@@ -228,8 +291,80 @@ export interface paths {
       };
     };
   };
-  "/api/swipes": {
-    /** Like / pass */
+  "/api/profiles/{userId}/followers": {
+    /** List followers (people following this profile) */
+    get: {
+      parameters: {
+        path: {
+          userId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["FollowersResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/profiles/{userId}/following": {
+    /** List following (people this profile follows) */
+    get: {
+      parameters: {
+        path: {
+          userId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["FollowingResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/profiles/access-requests/{requestId}/approve": {
+    /** Approve a follow request */
+    post: {
+      parameters: {
+        path: {
+          requestId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ProfileAccessResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/profiles/access-requests/{requestId}/deny": {
+    /** Deny a follow request */
+    post: {
+      parameters: {
+        path: {
+          requestId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ProfileAccessResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/likes": {
+    /** Like / dislike */
     post: {
       requestBody: {
         content: {
@@ -254,6 +389,26 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["MatchListResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/suggestions": {
+    /** List match suggestions */
+    get: {
+      parameters: {
+        query?: {
+          cursorId?: components["schemas"]["Id"];
+          take?: number;
+          type?: "overall" | "ratings" | "ratings.attractive" | "ratings.smart" | "ratings.funny" | "ratings.interesting" | "ratings.fit" | "interests" | "nearby" | "new";
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["SuggestionResponse"];
           };
         };
       };
@@ -519,6 +674,14 @@ export interface paths {
         };
       };
     };
+    /** Delete media */
+    delete: {
+      parameters: {
+        path: {
+          mediaId: components["schemas"]["Id"];
+        };
+      };
+    };
   };
 }
 
@@ -540,6 +703,7 @@ export interface components {
     AuthSignupBody: {
       email: string;
       password: string;
+      rememberMe?: boolean;
     };
     AuthSignupResponse: {
       userId: components["schemas"]["Id"];
@@ -548,6 +712,7 @@ export interface components {
     AuthLoginBody: {
       email: string;
       password: string;
+      rememberMe?: boolean;
     };
     AuthLoginResponse: {
       userId: components["schemas"]["Id"];
@@ -557,6 +722,8 @@ export interface components {
     };
     /** @enum {string} */
     Visibility: "PUBLIC" | "PRIVATE";
+    /** @enum {string} */
+    AccessStatus: "NONE" | "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
     /** @enum {string} */
     MediaType: "IMAGE" | "VIDEO";
     /** @enum {string} */
@@ -568,7 +735,9 @@ export interface components {
     /** @enum {string} */
     MatchState: "ACTIVE" | "BLOCKED" | "CLOSED";
     /** @enum {string} */
-    SwipeAction: "LIKE" | "PASS";
+    CompatibilityStatus: "READY" | "INSUFFICIENT_DATA";
+    /** @enum {string} */
+    SwipeAction: "LIKE" | "DISLIKE";
     /** @enum {string} */
     ReportReason: "SPAM" | "HARASSMENT" | "IMPERSONATION" | "NUDITY" | "HATE" | "OTHER";
     Media: {
@@ -613,6 +782,7 @@ export interface components {
       text?: string | null;
       /** Format: date-time */
       createdAt: string;
+      presentation?: components["schemas"]["FeedPresentation"] | null;
       user: {
         id: components["schemas"]["Id"];
         profile?: ({
@@ -621,17 +791,97 @@ export interface components {
       };
       media: components["schemas"]["PostMedia"][];
     };
+    FeedPresentation: {
+      /** @enum {string} */
+      mode: "single" | "mosaic" | "question" | "highlight";
+      /** @enum {string|null} */
+      accent?: "match" | "boost" | "new" | null;
+    };
     FeedSuggestion: {
       userId: components["schemas"]["Id"];
       displayName?: string | null;
       bio?: string | null;
       locationText?: string | null;
       intent?: string | null;
+      /** @enum {string|null} */
+      source?: "match" | "suggested" | null;
+      compatibility?: components["schemas"]["CompatibilitySummary"] | null;
+      presentation?: components["schemas"]["FeedPresentation"] | null;
+    };
+    FeedQuestionOption: {
+      id: components["schemas"]["Id"];
+      label: string;
+      value: string;
+    };
+    FeedQuestion: {
+      id: components["schemas"]["Id"];
+      quizId: components["schemas"]["Id"];
+      quizTitle?: string | null;
+      prompt: string;
+      options: components["schemas"]["FeedQuestionOption"][];
+      presentation?: components["schemas"]["FeedPresentation"] | null;
+    };
+    SuggestionProfile: ({
+      displayName?: string | null;
+      locationText?: string | null;
+      intent?: string | null;
+      avatarUrl?: string | null;
+    }) | null;
+    SuggestionItem: {
+      userId: components["schemas"]["Id"];
+      profile?: components["schemas"]["SuggestionProfile"];
+      score: number;
+      reasons?: {
+        [key: string]: unknown;
+      } | null;
+      compatibility: components["schemas"]["CompatibilitySummary"] | null;
+    };
+    SuggestionResponse: {
+      suggestions: components["schemas"]["SuggestionItem"][];
+      nextCursorId: components["schemas"]["Id"] | null;
+    };
+    FeedItem: {
+      /** @enum {string} */
+      type: "post" | "suggestion" | "question";
+      post?: components["schemas"]["FeedPost"] | null;
+      suggestion?: components["schemas"]["FeedSuggestion"] | null;
+      question?: components["schemas"]["FeedQuestion"] | null;
+    };
+    FeedDebug: {
+      seed: number | null;
+      candidates: {
+        postIds: components["schemas"]["Id"][];
+        suggestionUserIds: components["schemas"]["Id"][];
+        questionIds?: components["schemas"]["Id"][];
+        counts: {
+          posts: number;
+          suggestions: number;
+          questions?: number;
+        };
+      };
+      dedupe: {
+        postDuplicates: number;
+        suggestionDuplicates: number;
+        questionDuplicates?: number;
+        crossSourceRemoved: number;
+      };
+      seen: {
+        windowHours: number;
+        demotedPosts: number;
+        demotedSuggestions: number;
+      };
+      ranking?: {
+        sourceSequence?: string[];
+        actorCounts?: {
+          [key: string]: number;
+        };
+      } | null;
     };
     FeedResponse: {
-      posts: components["schemas"]["FeedPost"][];
-      suggestions: components["schemas"]["FeedSuggestion"][];
+      items: components["schemas"]["FeedItem"][];
       nextCursorId: components["schemas"]["Id"] | null;
+      hasMorePosts: boolean;
+      debug?: components["schemas"]["FeedDebug"] | null;
     };
     PostCreateBody: {
       text?: string | null;
@@ -687,6 +937,12 @@ export interface components {
       createdAt: string;
       media: components["schemas"]["PostMedia"][];
     };
+    ProfileAccessInfo: {
+      status: components["schemas"]["AccessStatus"];
+      requestId?: components["schemas"]["Id"] | null;
+      hasPrivatePosts: boolean;
+      hasPrivateMedia: boolean;
+    };
     ProfileRatingAvg: {
       attractive?: number | null;
       smart?: number | null;
@@ -706,10 +962,41 @@ export interface components {
       avg: components["schemas"]["ProfileRatingAvg"];
       mine: components["schemas"]["ProfileRatingMine"] | null;
     };
+    CompatibilitySummary: {
+      score: number | null;
+      status: components["schemas"]["CompatibilityStatus"];
+    };
     ProfileResponse: {
       profile: components["schemas"]["Profile"] | null;
       posts: components["schemas"]["ProfilePost"][];
+      access: components["schemas"]["ProfileAccessInfo"] | null;
       ratings: components["schemas"]["ProfileRatings"];
+      compatibility: components["schemas"]["CompatibilitySummary"] | null;
+    };
+    ProfileAccessGrantBody: {
+      viewerUserId: components["schemas"]["Id"];
+    };
+    ProfileAccessResponse: {
+      status: components["schemas"]["AccessStatus"];
+      requestId: components["schemas"]["Id"] | null;
+    };
+    FollowerItem: {
+      requestId: components["schemas"]["Id"];
+      userId: components["schemas"]["Id"];
+      name: string;
+      avatarUrl: string | null;
+      status: components["schemas"]["AccessStatus"];
+      /** Format: date-time */
+      requestedAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      compatibility: components["schemas"]["CompatibilitySummary"] | null;
+    };
+    FollowersResponse: {
+      followers: components["schemas"]["FollowerItem"][];
+    };
+    FollowingResponse: {
+      following: components["schemas"]["FollowerItem"][];
     };
     ProfilePatchBody: {
       displayName?: string | null;
@@ -754,6 +1041,7 @@ export interface components {
     MatchUser: {
       id: components["schemas"]["Id"];
       profile?: components["schemas"]["MatchUserProfile"] | null;
+      compatibility: components["schemas"]["CompatibilitySummary"] | null;
     };
     MatchItem: {
       id: components["schemas"]["Id"];
@@ -777,6 +1065,7 @@ export interface components {
     InboxUser: {
       id: components["schemas"]["Id"];
       profile?: components["schemas"]["InboxUserProfile"] | null;
+      compatibility: components["schemas"]["CompatibilitySummary"] | null;
     };
     InboxMessage: {
       id: components["schemas"]["Id"];
@@ -784,6 +1073,7 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
       senderId: components["schemas"]["Id"];
+      isSystem: boolean;
     };
     InboxConversation: {
       id: components["schemas"]["Id"];
@@ -802,6 +1092,7 @@ export interface components {
       senderId: components["schemas"]["Id"];
       /** Format: date-time */
       createdAt: string;
+      isSystem: boolean;
     };
     MessageListResponse: {
       conversationId: components["schemas"]["Id"];

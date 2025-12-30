@@ -15,25 +15,56 @@ export async function http<T>(
   method: HttpMethod,
   opts?: { body?: unknown; signal?: AbortSignal; headers?: Record<string, string> }
 ): Promise<T> {
+  console.log('[DEBUG] http: Starting request', { url, method, hasSignal: !!opts?.signal })
   const body = opts?.body
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
 
-  const res = await fetch(url, {
-    method,
-    credentials: 'include',
-    headers: isFormData ? { ...(opts?.headers ?? {}) } : { 'content-type': 'application/json', ...(opts?.headers ?? {}) },
-    body: body == null ? undefined : (isFormData ? body : JSON.stringify(body)),
-    signal: opts?.signal
-  })
+  try {
+    const res = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers: isFormData
+        ? { ...(opts?.headers ?? {}) }
+        : { 'content-type': 'application/json', ...(opts?.headers ?? {}) },
+      body: body == null ? undefined : isFormData ? body : JSON.stringify(body),
+      signal: opts?.signal,
+    })
+
+    console.log('[DEBUG] http: Response received', { url, status: res.status, ok: res.ok, contentType: res.headers.get('content-type') })
 
   const isJson = (res.headers.get('content-type') || '').includes('application/json')
-  const data: unknown = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null)
+  const data: unknown = isJson
+    ? await res.json().catch((e) => {
+        console.error('[DEBUG] http: JSON parse error', { url, error: e })
+        return null
+      })
+    : await res.text().catch((e) => {
+        console.error('[DEBUG] http: Text parse error', { url, error: e })
+        return null
+      })
 
   if (!res.ok) {
     const msg = getErrorMessage(data) ?? res.statusText
+    console.error('[DEBUG] http: Request failed', { url, status: res.status, message: msg, data })
     throw new HttpError(msg || 'Request failed', res.status, data)
   }
+
+  console.log('[DEBUG] http: Request successful', { url, dataType: typeof data, isArray: Array.isArray(data), isNull: data === null, data })
+  
+  // Guard against null responses
+  if (data === null) {
+    console.error('[DEBUG] http: Response is null but status is OK', { url, status: res.status })
+    throw new HttpError('Response is null', res.status, null)
+  }
+  
   return data as T
+  } catch (e) {
+    if (e instanceof HttpError) {
+      throw e
+    }
+    console.error('[DEBUG] http: Network/fetch error', { url, error: e })
+    throw e
+  }
 }
 
 function getErrorMessage(payload: unknown): string | null {

@@ -13,7 +13,10 @@ export function useIntersection<T extends Element>(options?: IntersectionObserve
       setIntersecting(false)
       return
     }
-    const obs = new IntersectionObserver(([entry]) => setIntersecting(entry.isIntersecting), options)
+    const obs = new IntersectionObserver(
+      ([entry]) => setIntersecting(entry.isIntersecting),
+      options
+    )
     obs.observe(node)
     return () => obs.disconnect()
   }, [node, options])

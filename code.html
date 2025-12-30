@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>User Profile - Dating App</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#FF385C", // Slightly more vivid pink/red for better dark contrast
+                        "background-light": "#ffffff",
+                        "background-dark": "#09090b", // Zinc 950 - very dark
+                        "surface-dark": "#18181b", // Zinc 900
+                        "surface-light": "#f4f4f5",
+                        "accent-purple": "#8b5cf6",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "1.5rem", "xl": "2rem", "2xl": "2.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .text-shadow {
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }.mask-fade-right {
+            -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+            mask-image: linear-gradient(to right, black 80%, transparent 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 font-display antialiased selection:bg-primary selection:text-white">
+<div class="relative w-full max-w-md mx-auto min-h-screen pb-32 bg-background-light dark:bg-background-dark shadow-2xl overflow-hidden">
+<div class="fixed top-0 left-0 right-0 z-30 p-4 pt-12 flex justify-between items-center w-full max-w-md mx-auto bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none">
+<button class="pointer-events-auto flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-xl text-white border border-white/10 hover:bg-white/10 transition-all active:scale-95">
+<span class="material-symbols-outlined">expand_more</span>
+</button>
+<div class="flex gap-3 pointer-events-auto">
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-xl text-white border border-white/10 hover:bg-white/10 transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]">ios_share</span>
+</button>
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-black/20 backdrop-blur-xl text-white border border-white/10 hover:bg-white/10 transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="relative w-full overflow-y-auto overflow-x-hidden">
+<div class="relative h-[70vh] w-full group">
+<div class="w-full h-full bg-cover bg-center relative" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDgp-pI_yKzKirJco06QoDsnQueRXrPp4CQWRUEgbux2hyTyZ6qFr6fmnFbLj9kZiQ0AmrqyvhPreEYadsjOZF_Yj7Lvx5GbP_pbCttFik2eEi-oz74BnwKCLgQ9QywfnzreIaBLc9LTFts0nDm9o1PMfWgcpOCJtMIAsDEyhGvpDr7IIJEIJ3jmLIaUkmijd2LWjvfI4pMNbgnkEfDV_LKmXrNiWV7IvlJvN7ssO3CO4A5zaxj5zH_ovRDlQfBxnzDAmB0iQB5FA');">
+<div class="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent opacity-80"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/40 to-transparent"></div>
+<div class="absolute bottom-0 left-0 right-0 p-6 flex flex-col gap-2 pb-10 z-10">
+<div class="flex items-center gap-2 mb-1">
+<h1 class="text-4xl font-extrabold text-white tracking-tight text-shadow">Jessica, 24</h1>
+<span class="material-symbols-outlined text-blue-500 bg-white rounded-full text-[18px] ml-1" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<div class="flex flex-wrap items-center gap-3 text-white/90 text-sm font-medium">
+<div class="flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+<span>3 miles away</span>
+</div>
+<div class="flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+<span class="material-symbols-outlined text-[16px]">work</span>
+<span>UX Designer</span>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute top-3 left-0 right-0 px-3 pt-12 flex gap-1.5 z-20">
+<div class="h-1 flex-1 bg-white rounded-full shadow-sm"></div>
+<div class="h-1 flex-1 bg-white/20 rounded-full backdrop-blur-sm"></div>
+<div class="h-1 flex-1 bg-white/20 rounded-full backdrop-blur-sm"></div>
+</div>
+</div>
+<div class="relative z-10 px-4 -mt-4 space-y-4 pb-32">
+<section class="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-gray-100 dark:border-white/5">
+<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">info</span> About me
+                </h3>
+<p class="text-[17px] text-gray-800 dark:text-gray-200 leading-relaxed font-normal">
+                    Designer by day, gamer by night. Looking for my player 2. I make great sushi and terrible puns. 🎮🍣
+                </p>
+</section>
+<section class="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-gray-100 dark:border-white/5">
+<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">favorite</span> Passions
+                </h3>
+<div class="flex flex-wrap gap-2">
+<div class="px-3 py-2 rounded-lg bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-2 shadow-sm">
+<span class="text-xl">🎮</span>
+<span class="text-sm font-medium">Gaming</span>
+</div>
+<div class="px-3 py-2 rounded-lg bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-2 shadow-sm">
+<span class="text-xl">🍣</span>
+<span class="text-sm font-medium">Sushi</span>
+</div>
+<div class="px-3 py-2 rounded-lg bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-2 shadow-sm">
+<span class="text-xl">🏔️</span>
+<span class="text-sm font-medium">Hiking</span>
+</div>
+<div class="px-3 py-2 rounded-lg bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-2 shadow-sm">
+<span class="text-xl">📸</span>
+<span class="text-sm font-medium">Photography</span>
+</div>
+<div class="px-3 py-2 rounded-lg bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-2 shadow-sm">
+<span class="text-xl">🎨</span>
+<span class="text-sm font-medium">Art</span>
+</div>
+</div>
+</section>
+<section class="relative group overflow-hidden rounded-2xl">
+<div class="absolute inset-0 bg-gradient-to-br from-primary via-purple-600 to-blue-600 opacity-10 group-hover:opacity-15 transition-opacity duration-500"></div>
+<div class="absolute -inset-[1px] bg-gradient-to-br from-primary via-purple-600 to-blue-600 rounded-2xl opacity-30 z-0"></div>
+<div class="relative z-10 bg-white dark:bg-[#121212] m-[1px] p-6 rounded-[15px] h-full">
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-xl">🏆</span>
+<p class="text-xs font-bold text-primary uppercase tracking-widest">I'm overly competitive about</p>
+</div>
+<p class="text-xl font-medium text-gray-900 dark:text-white leading-snug">
+                            "Mario Kart. I will not let you win, even if it's our first date."
+                        </p>
+</div>
+</div>
+</section>
+<section class="grid grid-cols-2 gap-2">
+<div class="col-span-1 row-span-2 relative h-64 rounded-2xl overflow-hidden">
+<img alt="Working out" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwtWHLdtbrDfAgADUQ2bdw61BcOKwe14yvHKevo7dEWRqdHep3dwdqcuj_LltemelMWSciqcarxiO7xAvAsW69m7sRNZ1bLzE9JffgTJHjQdC-Vh-LNE5KhpHMhdwdPvY0k_5IYJQxmy1sWmzD0MXiIxoi_IU2rbfb3WsFGdoeTpAsGEQCTUw9B8MU-M0R_3gNiUrrwxzR0y491Pbp5GS6bWRcZ1OtWrf7mpYGn7d1LIXCT7ZfC44HusNsWqQLSlxuP0JYRko9ng"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+</div>
+<div class="col-span-1 h-32 rounded-2xl overflow-hidden relative">
+<img alt="Sushi" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-HM8DDxL1IxBD3CqIWJ9XABfXSxTSXRDVFQMLcKjys1Q1wFi5tljCwjnbE29DOfidNWCR3nF8e9lYtweN2OPbYrHTHuz48FawxnI2B6QPQp6TuyIuEF26D4J103Loeb2IiNwtYwvVxJx36Y2mW1ntCmX9HFlhmpVLXtODkl3U2mmNJq8yb9ct4Pys-fG0P6lFBLe48v5YEB8LuFtFL3Xe2XSiAp7fK_1lhQXDP10mb6f5CbGQiDj33K8gDmymdk0iLbp_YpA2wg"/>
+</div>
+<div class="col-span-1 h-32 rounded-2xl overflow-hidden relative">
+<img alt="Hiking" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDeqd3I_V7wpVLSVgDdyi-ds3YTk536t_X0AU7rMgOibetpI26blSwrVBzClxmMoFEYFqGx7bEXiM6Gz7vh7CZw3MsrqDw2hlH7YcsfUYMzwkNXJN0TKzwPpaYXTyIXHiiBdyokuCpCa_4dTpRir1R-TOQDwxX2WZAy0V0vDpY7WYVa3tYYJ2kJVDBW_N07fE4lPWz93CobTimq2-UDFjRGHdkeVEd1uj_zbn0gCy4L7Nq2MEIl5t-yOHINJQ6f4Y_2C8McP1ivJg"/>
+</div>
+</section>
+<section class="bg-[#1db954]/5 dark:bg-[#121212] border border-[#1db954]/20 p-4 rounded-2xl flex items-center gap-4 relative overflow-hidden">
+<div class="absolute -right-10 -top-10 w-40 h-40 bg-[#1db954]/10 blur-[50px] rounded-full pointer-events-none"></div>
+<div class="relative w-16 h-16 shrink-0 group">
+<div class="w-full h-full rounded-xl bg-cover bg-center shadow-lg border border-white/5" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDRJRDC0-AgZjBtlbgQ2M5XF-4c0FfNdcMhs53nyOToW9rL7p3IwyXvWr2inQgFFMeEmG0QI9JEEKn8jWKAGVCVF8I7hkhVzQo65wlF9ZJ4aYarOSDRPKxHgqQr0-59fDnyej9aIQd5YntiUWcn-REAnwu7x5SeUB0tz9rjB0Utnsnt1AlmLxQ9QIh0590IiZM_gMDwwDbVOtQlgQUpULFlugWc8832DZ8JdAiiRqjvQSynrLYQ9yNuQ0lojRQn5qWEQNIgVUn_Yw');"></div>
+<div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white">play_arrow</span>
+</div>
+<div class="absolute -bottom-2 -right-2 bg-[#1db954] text-white rounded-full p-1 border-4 border-white dark:border-[#121212] flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">music_note</span>
+</div>
+</div>
+<div class="flex-1 min-w-0 z-10">
+<p class="text-[10px] font-bold text-[#1db954] uppercase tracking-widest mb-1">My Anthem</p>
+<p class="text-base font-bold truncate text-gray-900 dark:text-white">Pink + White</p>
+<p class="text-sm text-gray-500 dark:text-gray-400 truncate">Frank Ocean</p>
+</div>
+<div class="h-8 w-[2px] bg-white/10 mx-1"></div>
+<div class="flex flex-col gap-0.5 items-center justify-center pr-2">
+<span class="w-1 h-3 bg-[#1db954] rounded-full animate-pulse"></span>
+<span class="w-1 h-5 bg-[#1db954] rounded-full animate-pulse delay-75"></span>
+<span class="w-1 h-2 bg-[#1db954] rounded-full animate-pulse delay-150"></span>
+</div>
+</section>
+<section class="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-gray-100 dark:border-white/5">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-accent-purple">fact_check</span>
+<p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Two truths and a lie</p>
+</div>
+<ul class="space-y-2">
+<li class="group flex items-center gap-3 bg-white dark:bg-white/5 p-3.5 rounded-xl border border-gray-200 dark:border-white/5 hover:border-primary/50 transition-colors">
+<div class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-white/20 group-hover:border-primary flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<span class="text-sm font-medium text-gray-700 dark:text-gray-200">I've never broken a bone</span>
+</li>
+<li class="group flex items-center gap-3 bg-white dark:bg-white/5 p-3.5 rounded-xl border border-gray-200 dark:border-white/5 hover:border-primary/50 transition-colors">
+<div class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-white/20 group-hover:border-primary flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<span class="text-sm font-medium text-gray-700 dark:text-gray-200">I can speak 3 languages</span>
+</li>
+<li class="group flex items-center gap-3 bg-white dark:bg-white/5 p-3.5 rounded-xl border border-gray-200 dark:border-white/5 hover:border-primary/50 transition-colors">
+<div class="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-white/20 group-hover:border-primary flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+<span class="text-sm font-medium text-gray-700 dark:text-gray-200">I own a pet iguana named Dave</span>
+</li>
+</ul>
+</section>
+<section class="pb-10">
+<div class="flex justify-between items-center mb-4 px-1">
+<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">photo_library</span> Instagram
+                    </h3>
+<div class="flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1 rounded-full shadow-lg shadow-purple-500/20">
+<span>@jess_designs</span>
+<span class="material-symbols-outlined text-[12px]">open_in_new</span>
+</div>
+</div>
+<div class="flex gap-3 overflow-x-auto no-scrollbar pb-4 mask-fade-right">
+<div class="shrink-0 w-32 h-32 rounded-2xl bg-cover bg-center border border-white/10" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCL4ncDd0ismRqf-tFLrRVLW0Uy5Zy98JgYIOfrWPh79l0Z_GD35OVv9yqZdeKUeliDkJwVjEafTrO6_sPhleJ3We9Q_u8OrH69fnjDqGNkESLdJ9aWAePfH2GHdWbv6fEHjIsReYGOu8X3vKIx5jPnV-zfk2ZOWdQGGxlRH1O6QSi29S-p9hArGoZ6wCtB1o3fm_z29VSZwhko3K_wyJpV5ej0kiP3r7SD_X7VYtY11OL8MjWgJsyi6xtsMUIiKA_XFyg2GxT47Q');"></div>
+<div class="shrink-0 w-32 h-32 rounded-2xl bg-cover bg-center border border-white/10" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_pEFpQYzA__LUlIYqJLM75KLppcUUm2E0FS4D5mb9W9_y9OFJLDKR0PkVHH23jtr7Fo56zoGglOfM8PgU831mGYB1upvRgrVxd44hnkjXQAx4hZsRjybiFgVf1nlNJMxovbbK_s4C_sK4N-XiSxgjXeBjaJgnsDCBlfEiMCeVzUN13gh3Qk12TibPIKg9TE_Px60boB1vWJmu_VD0enc0EnFds9Iai_9M67KG4_-52z57R0P2TTSG8pF4pcfHXQGpHs1vbj7AaA');"></div>
+<div class="shrink-0 w-32 h-32 rounded-2xl bg-cover bg-center border border-white/10" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBdNGDD6fwzpV2Msut9hzIEoC5FR2DoW0oNi_heP7LvNbrOashA2cGk057bcPGLaIubkW7PpZmUnXmQRD9JuQ_P-bNNjjYrAiccp23bKGXNFehZ8gSbIl9rgiQxwoWD5c6VKpXBx8qi_CFaybgX0wkjnnJ98eGabI4t6VbRxrsmgBA-j01hjS0tipTT_hDPa-hTvZTk75z-RNvmvDbXPdaQhYOYBBjQU5KbEUSKKI5dSEHAteGsg7sfHezz6W375vLUj5cfUDts4g');"></div>
+<div class="shrink-0 w-32 h-32 rounded-2xl bg-cover bg-center border border-white/10" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC7hoJbxweTh_oClKRSeeMrd7Mj85RLG98uJrTZ3Bdp5lPlZqedCpkD_wriMrN8Lu42BWCmOkb06EU7jN9zYDWfFfEz7L4gRiXQ_jhg9k6XIy4rv_waN73v7n-_hJfw0kQ9ToN-aDJd0oo_wx28tqMmezxhPrRMBpBPW8ImoqU-U-uOdPxm5AbdoPXYX8MNlshMz8hCK8ygvPTzjDr9H4EkRPwP87ccZGsM-oDTniq2U4RqO37xVQu3hF_Pb4HrRsBJp_DI3Da4jA');"></div>
+</div>
+</section>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 z-40 p-6 flex justify-center items-center pointer-events-none w-full max-w-md mx-auto">
+<div class="glass-panel px-6 py-3 rounded-full flex items-center gap-6 shadow-2xl pointer-events-auto shadow-black/50 ring-1 ring-white/5">
+<button class="group relative flex items-center justify-center w-14 h-14 rounded-full bg-neutral-800/80 border border-white/5 text-rose-500 hover:bg-rose-500 hover:text-white hover:scale-110 transition-all duration-300 shadow-lg">
+<span class="material-symbols-outlined text-3xl group-hover:rotate-[-15deg] transition-transform">close</span>
+</button>
+<button class="group relative flex items-center justify-center w-11 h-11 rounded-full bg-neutral-800/80 border border-white/5 text-blue-400 hover:bg-blue-400 hover:text-white hover:scale-110 transition-all duration-300 shadow-lg">
+<span class="material-symbols-outlined text-xl group-hover:animate-spin" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+<button class="group relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-pink-500 text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:scale-110 transition-all duration-300">
+<span class="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background-dark via-background-dark/80 to-transparent pointer-events-none z-30 max-w-md mx-auto"></div>
+</div>
+
+</body></html>

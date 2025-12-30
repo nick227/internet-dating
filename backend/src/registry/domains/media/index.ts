@@ -65,6 +65,35 @@ export const mediaDomain: DomainRegistry = {
           return json(res, { error: 'Failed to fetch media' }, 500);
         }
       }
+    },
+    {
+      id: 'media.DELETE./media/:mediaId',
+      method: 'DELETE',
+      path: '/media/:mediaId',
+      auth: Auth.user(),
+      summary: 'Delete media',
+      tags: ['media'],
+      handler: async (req, res) => {
+        const userId = req.ctx.userId!;
+        const parsed = parsePositiveBigInt(req.params.mediaId, 'mediaId');
+        if (!parsed.ok) return json(res, { error: parsed.error }, 400);
+        const mediaId = parsed.value;
+
+        const { prisma } = await import('../../../lib/prisma/client.js');
+        const media = await prisma.media.findFirst({
+          where: { id: mediaId, deletedAt: null },
+          select: { id: true, ownerUserId: true }
+        });
+        if (!media) return json(res, { error: 'Media not found' }, 404);
+        if (media.ownerUserId !== userId) return json(res, { error: 'Forbidden' }, 403);
+
+        await prisma.media.update({
+          where: { id: mediaId },
+          data: { deletedAt: new Date() }
+        });
+
+        return json(res, { ok: true });
+      }
     }
   ]
 };

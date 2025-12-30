@@ -1,4 +1,4 @@
-@import "./tokens.css";
-@import "./base.css";
-@import "./utilities.css";
-@import "./components.css";
+/* Critical CSS is inlined in HTML head - see critical.css */
+/* Non-critical styles loaded asynchronously */
+@import './utilities.css';
+@import './components.css';

@@ -1,16 +1,21 @@
 /* global process, console */
 import { execFileSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import openapiTS from 'openapi-typescript'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const frontendRoot = resolve(__dirname, '..')
-const backendRoot = resolve(frontendRoot, '..', 'backend')
-const tsxBin = process.platform === 'win32'
+const repoRoot = resolve(frontendRoot, '..')
+const backendRoot = resolve(repoRoot, 'backend')
+const tsxBinBackend = process.platform === 'win32'
   ? resolve(backendRoot, 'node_modules', '.bin', 'tsx.cmd')
   : resolve(backendRoot, 'node_modules', '.bin', 'tsx')
+const tsxBinRoot = process.platform === 'win32'
+  ? resolve(repoRoot, 'node_modules', '.bin', 'tsx.cmd')
+  : resolve(repoRoot, 'node_modules', '.bin', 'tsx')
+const tsxBin = existsSync(tsxBinBackend) ? tsxBinBackend : tsxBinRoot
 
 const openapiEntry = resolve(backendRoot, 'src', 'lib', 'openapi', 'emitOpenApi.ts')
 const outputPath = resolve(frontendRoot, 'src', 'api', 'openapi.ts')
@@ -29,3 +34,7 @@ const types = await openapiTS(spec, {
 
 writeFileSync(outputPath, types)
 console.log(`Wrote ${outputPath}`)
+console.log('⚠️  After regenerating OpenAPI types:')
+console.log('   1. Run TypeScript compiler to catch type errors')
+console.log('   2. Review api/adapters.ts for compatibility')
+console.log('   3. Check for new Api* types that need domain type equivalents in api/types.ts')

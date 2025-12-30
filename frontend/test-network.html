@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Network Test - Feed Loading</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .test { margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 4px; }
+    .pass { border-left: 4px solid #22c55e; }
+    .fail { border-left: 4px solid #fb7185; }
+    .detail { margin-top: 5px; font-size: 12px; color: #aaa; }
+    button { padding: 10px 20px; margin: 10px 5px; background: #a855f7; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #9333ea; }
+    pre { background: #0a0a0a; padding: 10px; border-radius: 4px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Network Test - Feed Loading</h1>
+  <p>This page monitors network requests to verify Phase-1 and Phase-2 feed loading.</p>
+  
+  <button onclick="startTest()">Start Test</button>
+  <button onclick="clearResults()">Clear</button>
+  
+  <div id="results"></div>
+  
+  <script>
+    let results = []
+    
+    function startTest() {
+      results = []
+      const resultsDiv = document.getElementById('results')
+      resultsDiv.innerHTML = '<p>Testing... Open DevTools Network tab to see requests.</p>'
+      
+      // Monitor performance entries
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.name.includes('/api/feed')) {
+            results.push({
+              url: entry.name,
+              type: entry.name.includes('lite=1') ? 'Phase-1' : 'Phase-2',
+              duration: Math.round(entry.duration),
+              size: entry.transferSize || 0,
+              time: new Date().toLocaleTimeString()
+            })
+            updateResults()
+          }
+        }
+      })
+      
+      observer.observe({ entryTypes: ['resource'] })
+      
+      // Also check existing entries
+      setTimeout(() => {
+        const existing = performance.getEntriesByType('resource')
+          .filter(e => e.name.includes('/api/feed'))
+          .map(e => ({
+            url: e.name,
+            type: e.name.includes('lite=1') ? 'Phase-1' : 'Phase-2',
+            duration: Math.round(e.duration),
+            size: e.transferSize || 0,
+            time: 'Existing'
+          }))
+        results.push(...existing)
+        updateResults()
+      }, 1000)
+    }
+    
+    function updateResults() {
+      const resultsDiv = document.getElementById('results')
+      const phase1 = results.filter(r => r.type === 'Phase-1')
+      const phase2 = results.filter(r => r.type === 'Phase-2')
+      
+      let html = '<h2>Test Results</h2>'
+      
+      // Phase-1 Test
+      html += `<div class="test ${phase1.length > 0 ? 'pass' : 'fail'}">
+        <strong>Phase-1 Request</strong>
+        <div class="detail">${phase1.length > 0 ? `✅ Found ${phase1.length} request(s)` : '❌ No requests found'}</div>
+        ${phase1.map(r => `<div class="detail">URL: ${r.url}<br>Duration: ${r.duration}ms<br>Size: ${(r.size/1024).toFixed(2)}KB</div>`).join('')}
+      </div>`
+      
+      // Phase-2 Test
+      html += `<div class="test ${phase2.length > 0 ? 'pass' : 'fail'}">
+        <strong>Phase-2 Request</strong>
+        <div class="detail">${phase2.length > 0 ? `✅ Found ${phase2.length} request(s)` : '❌ No requests found'}</div>
+        ${phase2.map(r => `<div class="detail">URL: ${r.url}<br>Duration: ${r.duration}ms<br>Size: ${(r.size/1024).toFixed(2)}KB</div>`).join('')}
+      </div>`
+      
+      // Timing Test
+      if (phase1.length > 0 && phase2.length > 0) {
+        const phase1Time = phase1[0].duration
+        const phase2Time = phase2[0].duration
+        const timingGood = phase1Time < 50 && phase2Time < 100
+        
+        html += `<div class="test ${timingGood ? 'pass' : 'fail'}">
+          <strong>Response Times</strong>
+          <div class="detail">
+            Phase-1: ${phase1Time}ms (target: <50ms) ${phase1Time < 50 ? '✅' : '❌'}<br>
+            Phase-2: ${phase2Time}ms (target: <100ms) ${phase2Time < 100 ? '✅' : '❌'}
+          </div>
+        </div>`
+      }
+      
+      // Size Test
+      if (phase1.length > 0) {
+        const size = phase1[0].size
+        const sizeGood = size < 8 * 1024 // 8KB
+        
+        html += `<div class="test ${sizeGood ? 'pass' : 'fail'}">
+          <strong>Phase-1 Payload Size</strong>
+          <div class="detail">${(size/1024).toFixed(2)}KB (target: <8KB) ${sizeGood ? '✅' : '❌'}</div>
+        </div>`
+      }
+      
+      resultsDiv.innerHTML = html
+    }
+    
+    function clearResults() {
+      results = []
+      document.getElementById('results').innerHTML = ''
+    }
+    
+    // Auto-start on load
+    window.addEventListener('load', () => {
+      setTimeout(startTest, 1000)
+    })
+  </script>
+</body>
+</html>

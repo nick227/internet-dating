@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { api } from '../../api/client'
-import type { Id, SwipeAction } from '../../api/types'
+import type { Id, LikeAction } from '../../api/types'
 
 export function useLike() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function send(toUserId: Id, action: SwipeAction) {
+  async function send(toUserId: Id, action: LikeAction) {
     setLoading(true)
     setError(null)
     try {

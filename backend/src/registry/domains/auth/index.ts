@@ -9,11 +9,22 @@ import {
   verifyRefreshToken
 } from '../../../lib/auth/jwt.js';
 
-const cookieOpts = {
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  secure: process.env.NODE_ENV === 'production',
-  path: '/'
+const getCookieOpts = (rememberMe: boolean = false) => {
+  const base = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/'
+  };
+  
+  if (rememberMe) {
+    return {
+      ...base,
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    };
+  }
+  
+  return base;
 };
 
 export const authDomain: DomainRegistry = {
@@ -27,10 +38,11 @@ export const authDomain: DomainRegistry = {
       summary: 'Create a user and issue auth cookies',
       tags: ['auth'],
       handler: async (req, res) => {
-        const { email, password } = (req.body ?? {}) as { email?: string; password?: string };
+        const { email, password, rememberMe } = (req.body ?? {}) as { email?: string; password?: string; rememberMe?: boolean };
         if (!email || !password) return json(res, { error: 'email and password required' }, 400);
 
         const passwordHash = await bcrypt.hash(password, 10);
+        const cookieOptions = getCookieOpts(rememberMe === true);
 
         try {
           const user = await prisma.user.create({
@@ -43,8 +55,8 @@ export const authDomain: DomainRegistry = {
           });
 
           const sub = String(user.id);
-          res.cookie('access_token', signAccessToken({ sub }), cookieOpts);
-          res.cookie('refresh_token', signRefreshToken({ sub }), cookieOpts);
+          res.cookie('access_token', signAccessToken({ sub }), cookieOptions);
+          res.cookie('refresh_token', signRefreshToken({ sub }), cookieOptions);
 
           return json(res, { userId: user.id, email: user.email });
         } catch {
@@ -61,7 +73,7 @@ export const authDomain: DomainRegistry = {
       summary: 'Verify credentials and issue auth cookies',
       tags: ['auth'],
       handler: async (req, res) => {
-        const { email, password } = (req.body ?? {}) as { email?: string; password?: string };
+        const { email, password, rememberMe } = (req.body ?? {}) as { email?: string; password?: string; rememberMe?: boolean };
         if (!email || !password) return json(res, { error: 'email and password required' }, 400);
 
         const user = await prisma.user.findUnique({
@@ -74,8 +86,9 @@ export const authDomain: DomainRegistry = {
         if (!ok) return json(res, { error: 'Invalid credentials' }, 401);
 
         const sub = String(user.id);
-        res.cookie('access_token', signAccessToken({ sub }), cookieOpts);
-        res.cookie('refresh_token', signRefreshToken({ sub }), cookieOpts);
+        const cookieOptions = getCookieOpts(rememberMe === true);
+        res.cookie('access_token', signAccessToken({ sub }), cookieOptions);
+        res.cookie('refresh_token', signRefreshToken({ sub }), cookieOptions);
 
         return json(res, { userId: user.id });
       }
@@ -94,7 +107,7 @@ export const authDomain: DomainRegistry = {
 
         try {
           const payload = verifyRefreshToken(token);
-          res.cookie('access_token', signAccessToken({ sub: payload.sub }), cookieOpts);
+          res.cookie('access_token', signAccessToken({ sub: payload.sub }), getCookieOpts(false));
           return json(res, { ok: true });
         } catch {
           return json(res, { error: 'invalid refresh token' }, 401);
@@ -110,6 +123,7 @@ export const authDomain: DomainRegistry = {
       summary: 'Clear auth cookies',
       tags: ['auth'],
       handler: async (_req, res) => {
+        const cookieOpts = getCookieOpts(false);
         res.cookie('access_token', '', { ...cookieOpts, maxAge: 0 });
         res.cookie('refresh_token', '', { ...cookieOpts, maxAge: 0 });
         return json(res, { ok: true });

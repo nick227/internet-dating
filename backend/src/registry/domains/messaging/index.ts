@@ -5,6 +5,7 @@ import { json } from '../../../lib/http/json.js';
 import { assertConversationParticipant } from '../../../lib/auth/guards.js';
 import { parseLimit, parseOptionalPositiveBigInt, parsePositiveBigInt } from '../../../lib/http/parse.js';
 import { toAvatarUrl } from '../../../services/media/presenter.js';
+import { getCompatibilityMap, resolveCompatibility } from '../../../services/compatibility/compatibilityService.js';
 
 export const messagingDomain: DomainRegistry = {
   domain: 'messaging',
@@ -32,7 +33,12 @@ export const messagingDomain: DomainRegistry = {
         };
 
         const convos = await prisma.conversation.findMany({
-          where: { OR: [{ userAId: me }, { userBId: me }], match: { state: 'ACTIVE' } },
+          where: {
+            AND: [
+              { OR: [{ userAId: me }, { userBId: me }] },
+              { OR: [{ match: { state: 'ACTIVE' } }, { matchId: null }] }
+            ]
+          },
           orderBy: { updatedAt: 'desc' },
           take: 50,
           select: {
@@ -45,7 +51,7 @@ export const messagingDomain: DomainRegistry = {
             messages: {
               orderBy: { createdAt: 'desc' },
               take: 1,
-              select: { id: true, body: true, createdAt: true, senderId: true }
+              select: { id: true, body: true, createdAt: true, senderId: true, isSystem: true }
             }
           }
         });
@@ -61,6 +67,9 @@ export const messagingDomain: DomainRegistry = {
           map[k] = (map[k] ?? 0) + 1;
         }
 
+        const otherUserIds = convos.map((c) => (c.userAId === me ? c.userBId : c.userAId));
+        const compatibilityMap = await getCompatibilityMap(me, otherUserIds);
+
         return json(res, {
           conversations: convos.map(c => {
             const rawOther = c.userAId === me ? c.userB : c.userA;
@@ -70,7 +79,11 @@ export const messagingDomain: DomainRegistry = {
                   return { ...profileData, avatarUrl: toAvatarUrl(avatarMedia) };
                 })()
               : null;
-            const otherUser = { ...rawOther, profile: otherProfile };
+            const otherUser = {
+              ...rawOther,
+              profile: otherProfile,
+              compatibility: resolveCompatibility(me, compatibilityMap, rawOther.id)
+            };
             return {
               id: c.id,
               updatedAt: c.updatedAt,
@@ -115,7 +128,8 @@ export const messagingDomain: DomainRegistry = {
             id: true,
             body: true,
             senderId: true,
-            createdAt: true
+            createdAt: true,
+            isSystem: true
           }
         });
 

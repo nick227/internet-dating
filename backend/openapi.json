@@ -387,6 +387,86 @@
         }
       }
     },
+    "/api/profiles/{userId}/access-requests": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Request access to private profile content",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{userId}/access-grants": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Grant access to private profile content",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileAccessGrantBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/profiles/{userId}/rate": {
       "post": {
         "tags": [
@@ -432,7 +512,7 @@
         }
       }
     },
-    "/api/swipes": {
+    "/api/likes": {
       "post": {
         "tags": [
           "matches"
@@ -1137,6 +1217,14 @@
           "PRIVATE"
         ]
       },
+      "AccessStatus": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "PENDING",
+          "GRANTED"
+        ]
+      },
       "MediaType": {
         "type": "string",
         "enum": [
@@ -1184,7 +1272,7 @@
         "type": "string",
         "enum": [
           "LIKE",
-          "PASS"
+          "DISLIKE"
         ]
       },
       "ReportReason": {
@@ -1701,6 +1789,35 @@
           "media"
         ]
       },
+      "ProfileAccessInfo": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AccessStatus"
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Id"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasPrivatePosts": {
+            "type": "boolean"
+          },
+          "hasPrivateMedia": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "hasPrivatePosts",
+          "hasPrivateMedia"
+        ]
+      },
       "ProfileRatingAvg": {
         "type": "object",
         "properties": {
@@ -1803,6 +1920,16 @@
               "$ref": "#/components/schemas/ProfilePost"
             }
           },
+          "access": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileAccessInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ratings": {
             "$ref": "#/components/schemas/ProfileRatings"
           }
@@ -1810,7 +1937,41 @@
         "required": [
           "profile",
           "posts",
+          "access",
           "ratings"
+        ]
+      },
+      "ProfileAccessGrantBody": {
+        "type": "object",
+        "properties": {
+          "viewerUserId": {
+            "$ref": "#/components/schemas/Id"
+          }
+        },
+        "required": [
+          "viewerUserId"
+        ]
+      },
+      "ProfileAccessResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AccessStatus"
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Id"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "requestId"
         ]
       },
       "ProfilePatchBody": {
@@ -2489,3 +2650,4 @@
     }
   }
 }
+

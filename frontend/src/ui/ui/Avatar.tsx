@@ -2,14 +2,26 @@ import type { CSSProperties } from 'react'
 
 type AvatarSize = 'sm' | 'md' | 'lg'
 
-export function Avatar({ name, size = 'md', src }: { name?: string | null; size?: AvatarSize; src?: string | null }) {
+export function Avatar({
+  name,
+  size = 'md',
+  src,
+}: {
+  name?: string | null
+  size?: AvatarSize
+  src?: string | null
+}) {
   const label = (name ?? '').trim()
   const initials = getInitials(label)
   const hue = hashToHue(label || 'user')
   const style = { '--avatar-hue': String(hue) } as CSSProperties
 
   return (
-    <div className={`avatar avatar--${size}${src ? ' avatar--image' : ''}`} style={style} aria-hidden="true">
+    <div
+      className={`avatar avatar--${size}${src ? ' avatar--image' : ''}`}
+      style={style}
+      aria-hidden="true"
+    >
       {src ? <img src={src} alt={label || 'Avatar'} loading="lazy" /> : initials}
     </div>
   )

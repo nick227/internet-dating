@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>internet-date.com</title>
+    <!-- HTTP-Level Wins: Preconnect EARLY (before CSS) - saves 50-100ms on TLS + DNS -->
+    <link rel="preconnect" href="/api" crossorigin />
+    <!-- Single CDN origin for avatars + media (no domain sharding) -->
+    <!-- Critical CSS will be injected here by vite-plugin-critical-css -->
+    <!-- Inline shell script will be injected here by vite-plugin-inline-shell -->
   </head>
   <body>
     <div id="root"></div>

@@ -45,4 +45,23 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
+  // Apply contracts.ts restriction only to non-API files
+  {
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    ignores: ['src/api/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'warn',
+        {
+          patterns: [
+            {
+              group: ['**/api/contracts'],
+              message:
+                'UI components should use domain types from api/types.ts, not raw API types from contracts.ts. Import contracts.ts only in API layer (api/*.ts files) or when rendering raw API lists (use eslint-disable comment).',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];

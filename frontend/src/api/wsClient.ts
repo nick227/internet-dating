@@ -3,7 +3,7 @@ import type {
   ServerEventType,
   WsEvents,
   WsMessage,
-  WsSubscribeTopic
+  WsSubscribeTopic,
 } from '@app/shared/ws/contracts'
 
 type Handler<T extends ServerEventType> = (data: WsEvents[T], msg: WsMessage<T>) => void
@@ -13,6 +13,8 @@ type WsClientOptions = {
   reconnectMinMs?: number
   reconnectMaxMs?: number
 }
+
+const DEBUG = Boolean(import.meta.env?.DEV)
 
 export function createWsClient(options: WsClientOptions) {
   const reconnectMinMs = options.reconnectMinMs ?? 1000
@@ -29,6 +31,7 @@ export function createWsClient(options: WsClientOptions) {
   function connect() {
     shouldReconnect = true
     if (socket && socket.readyState === WebSocket.OPEN) return
+    if (DEBUG) console.debug('[ws] connect', { url: options.url })
     socket = new WebSocket(options.url)
     socket.addEventListener('open', handleOpen)
     socket.addEventListener('message', handleMessage)
@@ -43,6 +46,7 @@ export function createWsClient(options: WsClientOptions) {
       reconnectTimer = null
     }
     if (!socket) return
+    if (DEBUG) console.debug('[ws] disconnect')
     socket.close()
   }
 
@@ -62,6 +66,7 @@ export function createWsClient(options: WsClientOptions) {
   }
 
   function subscribe(topics: WsSubscribeTopic[]) {
+    if (DEBUG) console.debug('[ws] subscribe', { topics: topics.length })
     send('client.system.subscribe', { topics })
   }
 
@@ -76,11 +81,12 @@ export function createWsClient(options: WsClientOptions) {
 
   function handleOpen() {
     reconnectAttempts = 0
+    if (DEBUG) console.debug('[ws] open')
     if (lastSubscribe !== null) {
       sendNow({
         type: 'client.system.subscribe',
         data: { topics: lastSubscribe },
-        ts: Date.now()
+        ts: Date.now(),
       })
     }
     flushPending()
@@ -102,12 +108,23 @@ export function createWsClient(options: WsClientOptions) {
     }
   }
 
-  function handleClose() {
+  function handleClose(event: CloseEvent) {
+    if (DEBUG) {
+      console.debug('[ws] close', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      })
+    }
     if (!shouldReconnect) return
     scheduleReconnect()
   }
 
   function handleError(event: Event) {
+    if (DEBUG) {
+      console.debug('[ws] error', event)
+      return
+    }
     console.warn('WS error', event)
   }
 
@@ -140,6 +157,6 @@ export function createWsClient(options: WsClientOptions) {
     disconnect,
     send,
     subscribe,
-    on
+    on,
   }
 }

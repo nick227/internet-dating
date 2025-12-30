@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useProfile } from '../../core/profile/useProfile'
+import { useProfileDraft } from '../../core/profile/useProfileDraft'
+import { useProfileAccess } from '../../core/profile/useProfileAccess'
+import { deriveProfileViewState } from '../../core/profile/profileState'
+import { ACCESS_STATUS } from '../../core/profile/accessStatus'
 import { useCurrentUser } from '../../core/auth/useCurrentUser'
-import type { ProfileResponse } from '../../api/types'
-import { toAge } from '../../core/format/toAge'
+import { getErrorMessage } from '../../core/utils/errors'
 import { ProfileMediaRail } from '../profile/ProfileMediaRail'
 import { ProfileActions } from '../profile/ProfileActions'
 import { ProfileMediaManager } from '../profile/ProfileMediaManager'
@@ -11,98 +14,158 @@ import { PostComposer } from '../profile/PostComposer'
 import { ProfileInlineEditor } from '../profile/ProfileInlineEditor'
 import { ProfilePostList } from '../profile/ProfilePostList'
 import { HeroSection } from '../profile/HeroSection'
+import { ProfileRatings } from '../profile/ProfileRatings'
+
+/**
+ * Safely decodes a URL-encoded userId parameter.
+ * Returns the original value if decoding fails (malformed encoding).
+ */
+function safeDecodeUserId(userId: string | undefined): string | undefined {
+  if (!userId) return undefined
+  try {
+    return decodeURIComponent(userId)
+  } catch {
+    return userId
+  }
+}
 
 export function ProfilePage() {
   const { userId } = useParams()
-  const id = useMemo(() => (userId ? decodeURIComponent(userId) : undefined), [userId])
+  const id = useMemo(() => safeDecodeUserId(userId), [userId])
   const { data, error, refresh } = useProfile(id)
   const { userId: currentUserId } = useCurrentUser()
-  const isOwner = currentUserId != null && id != null && String(currentUserId) === String(id)
-  const ownerId = isOwner ? currentUserId! : null
-  const [profileDraft, setProfileDraft] = useState<ProfileResponse | null>(null)
 
-  useEffect(() => {
-    if (!data) return
-    setProfileDraft((current) => {
-      if (!current || current.userId !== data.userId) return data
-      return { ...current, ...data }
-    })
-  }, [data])
+  const {
+    profile,
+    updateProfile,
+    updatePost,
+    deletePost,
+    deleteMedia,
+    updateAccess,
+    updateRating,
+  } = useProfileDraft(data, refresh)
 
-  const profile = profileDraft ?? data;
-  const posts = profile?.posts ?? [];
+  const viewState = useMemo(
+    () => deriveProfileViewState(profile, currentUserId),
+    [profile, currentUserId]
+  )
 
-  const errorMessage =
-    error instanceof Error ? error.message : error ? String(error) : null;
+  const { requestAccess, busy: accessBusy, error: accessError } = useProfileAccess(
+    profile?.userId,
+    updateAccess
+  )
+
+  const errorMessage = error ? getErrorMessage(error, 'Failed to load profile') : null
+
+  // Delete operations handle refresh internally via useProfileDraft
+  const handlePostDelete = viewState.ownerId ? deletePost : undefined
+  const handleMediaDelete = viewState.ownerId ? deleteMedia : undefined
 
   return (
     <div className="profile u-hide-scroll">
       <HeroSection profile={profile ?? undefined} />
 
       <div className="profile__sheet">
-        <div className="u-glass profile__card">
-          <div className="u-stack">
-            <div style={{ fontSize: 'var(--fs-4)', fontWeight: 650 }}>About</div>
-            <div className="u-subtitle u-clamp-3">{profile?.bio ?? 'No bio yet.'}</div>
+        {profile?.bio ? (
+          <div className="u-glass promptCard">
+            <div className="u-stack">
+              <div className="profile__sectionTitle">About</div>
+              <div className="u-subtitle u-clamp-3">{profile.bio}</div>
+            </div>
           </div>
-        </div>
-
-        {ownerId && profile && (
-          <ProfileInlineEditor
-            userId={ownerId}
-            profile={profile}
-            onProfileChange={(patch) => {
-              setProfileDraft((current) => {
-                if (!current) return current
-                const next = { ...current, ...patch }
-                if (patch.birthdate !== undefined) {
-                  next.age = toAge(patch.birthdate)
-                }
-                return next
-              })
-            }}
-          />
+        ) : (
+          <div className="u-glass profile__card">
+            <div className="u-stack">
+              <div className="profile__sectionTitle">About</div>
+              <div className="profile__meta">No bio yet.</div>
+            </div>
+          </div>
         )}
 
-        {ownerId && (
+        {viewState.ownerId && profile && (
+          <ProfileInlineEditor userId={viewState.ownerId} profile={profile} onProfileChange={updateProfile} />
+        )}
+
+        {viewState.ownerId && (
           <ProfileMediaManager
-            userId={ownerId}
+            userId={viewState.ownerId}
             avatarUrl={profile?.avatarUrl ?? null}
             heroUrl={profile?.heroUrl ?? null}
             onUpdated={refresh}
           />
         )}
-        {ownerId && <PostComposer onPosted={refresh} />}
 
-        {ownerId && (
+        {viewState.ownerId && <PostComposer onPosted={refresh} />}
+
+        <ProfileRatings ratings={profile?.ratings} />
+
+        {viewState.shouldShowPosts && (
           <ProfilePostList
-            posts={posts}
-            onPostUpdate={(postId, patch) => {
-              setProfileDraft((current) => {
-                if (!current) return current
-                return {
-                  ...current,
-                  posts: (current.posts ?? []).map((post) =>
-                    String(post.id) === String(postId) ? { ...post, ...patch } : post
-                  )
-                }
-              })
-            }}
+            posts={profile?.posts ?? []}
+            readOnly={!viewState.ownerId}
+            onPostUpdate={viewState.ownerId ? updatePost : undefined}
+            onPostDelete={handlePostDelete}
           />
         )}
 
-        <ProfileMediaRail items={profile?.media ?? []} />
-        <ProfileActions userId={profile?.userId ?? id ?? '0'} />
-
-        {errorMessage && (
-          <div className="u-glass u-pad-4" style={{ borderRadius: 'var(--r-4)' }}>
-            <div style={{ fontSize: 'var(--fs-3)' }}>Error</div>
-            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>
-              {errorMessage}
+        {viewState.showFollowButton && (
+          <div className="u-glass profile__card">
+            <div className="u-stack">
+              <div className="u-row-between u-gap-3 u-wrap">
+                <button
+                  className="topBar__btn topBar__btn--primary"
+                  type="button"
+                  onClick={requestAccess}
+                  disabled={viewState.accessStatus !== ACCESS_STATUS.NONE || accessBusy}
+                >
+                  {viewState.accessStatus === ACCESS_STATUS.PENDING
+                    ? 'Follow Request Sent'
+                    : viewState.accessStatus === ACCESS_STATUS.GRANTED
+                      ? 'Following'
+                      : accessBusy
+                        ? 'Requesting...'
+                        : 'Follow'}
+                </button>
+                {accessError && <div className="profile__error">{accessError}</div>}
+              </div>
             </div>
           </div>
         )}
 
+        {viewState.showAccessCard && (
+          <div className="u-glass profile__card">
+            <div className="u-stack">
+              <div className="profile__sectionTitle">Private content</div>
+              <div className="profile__meta">This profile has private posts or media.</div>
+              {viewState.accessStatus === ACCESS_STATUS.NONE && (
+                <div className="profile__meta">
+                  Follow this profile to request access to private content.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <ProfileMediaRail
+          items={profile?.media ?? []}
+          readOnly={!viewState.ownerId}
+          onMediaDelete={handleMediaDelete}
+        />
+
+        {profile?.userId && (
+          <ProfileActions
+            userId={profile.userId}
+            initialRating={profile?.ratings?.mine ?? null}
+            onRated={updateRating}
+          />
+        )}
+
+        {errorMessage && (
+          <div className="u-glass profile__card">
+            <div className="profile__itemTitle">Error</div>
+            <div className="profile__meta u-mt-2">{errorMessage}</div>
+          </div>
+        )}
       </div>
     </div>
   )

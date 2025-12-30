@@ -6,6 +6,7 @@ model UserBlock {
   blocker    User @relation("BlocksMade", fields: [blockerId], references: [id])
   blocked    User @relation("BlocksGot",  fields: [blockedId], references: [id])
   @@unique([blockerId, blockedId])
+  @@index([blockedId, createdAt])
 }
 
 model UserReport {

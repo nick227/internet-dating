@@ -1,0 +1,19 @@
+model JobRun {
+  id               BigInt       @id @default(autoincrement())
+  jobName          String
+  status           JobRunStatus
+  trigger          JobTrigger
+  scope            String?
+  algorithmVersion String?
+  attempt          Int          @default(1)
+  startedAt        DateTime     @default(now())
+  finishedAt       DateTime?
+  durationMs       Int?
+  error            String?      @db.Text
+  metadata         Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([jobName, status])
+  @@index([jobName, startedAt])
+}

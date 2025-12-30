@@ -47,14 +47,14 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
   return (
     <div className="u-glass profile__card">
       <div className="u-stack">
-        <div style={{ fontSize: 'var(--fs-4)', fontWeight: 650 }}>Profile media</div>
+        <div className="profile__sectionTitle">Profile media</div>
 
-        <div className="u-row-between" style={{ gap: 12 }}>
-          <div className="u-row" style={{ gap: 10 }}>
+        <div className="u-row-between u-gap-3 u-wrap">
+          <div className="u-row u-gap-3 u-wrap">
             <Avatar name="You" size="sm" src={avatarUrl ?? null} />
-            <div>
-              <div style={{ fontSize: 'var(--fs-3)', fontWeight: 600 }}>Avatar</div>
-              <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>Shows in matches and inbox.</div>
+            <div className="u-stack u-gap-2">
+              <div className="profile__itemTitle">Avatar</div>
+              <div className="profile__meta">Shows in matches and inbox.</div>
             </div>
           </div>
           <button
@@ -70,7 +70,7 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
             className="srOnly"
             type="file"
             accept={ACCEPTED_TYPES}
-            onChange={(event) => {
+            onChange={event => {
               const file = event.currentTarget.files?.[0]
               event.currentTarget.value = ''
               if (file) handleUpload('avatar', file)
@@ -78,14 +78,14 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
           />
         </div>
 
-        <div className="u-row-between" style={{ gap: 12 }}>
-          <div className="u-row" style={{ gap: 10 }}>
-            <div className="mediaThumb" style={{ width: 72, height: 96 }}>
+        <div className="u-row-between u-gap-3 u-wrap">
+          <div className="u-row u-gap-3 u-wrap">
+            <div className="mediaThumb profile__heroThumb">
               {heroUrl ? <img src={heroUrl} alt="" loading="lazy" /> : null}
             </div>
-            <div>
-              <div style={{ fontSize: 'var(--fs-3)', fontWeight: 600 }}>Hero photo</div>
-              <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>Used for the profile header.</div>
+            <div className="u-stack u-gap-2">
+              <div className="profile__itemTitle">Hero photo</div>
+              <div className="profile__meta">Used for the profile header.</div>
             </div>
           </div>
           <button
@@ -101,7 +101,7 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
             className="srOnly"
             type="file"
             accept={ACCEPTED_TYPES}
-            onChange={(event) => {
+            onChange={event => {
               const file = event.currentTarget.files?.[0]
               event.currentTarget.value = ''
               if (file) handleUpload('hero', file)
@@ -109,14 +109,8 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
           />
         </div>
 
-        <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>
-          JPG, PNG, or WEBP. Max 10MB.
-        </div>
-        {error && (
-          <div style={{ color: 'rgba(251,113,133,.9)', fontSize: 'var(--fs-2)' }}>
-            {error}
-          </div>
-        )}
+        <div className="profile__meta">JPG, PNG, or WEBP. Max 10MB.</div>
+        {error && <div className="profile__error">{error}</div>}
       </div>
     </div>
   )

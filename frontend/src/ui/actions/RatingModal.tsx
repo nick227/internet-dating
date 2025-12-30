@@ -1,13 +1,16 @@
-import { useEffect } from 'react'
+import type { RatingScores } from '../../api/types'
+import { FullScreenModal } from '../ui/FullScreenModal'
 
-export type RatingKey = 'attractive' | 'smart' | 'funny' | 'interesting'
+// RatingKey matches the keys of RatingScores - using type assertion for compatibility
+export type RatingKey = keyof RatingScores
+// RatingValues is the UI representation (1-5 scale) of RatingScores (2-10 scale)
 export type RatingValues = Record<RatingKey, number>
 
 const LABELS: Record<RatingKey, string> = {
   attractive: 'Attractive',
   smart: 'Smart',
   funny: 'Funny',
-  interesting: 'Interesting'
+  interesting: 'Interesting',
 }
 
 const LEVELS = [1, 2, 3, 4, 5]
@@ -18,7 +21,7 @@ export function RatingModal({
   submitting,
   onClose,
   onChange,
-  onSubmit
+  onSubmit,
 }: {
   open: boolean
   values: RatingValues
@@ -27,59 +30,55 @@ export function RatingModal({
   onChange: (key: RatingKey, value: number) => void
   onSubmit: () => void
 }) {
-  useEffect(() => {
-    if (!open) return
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
-
-  if (!open) return null
-
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-label="Rate profile">
-      <div className="modal__backdrop" onClick={onClose} />
-      <div className="modal__panel">
-        <div className="modal__header">
-          <div style={{ fontSize: 'var(--fs-5)', fontWeight: 700 }}>Rate this profile</div>
-          <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>Pick a quick score for each factor.</div>
-        </div>
-
-        <div className="modal__body">
-          {Object.keys(LABELS).map((key) => {
-            const label = LABELS[key as RatingKey]
-            const value = values[key as RatingKey]
-            return (
-              <div key={key} className="ratingRow">
-                <div className="ratingLabel">{label}</div>
-                <div className="ratingButtons">
-                  {LEVELS.map((level) => (
-                    <button
-                      key={level}
-                      className={'ratingBtn' + (value === level ? ' ratingBtn--active' : '')}
-                      type="button"
-                      onClick={() => onChange(key as RatingKey, level)}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
+    <FullScreenModal
+      open={open}
+      onClose={onClose}
+      title="Rate this profile"
+      subtitle="Pick a quick score for each factor."
+      showCloseButton={false}
+    >
+      <div className="fullScreenModal__ratingContainer">
+        {Object.keys(LABELS).map(key => {
+          const label = LABELS[key as RatingKey]
+          const value = values[key as RatingKey]
+          return (
+            <div key={key} className="ratingRow">
+              <div className="ratingLabel">{label}</div>
+              <div className="ratingButtons">
+                {LEVELS.map(level => (
+                  <button
+                    key={level}
+                    className={'ratingBtn' + (value === level ? ' ratingBtn--active' : '')}
+                    type="button"
+                    onClick={() => onChange(key as RatingKey, level)}
+                  >
+                    {level}
+                  </button>
+                ))}
               </div>
-            )
-          })}
-        </div>
-
-        <div className="modal__actions">
-          <button className="actionBtn actionBtn--nope" type="button" onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
-          <button className="actionBtn actionBtn--like" type="button" onClick={onSubmit} disabled={submitting}>
-            {submitting ? 'Saving...' : 'Submit'}
-          </button>
-        </div>
+            </div>
+          )
+        })}
       </div>
-    </div>
+      <div className="fullScreenModal__actions">
+        <button
+          className="actionBtn actionBtn--nope"
+          type="button"
+          onClick={onClose}
+          disabled={submitting}
+        >
+          Cancel
+        </button>
+        <button
+          className="actionBtn actionBtn--like"
+          type="button"
+          onClick={onSubmit}
+          disabled={submitting}
+        >
+          {submitting ? 'Saving...' : 'Submit'}
+        </button>
+      </div>
+    </FullScreenModal>
   )
 }

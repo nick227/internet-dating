@@ -51,7 +51,11 @@ const schemas = {
   },
   AuthSignupBody: {
     type: 'object',
-    properties: { email: { type: 'string' }, password: { type: 'string' } },
+    properties: { 
+      email: { type: 'string' }, 
+      password: { type: 'string' },
+      rememberMe: { type: 'boolean' }
+    },
     required: ['email', 'password']
   },
   AuthSignupResponse: {
@@ -64,7 +68,11 @@ const schemas = {
   },
   AuthLoginBody: {
     type: 'object',
-    properties: { email: { type: 'string' }, password: { type: 'string' } },
+    properties: { 
+      email: { type: 'string' }, 
+      password: { type: 'string' },
+      rememberMe: { type: 'boolean' }
+    },
     required: ['email', 'password']
   },
   AuthLoginResponse: {
@@ -78,12 +86,14 @@ const schemas = {
     required: ['userId']
   },
   Visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE'] },
+  AccessStatus: { type: 'string', enum: ['NONE', 'PENDING', 'GRANTED', 'DENIED', 'REVOKED'] },
   MediaType: { type: 'string', enum: ['IMAGE', 'VIDEO'] },
   MediaStatus: { type: 'string', enum: ['PENDING', 'READY', 'FAILED'] },
   Gender: { type: 'string', enum: ['UNSPECIFIED', 'MALE', 'FEMALE', 'NONBINARY', 'OTHER'] },
   DatingIntent: { type: 'string', enum: ['UNSPECIFIED', 'FRIENDS', 'CASUAL', 'LONG_TERM', 'MARRIAGE'] },
   MatchState: { type: 'string', enum: ['ACTIVE', 'BLOCKED', 'CLOSED'] },
-  SwipeAction: { type: 'string', enum: ['LIKE', 'PASS'] },
+  CompatibilityStatus: { type: 'string', enum: ['READY', 'INSUFFICIENT_DATA'] },
+  SwipeAction: { type: 'string', enum: ['LIKE', 'DISLIKE'] },
   ReportReason: { type: 'string', enum: ['SPAM', 'HARASSMENT', 'IMPERSONATION', 'NUDITY', 'HATE', 'OTHER'] },
   Media: {
     type: 'object',
@@ -151,6 +161,7 @@ const schemas = {
       id: ref('Id'),
       text: { type: ['string', 'null'] },
       createdAt: { type: 'string', format: 'date-time' },
+      presentation: { anyOf: [ref('FeedPresentation'), { type: 'null' }] },
       user: {
         type: 'object',
         properties: {
@@ -166,6 +177,14 @@ const schemas = {
     },
     required: ['id', 'createdAt', 'user', 'media']
   },
+  FeedPresentation: {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', enum: ['single', 'mosaic', 'question', 'highlight'] },
+      accent: { type: ['string', 'null'], enum: ['match', 'boost', 'new', null] }
+    },
+    required: ['mode']
+  },
   FeedSuggestion: {
     type: 'object',
     properties: {
@@ -173,18 +192,132 @@ const schemas = {
       displayName: { type: ['string', 'null'] },
       bio: { type: ['string', 'null'] },
       locationText: { type: ['string', 'null'] },
-      intent: { type: ['string', 'null'] }
+      intent: { type: ['string', 'null'] },
+      source: { type: ['string', 'null'], enum: ['match', 'suggested', null] },
+      compatibility: { anyOf: [ref('CompatibilitySummary'), { type: 'null' }] },
+      presentation: { anyOf: [ref('FeedPresentation'), { type: 'null' }] }
     },
     required: ['userId']
+  },
+  FeedQuestionOption: {
+    type: 'object',
+    properties: {
+      id: ref('Id'),
+      label: { type: 'string' },
+      value: { type: 'string' }
+    },
+    required: ['id', 'label', 'value']
+  },
+  FeedQuestion: {
+    type: 'object',
+    properties: {
+      id: ref('Id'),
+      quizId: ref('Id'),
+      quizTitle: { type: ['string', 'null'] },
+      prompt: { type: 'string' },
+      options: { type: 'array', items: ref('FeedQuestionOption') },
+      presentation: { anyOf: [ref('FeedPresentation'), { type: 'null' }] }
+    },
+    required: ['id', 'quizId', 'prompt', 'options']
+  },
+  SuggestionProfile: {
+    type: ['object', 'null'],
+    properties: {
+      displayName: { type: ['string', 'null'] },
+      locationText: { type: ['string', 'null'] },
+      intent: { type: ['string', 'null'] },
+      avatarUrl: { type: ['string', 'null'] }
+    }
+  },
+  SuggestionItem: {
+    type: 'object',
+    properties: {
+      userId: ref('Id'),
+      profile: ref('SuggestionProfile'),
+      score: { type: 'number' },
+      reasons: { type: ['object', 'null'], additionalProperties: true },
+      compatibility: { anyOf: [ref('CompatibilitySummary'), { type: 'null' }] }
+    },
+    required: ['userId', 'score', 'compatibility']
+  },
+  SuggestionResponse: {
+    type: 'object',
+    properties: {
+      suggestions: { type: 'array', items: ref('SuggestionItem') },
+      nextCursorId: { anyOf: [ref('Id'), { type: 'null' }] }
+    },
+    required: ['suggestions', 'nextCursorId']
+  },
+  FeedItem: {
+    type: 'object',
+    properties: {
+      type: { type: 'string', enum: ['post', 'suggestion', 'question'] },
+      post: { anyOf: [ref('FeedPost'), { type: 'null' }] },
+      suggestion: { anyOf: [ref('FeedSuggestion'), { type: 'null' }] },
+      question: { anyOf: [ref('FeedQuestion'), { type: 'null' }] }
+    },
+    required: ['type']
+  },
+  FeedDebug: {
+    type: 'object',
+    properties: {
+      seed: { type: ['number', 'null'] },
+      candidates: {
+        type: 'object',
+        properties: {
+          postIds: { type: 'array', items: ref('Id') },
+          suggestionUserIds: { type: 'array', items: ref('Id') },
+          questionIds: { type: 'array', items: ref('Id') },
+          counts: {
+            type: 'object',
+            properties: {
+              posts: { type: 'number' },
+              suggestions: { type: 'number' },
+              questions: { type: 'number' }
+            },
+            required: ['posts', 'suggestions']
+          }
+        },
+        required: ['postIds', 'suggestionUserIds', 'counts']
+      },
+      dedupe: {
+        type: 'object',
+        properties: {
+          postDuplicates: { type: 'number' },
+          suggestionDuplicates: { type: 'number' },
+          questionDuplicates: { type: 'number' },
+          crossSourceRemoved: { type: 'number' }
+        },
+        required: ['postDuplicates', 'suggestionDuplicates', 'crossSourceRemoved']
+      },
+      seen: {
+        type: 'object',
+        properties: {
+          windowHours: { type: 'number' },
+          demotedPosts: { type: 'number' },
+          demotedSuggestions: { type: 'number' }
+        },
+        required: ['windowHours', 'demotedPosts', 'demotedSuggestions']
+      },
+      ranking: {
+        type: ['object', 'null'],
+        properties: {
+          sourceSequence: { type: 'array', items: { type: 'string' } },
+          actorCounts: { type: 'object', additionalProperties: { type: 'number' } }
+        }
+      }
+    },
+    required: ['seed', 'candidates', 'dedupe', 'seen']
   },
   FeedResponse: {
     type: 'object',
     properties: {
-      posts: { type: 'array', items: ref('FeedPost') },
-      suggestions: { type: 'array', items: ref('FeedSuggestion') },
-      nextCursorId: { anyOf: [ref('Id'), { type: 'null' }] }
+      items: { type: 'array', items: ref('FeedItem') },
+      nextCursorId: { anyOf: [ref('Id'), { type: 'null' }] },
+      hasMorePosts: { type: 'boolean' },
+      debug: { anyOf: [ref('FeedDebug'), { type: 'null' }] }
     },
-    required: ['posts', 'suggestions', 'nextCursorId']
+    required: ['items', 'nextCursorId', 'hasMorePosts']
   },
   PostCreateBody: {
     type: 'object',
@@ -265,6 +398,16 @@ const schemas = {
     },
     required: ['id', 'visibility', 'createdAt', 'media']
   },
+  ProfileAccessInfo: {
+    type: 'object',
+    properties: {
+      status: ref('AccessStatus'),
+      requestId: { anyOf: [ref('Id'), { type: 'null' }] },
+      hasPrivatePosts: { type: 'boolean' },
+      hasPrivateMedia: { type: 'boolean' }
+    },
+    required: ['status', 'hasPrivatePosts', 'hasPrivateMedia']
+  },
   ProfileRatingAvg: {
     type: 'object',
     properties: {
@@ -294,14 +437,67 @@ const schemas = {
     },
     required: ['count', 'avg', 'mine']
   },
+  CompatibilitySummary: {
+    type: 'object',
+    properties: {
+      score: { type: ['number', 'null'] },
+      status: ref('CompatibilityStatus')
+    },
+    required: ['score', 'status']
+  },
   ProfileResponse: {
     type: 'object',
     properties: {
       profile: { anyOf: [ref('Profile'), { type: 'null' }] },
       posts: { type: 'array', items: ref('ProfilePost') },
-      ratings: ref('ProfileRatings')
+      access: { anyOf: [ref('ProfileAccessInfo'), { type: 'null' }] },
+      ratings: ref('ProfileRatings'),
+      compatibility: { anyOf: [ref('CompatibilitySummary'), { type: 'null' }] }
     },
-    required: ['profile', 'posts', 'ratings']
+    required: ['profile', 'posts', 'access', 'ratings', 'compatibility']
+  },
+  ProfileAccessGrantBody: {
+    type: 'object',
+    properties: {
+      viewerUserId: ref('Id')
+    },
+    required: ['viewerUserId']
+  },
+  ProfileAccessResponse: {
+    type: 'object',
+    properties: {
+      status: ref('AccessStatus'),
+      requestId: { anyOf: [ref('Id'), { type: 'null' }] }
+    },
+    required: ['status', 'requestId']
+  },
+  FollowerItem: {
+    type: 'object',
+    properties: {
+      requestId: ref('Id'),
+      userId: ref('Id'),
+      name: { type: 'string' },
+      avatarUrl: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+      status: ref('AccessStatus'),
+      requestedAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+      compatibility: { anyOf: [ref('CompatibilitySummary'), { type: 'null' }] }
+    },
+    required: ['requestId', 'userId', 'name', 'avatarUrl', 'status', 'requestedAt', 'updatedAt', 'compatibility']
+  },
+  FollowersResponse: {
+    type: 'object',
+    properties: {
+      followers: { type: 'array', items: ref('FollowerItem') }
+    },
+    required: ['followers']
+  },
+  FollowingResponse: {
+    type: 'object',
+    properties: {
+      following: { type: 'array', items: ref('FollowerItem') }
+    },
+    required: ['following']
   },
   ProfilePatchBody: {
     type: 'object',
@@ -367,9 +563,10 @@ const schemas = {
     type: 'object',
     properties: {
       id: ref('Id'),
-      profile: { anyOf: [ref('MatchUserProfile'), { type: 'null' }] }
+      profile: { anyOf: [ref('MatchUserProfile'), { type: 'null' }] },
+      compatibility: { anyOf: [ref('CompatibilitySummary'), { type: 'null' }] }
     },
-    required: ['id']
+    required: ['id', 'compatibility']
   },
   MatchItem: {
     type: 'object',
@@ -402,9 +599,10 @@ const schemas = {
     type: 'object',
     properties: {
       id: ref('Id'),
-      profile: { anyOf: [ref('InboxUserProfile'), { type: 'null' }] }
+      profile: { anyOf: [ref('InboxUserProfile'), { type: 'null' }] },
+      compatibility: { anyOf: [ref('CompatibilitySummary'), { type: 'null' }] }
     },
-    required: ['id']
+    required: ['id', 'compatibility']
   },
   InboxMessage: {
     type: 'object',
@@ -412,9 +610,10 @@ const schemas = {
       id: ref('Id'),
       body: { type: 'string' },
       createdAt: { type: 'string', format: 'date-time' },
-      senderId: ref('Id')
+      senderId: ref('Id'),
+      isSystem: { type: 'boolean' }
     },
-    required: ['id', 'body', 'createdAt', 'senderId']
+    required: ['id', 'body', 'createdAt', 'senderId', 'isSystem']
   },
   InboxConversation: {
     type: 'object',
@@ -440,9 +639,10 @@ const schemas = {
       id: ref('Id'),
       body: { type: 'string' },
       senderId: ref('Id'),
-      createdAt: { type: 'string', format: 'date-time' }
+      createdAt: { type: 'string', format: 'date-time' },
+      isSystem: { type: 'boolean' }
     },
-    required: ['id', 'body', 'senderId', 'createdAt']
+    required: ['id', 'body', 'senderId', 'createdAt', 'isSystem']
   },
   MessageListResponse: {
     type: 'object',
@@ -592,7 +792,10 @@ const routeSchemas: Record<string, { requestBody?: any; responses?: any; paramet
   'feed.GET./feed': {
     parameters: [
       { name: 'cursorId', in: 'query', required: false, schema: ref('Id') },
-      { name: 'take', in: 'query', required: false, schema: { type: 'number' } }
+      { name: 'take', in: 'query', required: false, schema: { type: 'number' } },
+      { name: 'debug', in: 'query', required: false, schema: { type: 'boolean' } },
+      { name: 'seed', in: 'query', required: false, schema: { type: 'number' } },
+      { name: 'markSeen', in: 'query', required: false, schema: { type: 'boolean' } }
     ],
     responses: { '200': jsonResponse(ref('FeedResponse')) }
   },
@@ -610,6 +813,25 @@ const routeSchemas: Record<string, { requestBody?: any; responses?: any; paramet
   'profiles.GET./profiles/:userId': {
     responses: { '200': jsonResponse(ref('ProfileResponse')) }
   },
+  'profiles.POST./profiles/:userId/access-requests': {
+    responses: { '200': jsonResponse(ref('ProfileAccessResponse')) }
+  },
+  'profiles.POST./profiles/:userId/access-grants': {
+    requestBody: jsonRequestBody(ref('ProfileAccessGrantBody')),
+    responses: { '200': jsonResponse(ref('ProfileAccessResponse')) }
+  },
+  'profiles.GET./profiles/:userId/followers': {
+    responses: { '200': jsonResponse(ref('FollowersResponse')) }
+  },
+  'profiles.GET./profiles/:userId/following': {
+    responses: { '200': jsonResponse(ref('FollowingResponse')) }
+  },
+  'profiles.POST./profiles/access-requests/:requestId/approve': {
+    responses: { '200': jsonResponse(ref('ProfileAccessResponse')) }
+  },
+  'profiles.POST./profiles/access-requests/:requestId/deny': {
+    responses: { '200': jsonResponse(ref('ProfileAccessResponse')) }
+  },
   'profiles.PATCH./profiles/:userId': {
     requestBody: jsonRequestBody(ref('ProfilePatchBody')),
     responses: { '200': jsonResponse(ref('ProfilePatchResponse')) }
@@ -618,13 +840,40 @@ const routeSchemas: Record<string, { requestBody?: any; responses?: any; paramet
     requestBody: jsonRequestBody(ref('RateBody')),
     responses: { '200': jsonResponse(ref('OkResponse')) }
   },
-  'matches.POST./swipes': {
+  'matches.POST./likes': {
     requestBody: jsonRequestBody(ref('SwipeBody')),
     responses: { '200': jsonResponse(ref('SwipeResponse')) }
   },
   'matches.GET./matches': {
     responses: { '200': jsonResponse(ref('MatchListResponse')) }
   },
+    'matches.GET./suggestions': {
+      parameters: [
+        { name: 'cursorId', in: 'query', required: false, schema: ref('Id') },
+        { name: 'take', in: 'query', required: false, schema: { type: 'number' } },
+        {
+          name: 'type',
+          in: 'query',
+          required: false,
+          schema: {
+            type: 'string',
+            enum: [
+              'overall',
+              'ratings',
+              'ratings.attractive',
+              'ratings.smart',
+              'ratings.funny',
+              'ratings.interesting',
+              'ratings.fit',
+              'interests',
+              'nearby',
+              'new'
+            ]
+          }
+        }
+      ],
+      responses: { '200': jsonResponse(ref('SuggestionResponse')) }
+    },
   'messaging.GET./inbox': {
     responses: { '200': jsonResponse(ref('InboxResponse')) }
   },

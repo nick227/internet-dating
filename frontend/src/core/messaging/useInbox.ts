@@ -4,8 +4,8 @@ import { useAsync } from '../hooks/useAsync'
 
 export function useInbox() {
   const [tick, setTick] = useState(0)
-  const { data, loading, error } = useAsync((signal) => api.messaging.inbox(signal), [tick])
-  const refresh = useCallback(() => setTick((v) => v + 1), [])
+  const { data, loading, error } = useAsync(signal => api.messaging.inbox(signal), [tick])
+  const refresh = useCallback(() => setTick(v => v + 1), [])
 
   return { data, loading, error, refresh }
 }
