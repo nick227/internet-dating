@@ -31,8 +31,7 @@ function getLocalStorageSize(): number {
 
 function countIntersectionObservers(): number {
   // IntersectionObserver instances are not directly countable
-  // We track via a global counter in useIntersection hook
-  // For now, return estimated count based on visible cards
+  // Approximate by counting rendered cards.
   return document.querySelectorAll('.riverCard').length
 }
 
@@ -45,6 +44,8 @@ export function useFeedPerformance() {
   })
 
   useEffect(() => {
+    if (!import.meta.env?.DEV) return
+
     const updateMetrics = () => {
       const cardCount = document.querySelectorAll('.riverCard').length
       const observerCount = countIntersectionObservers()

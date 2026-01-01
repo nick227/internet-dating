@@ -24,6 +24,7 @@
   --fs-6: 28px;
   --lh-tight: 1.15;
   --lh-normal: 1.35;
+  --z-modal: 99999999;
 
   --bg: #07070a;
   --panel: rgba(255, 255, 255, 0.06);
@@ -46,7 +47,7 @@
   --z-base: 1;
   --z-overlay: 4;
   --z-content: 5;
-  --z-modal: 50;
+  --z-modal: 9999;
 
   --shadow-1: 0 10px 30px rgba(0, 0, 0, 0.35);
   --shadow-2: 0 20px 60px rgba(0, 0, 0, 0.45);

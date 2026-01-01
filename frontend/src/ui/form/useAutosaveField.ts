@@ -19,12 +19,17 @@ export function useAutosaveField({ value, onSave, debounceMs = 900 }: Options) {
 
   useEffect(() => {
     if (value === lastSaved.current) return
+    // Don't reset to empty if we have a draft value and value becomes empty
+    // This prevents clearing the form during parent refetches
+    if (value === '' && draft !== '' && status === 'saved') {
+      return // Skip sync during refetch, keep optimistic update
+    }
     lastSaved.current = value
     setDraft(value)
     setStatus('idle')
     setError(null)
     skipRef.current = true
-  }, [value])
+  }, [value, draft, status])
 
   const runSave = useCallback(
     async (nextValue: string) => {

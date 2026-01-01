@@ -31,6 +31,7 @@ async function convertPresortedToFeedItems(
   question?: any;
   actorId: bigint;
   source: 'post' | 'match' | 'suggested' | 'question';
+  tier: 'everyone';
 }>> {
   const postIds: bigint[] = [];
   const suggestionIds: bigint[] = [];
@@ -131,6 +132,7 @@ async function convertPresortedToFeedItems(
           },
           actorId: presorted.actorId,
           source: presorted.source,
+          tier: 'everyone',
         });
       }
     } else if (presorted.type === 'suggestion') {
@@ -150,6 +152,7 @@ async function convertPresortedToFeedItems(
           },
           actorId: presorted.actorId,
           source: presorted.source,
+          tier: 'everyone',
         });
       }
     } else if (presorted.type === 'question') {
@@ -168,6 +171,7 @@ async function convertPresortedToFeedItems(
           },
           actorId: presorted.actorId,
           source: 'question' as const,
+          tier: 'everyone',
         });
       }
     }

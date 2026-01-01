@@ -8,6 +8,7 @@ model User {
 
   profile      Profile?
   posts        Post[]
+  comments     Comment[]
   media        Media[]
   mediaOwned   Media[] @relation("MediaOwner")
 
@@ -22,6 +23,7 @@ model User {
 
   messages     Message[] @relation("MessageSender")
   receipts     MessageReceipt[]
+  conversationStates ConversationUserState[]
 
   LikedPosts   LikedPost[]
 
@@ -34,6 +36,7 @@ model User {
   quizResults  QuizResult[]
 
   interests   UserInterest[]
+  interestDeltas UserInterestDelta[]
   matchScores MatchScore[] @relation("MatchScoreUser")
   matchScoresAsCandidate MatchScore[] @relation("MatchScoreCandidate")
   compatibilityGiven UserCompatibility[] @relation("CompatibilityViewer")
@@ -45,6 +48,7 @@ model User {
   profileAccessGranted  ProfileAccess[] @relation("ProfileAccessOwner")
   profileAccessReceived ProfileAccess[] @relation("ProfileAccessViewer")
   presortedFeedSegments PresortedFeedSegment[]
+  traits                UserTrait[]
 
   @@index([createdAt])
   @@index([deletedAt])
@@ -72,10 +76,25 @@ model Profile {
   deletedAt     DateTime?
   ratingsGiven  ProfileRating[] @relation("RatingsGiven")
   ratingsGot    ProfileRating[] @relation("RatingsGot")
+  stats         ProfileStats?
   top5Lists     Top5List[]
   @@index([isVisible, intent, locationText])
   @@index([avatarMediaId])
   @@index([heroMediaId])
   @@index([lat, lng])
   @@index([deletedAt])
+}
+
+model UserTrait {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  traitKey  String   // e.g., "personality.funny", "values.adventure"
+  value     Decimal  @db.Decimal(10,2)  // Aggregated trait value (mean from quiz answers)
+  n         Int      @default(1) // Contribution count (number of quiz answers that contributed to this trait)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User @relation(fields: [userId], references: [id])
+  @@unique([userId, traitKey])
+  @@index([userId])
+  @@index([traitKey])
 }

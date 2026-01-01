@@ -80,10 +80,13 @@ export type FeedItem = {
   question?: FeedQuestionCandidate
   actorId: bigint
   source: 'post' | 'match' | 'suggested' | 'question'
+  tier: 'self' | 'following' | 'followers' | 'everyone'
   presentation?: FeedPresentation
 }
 
 export type FeedStats = {
+  likeCount?: number
+  commentCount?: number
   ratingAverage?: number
   ratingCount?: number
   myRating?: RatingValues | null
@@ -121,5 +124,7 @@ export type FeedDebugSummary = {
   ranking?: {
     sourceSequence: Array<'post' | 'match' | 'suggested'>
     actorCounts: Record<string, number>
+    tierSequence?: Array<'self' | 'following' | 'followers' | 'everyone'>
+    tierCounts?: Record<'self' | 'following' | 'followers' | 'everyone', number>
   }
 }

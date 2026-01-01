@@ -6,13 +6,15 @@ import { parseOptionalPositiveBigIntList, parsePositiveBigInt } from '../../../l
 import { mediaService, MediaError } from '../../../services/media/mediaService.js';
 import { buildViewerContext } from './context.js';
 import { getCandidates } from './candidates/index.js';
+import { getRelationshipPostCandidates } from './candidates/posts.js';
 import { scoreCandidates } from './scoring/index.js';
 import { mergeAndRank } from './ranking/index.js';
 import { hydrateFeedItems } from './hydration/index.js';
 import { hydrateFeedItemsFromPresorted } from './hydration/presorted.js';
 import { recordFeedSeen } from '../../../services/feed/feedSeenService.js';
-import { getPresortedSegment } from '../../../services/feed/presortedFeedService.js';
+import { getPresortedSegment, invalidateAllSegmentsForUser } from '../../../services/feed/presortedFeedService.js';
 import { applySeenPenalty, checkAllUnseen } from '../../../services/feed/presortedFeedHelpers.js';
+import { getFollowerIds, getRelationshipIds } from '../../../services/feed/relationshipService.js';
 import { runFeedPresortJob } from '../../../jobs/feedPresortJob.js';
 
 export const feedDomain: DomainRegistry = {
@@ -32,9 +34,97 @@ export const feedDomain: DomainRegistry = {
         const ctx = contextParsed.value;
         const isLite = req.query.lite === '1';
         const limit = isLite ? 2 : ctx.take;
+        const cursorCutoff = ctx.cursorId
+          ? await prisma.post.findUnique({
+              where: { id: ctx.cursorId },
+              select: { id: true, createdAt: true }
+            })
+          : null;
+        const relationshipIds = ctx.userId
+          ? await getRelationshipIds(ctx.userId)
+          : { followingIds: [], followerIds: [] };
+        const relationshipPosts = ctx.userId
+          ? await getRelationshipPostCandidates(ctx, relationshipIds, cursorCutoff)
+          : { self: [], following: [], followers: [] };
 
-        // Try presorted segments first (DB lookup)
-        if (ctx.userId) {
+        const relationshipItemsAll = [
+          ...relationshipPosts.self.map((post) => ({
+            type: 'post' as const,
+            post,
+            actorId: post.user.id,
+            source: 'post' as const,
+            tier: 'self' as const
+          })),
+          ...relationshipPosts.following.map((post) => ({
+            type: 'post' as const,
+            post,
+            actorId: post.user.id,
+            source: 'post' as const,
+            tier: 'following' as const
+          })),
+          ...relationshipPosts.followers.map((post) => ({
+            type: 'post' as const,
+            post,
+            actorId: post.user.id,
+            source: 'post' as const,
+            tier: 'followers' as const
+          }))
+        ];
+
+        const relationshipItems = relationshipItemsAll.slice(0, limit);
+        const relationshipPostIds = new Set<bigint>();
+        const relationshipActorIds = new Set<bigint>();
+        for (const item of relationshipItems) {
+          if (item.type === 'post' && item.post) {
+            relationshipPostIds.add(item.post.id);
+            relationshipActorIds.add(item.post.user.id);
+          }
+        }
+
+        const filterRankedItems = (
+          items: Array<{ type: string; post?: { id: bigint }; suggestion?: { userId: bigint } }>
+        ) =>
+          items.filter((item) => {
+            if (item.type === 'post' && item.post) {
+              return !relationshipPostIds.has(item.post.id);
+            }
+            if (item.type === 'suggestion' && item.suggestion) {
+              return !relationshipActorIds.has(item.suggestion.userId);
+            }
+            return true;
+          });
+
+        const recordSeenIfNeeded = async (
+          items: Array<{ type: string; post?: { id: bigint }; suggestion?: { userId: bigint } }>
+        ) => {
+          if (!ctx.markSeen || !ctx.userId) return;
+          const seenItems: Array<{ itemType: 'POST' | 'SUGGESTION'; itemId: bigint }> = [];
+          for (const item of items) {
+            if (item.type === 'post' && item.post) {
+              seenItems.push({ itemType: 'POST', itemId: item.post.id });
+            } else if (item.type === 'suggestion' && item.suggestion) {
+              seenItems.push({ itemType: 'SUGGESTION', itemId: item.suggestion.userId });
+            }
+          }
+          if (seenItems.length > 0) {
+            await recordFeedSeen(ctx.userId, seenItems);
+          }
+        };
+
+        const getNextPostCursorId = (
+          items: Array<{ type: string; post?: { id: bigint } }>
+        ): string | null => {
+          for (let i = items.length - 1; i >= 0; i -= 1) {
+            const item = items[i];
+            if (item.type === 'post' && item.post) {
+              return String(item.post.id);
+            }
+          }
+          return null;
+        };
+
+        const canUsePresort = Boolean(ctx.userId && !ctx.cursorId);
+        if (canUsePresort && ctx.userId) {
           const segment = await getPresortedSegment(ctx.userId, 0);
 
           // Algorithm version pinning: Hard fail if mismatch
@@ -44,38 +134,120 @@ export const feedDomain: DomainRegistry = {
               where: { userId: ctx.userId },
             });
           } else if (segment && segment.expiresAt > new Date()) {
-            // Parse items from JSON
             const items = segment.items;
+            const remaining = Math.max(limit - relationshipItems.length, 0);
 
-            // Phase-1 request short-circuit: Return pre-serialized JSON immediately
-            if (isLite && segment.phase1Json) {
-              // Do NOT touch Prisma/ORM at all
-              // Return pre-serialized JSON
-              return json(res, JSON.parse(segment.phase1Json));
+            if (isLite && segment.phase1Json && relationshipItems.length === 0) {
+              const parsed = JSON.parse(segment.phase1Json) as {
+                items?: Array<{ id: string; kind: string }>;
+              };
+              if (ctx.markSeen && parsed.items?.length) {
+                const seenItems = parsed.items
+                  .map((item) => {
+                    if (item.kind === 'post') {
+                      return { itemType: 'POST' as const, itemId: BigInt(item.id) };
+                    }
+                    if (item.kind === 'profile') {
+                      return { itemType: 'SUGGESTION' as const, itemId: BigInt(item.id) };
+                    }
+                    return null;
+                  })
+                  .filter((item): item is { itemType: 'POST' | 'SUGGESTION'; itemId: bigint } => item !== null);
+                if (seenItems.length > 0) {
+                  await recordFeedSeen(ctx.userId, seenItems);
+                }
+              }
+              return json(res, parsed);
             }
 
+            const filtered = items.filter((item) => {
+              if (item.type === 'post') {
+                return !relationshipPostIds.has(BigInt(item.id));
+              }
+              if (item.type === 'suggestion') {
+                return !relationshipActorIds.has(item.actorId);
+              }
+              return true;
+            });
+
             // Phase-2: Apply seen penalty with early cutoff
-            const topItems = items.slice(0, limit);
+            const topItems = filtered.slice(0, Math.max(remaining, 3));
             const allUnseen = await checkAllUnseen(ctx.userId, topItems);
 
-            let penalized = items;
+            let penalized = filtered;
             if (!allUnseen) {
               // Only apply penalty if some items are seen
-              penalized = await applySeenPenalty(ctx.userId, items);
+              penalized = await applySeenPenalty(ctx.userId, filtered);
             }
             // Skip re-sort if all unseen (early cutoff optimization)
 
-            // Fast-path hydration: Hydrate only needed items
-            const itemsToHydrate = penalized.slice(0, limit);
-            const hydrated = await hydrateFeedItemsFromPresorted(ctx, itemsToHydrate);
+            const itemsToHydrate = remaining > 0 ? penalized.slice(0, remaining) : [];
+            const [hydratedRelationship, hydratedPresorted] = await Promise.all([
+              relationshipItems.length ? hydrateFeedItems(ctx, relationshipItems) : Promise.resolve([]),
+              itemsToHydrate.length ? hydrateFeedItemsFromPresorted(ctx, itemsToHydrate) : Promise.resolve([])
+            ]);
+            const hydrated = [...hydratedRelationship, ...hydratedPresorted];
 
-            // Cursor sanity: Use segment index + offset (simplified for v1)
-            const nextCursorId = penalized.length > limit ? String(penalized[limit]?.id ?? null) : null;
+            await recordSeenIfNeeded(hydrated);
+
+            const nextCursorId = getNextPostCursorId(hydrated);
+            const hasMorePosts = nextCursorId !== null;
+
+            if (isLite) {
+              const phase1Items = hydrated.slice(0, limit).map((item) => {
+                if (item.type === 'post' && item.post) {
+                  return {
+                    id: String(item.post.id),
+                    kind: 'post' as const,
+                    actor: {
+                      id: String(item.post.user.id),
+                      name: item.post.user.profile?.displayName ?? 'User',
+                      avatarUrl: item.post.user.profile?.avatarUrl ?? null,
+                    },
+                    textPreview: item.post.text ? (item.post.text.length > 150 ? item.post.text.slice(0, 150) + '...' : item.post.text) : null,
+                    createdAt: new Date(item.post.createdAt).getTime(),
+                    presentation: item.post.presentation ?? null,
+                  };
+                } else if (item.type === 'suggestion' && item.suggestion) {
+                  return {
+                    id: String(item.suggestion.userId),
+                    kind: 'profile' as const,
+                    actor: {
+                      id: String(item.suggestion.userId),
+                      name: item.suggestion.displayName ?? 'User',
+                      avatarUrl: item.suggestion.avatarUrl ?? null,
+                    },
+                    textPreview: item.suggestion.bio ? (item.suggestion.bio.length > 150 ? item.suggestion.bio.slice(0, 150) + '...' : item.suggestion.bio) : null,
+                    createdAt: Date.now(),
+                    presentation: item.suggestion.presentation ?? null,
+                  };
+                } else if (item.type === 'question' && item.question) {
+                  return {
+                    id: String(item.question.id),
+                    kind: 'question' as const,
+                    actor: {
+                      id: '0',
+                      name: 'System',
+                      avatarUrl: null,
+                    },
+                    textPreview: item.question.prompt ?? null,
+                    createdAt: Date.now(),
+                    presentation: item.question.presentation ?? { mode: 'question' },
+                  };
+                }
+                throw new Error(`Unknown item type: ${item.type}`);
+              });
+
+              return json(res, {
+                items: phase1Items,
+                nextCursorId,
+              });
+            }
 
             return json(res, {
               items: hydrated,
               nextCursorId,
-              hasMorePosts: penalized.length > limit,
+              hasMorePosts,
             });
           } else if (segment && segment.expiresAt <= new Date()) {
             // Segment expired: Trigger background job for next time
@@ -87,27 +259,20 @@ export const feedDomain: DomainRegistry = {
         const candidates = await getCandidates(ctx);
         const scored = await scoreCandidates(ctx, candidates);
         const ranked = mergeAndRank(ctx, scored);
-        const hydrated = await hydrateFeedItems(ctx, ranked);
+        const filteredRanked = filterRankedItems(ranked);
+        const combined = [...relationshipItems, ...filteredRanked];
+        const itemsToHydrate = combined.slice(0, limit);
+        const hydrated = await hydrateFeedItems(ctx, itemsToHydrate);
 
         // Trigger background job to precompute for next time
         if (ctx.userId) {
           void runFeedPresortJob({ userId: ctx.userId }); // Fire and forget
         }
 
-        if (ctx.markSeen && ctx.userId) {
-          const seenItems: Array<{ itemType: 'POST' | 'SUGGESTION'; itemId: bigint }> = [];
-          for (const item of hydrated) {
-            if (item.type === 'post' && item.post) {
-              seenItems.push({ itemType: 'POST', itemId: item.post.id });
-            } else if (item.type === 'suggestion' && item.suggestion) {
-              seenItems.push({ itemType: 'SUGGESTION', itemId: item.suggestion.userId });
-            }
-          }
-          await recordFeedSeen(ctx.userId, seenItems);
-        }
+        await recordSeenIfNeeded(hydrated);
 
-        // Determine if there are more posts available
-        const hasMorePosts = candidates.nextCursorId !== null;
+        const nextCursorId = getNextPostCursorId(hydrated);
+        const hasMorePosts = nextCursorId !== null;
 
         // If lite mode, convert to Phase-1 format
         if (isLite) {
@@ -157,7 +322,7 @@ export const feedDomain: DomainRegistry = {
 
           return json(res, {
             items: phase1Items,
-            nextCursor: hydrated.length > limit ? String(hydrated[limit]?.post?.id ?? hydrated[limit]?.suggestion?.userId ?? hydrated[limit]?.question?.id ?? null) : null,
+            nextCursorId,
           });
         }
 
@@ -167,18 +332,26 @@ export const feedDomain: DomainRegistry = {
                 ...scored.debug,
                 ranking: {
                   sourceSequence: ranked.map((item) => item.source),
+                  tierSequence: combined.map((item) => item.tier),
                   actorCounts: ranked.reduce<Record<string, number>>((acc, item) => {
                     const key = String(item.actorId);
                     acc[key] = (acc[key] ?? 0) + 1;
                     return acc;
-                  }, {})
+                  }, {}),
+                  tierCounts: combined.reduce<Record<'self' | 'following' | 'followers' | 'everyone', number>>(
+                    (acc, item) => {
+                      acc[item.tier] = (acc[item.tier] ?? 0) + 1;
+                      return acc;
+                    },
+                    { self: 0, following: 0, followers: 0, everyone: 0 }
+                  )
                 }
               }
             : undefined;
 
         return json(res, {
           items: hydrated,
-          nextCursorId: candidates.nextCursorId ? String(candidates.nextCursorId) : null,
+          nextCursorId,
           hasMorePosts,
           ...(debug ? { debug } : {})
         });
@@ -207,10 +380,11 @@ export const feedDomain: DomainRegistry = {
         }
 
         try {
+          // Validate media ownership and readiness (accepts IMAGE, VIDEO, AUDIO)
           await mediaService.assertOwnedMediaIds(parsedMediaIds, userId, {
             requireReady: true,
             requirePublic: vis === 'PUBLIC',
-            type: 'IMAGE'
+            // No type restriction - allow IMAGE, VIDEO, and AUDIO
           });
         } catch (err) {
           if (err instanceof MediaError) {
@@ -219,22 +393,45 @@ export const feedDomain: DomainRegistry = {
           throw err;
         }
 
-        const post = await prisma.post.create({
-          data: {
-            userId,
-            visibility: vis,
-            text: text ?? null,
-            media: parsedMediaIds.length
-              ? {
-                  create: parsedMediaIds.map((id, idx) => ({
-                    order: idx,
-                    mediaId: id
-                  }))
-                }
-              : undefined
-          },
-          select: { id: true, createdAt: true }
+        // Transaction: Create post and attach media atomically
+        // This prevents orphaned media if post creation fails
+        const post = await prisma.$transaction(async (tx) => {
+          const created = await tx.post.create({
+            data: {
+              userId,
+              visibility: vis,
+              text: text ?? null,
+              media: parsedMediaIds.length
+                ? {
+                    create: parsedMediaIds.map((id, idx) => ({
+                      order: idx,
+                      mediaId: id
+                    }))
+                  }
+                : undefined
+            },
+            select: { id: true, createdAt: true }
+          });
+
+          await tx.postStats.create({
+            data: { postId: created.id }
+          });
+
+          // Media is now attached (PostMedia records exist)
+          // No orphan cleanup needed for this media
+
+          return created;
         });
+
+        void (async () => {
+          try {
+            await invalidateAllSegmentsForUser(userId);
+            const followerIds = await getFollowerIds(userId);
+            await Promise.all(followerIds.map((followerId) => invalidateAllSegmentsForUser(followerId)));
+          } catch (err) {
+            console.error('Failed to invalidate presorted feed segments:', err);
+          }
+        })();
 
         return json(res, post, 201);
       }
@@ -402,10 +599,31 @@ export const feedDomain: DomainRegistry = {
         if (!postParsed.ok) return json(res, { error: postParsed.error }, 400);
         const postId = postParsed.value;
 
-        await prisma.likedPost.upsert({
-          where: { userId_postId: { userId, postId } },
-          update: {},
-          create: { userId, postId }
+        const now = new Date();
+        await prisma.$transaction(async (tx) => {
+          const existing = await tx.likedPost.findUnique({
+            where: { userId_postId: { userId, postId } },
+            select: { id: true }
+          });
+
+          if (!existing) {
+            await tx.likedPost.create({
+              data: { userId, postId }
+            });
+
+            await tx.postStats.upsert({
+              where: { postId },
+              update: {
+                likeCount: { increment: 1 },
+                lastLikeAt: now
+              },
+              create: {
+                postId,
+                likeCount: 1,
+                lastLikeAt: now
+              }
+            });
+          }
         });
 
         return json(res, { ok: true });

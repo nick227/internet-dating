@@ -1,16 +1,32 @@
 import { useEffect } from 'react'
 
-export function Toast({ message, onClose }: { message: string | null; onClose: () => void }) {
+type ToastRole = 'status' | 'alert'
+
+export function Toast({
+  message,
+  onClose,
+  durationMs = 2200,
+  role = 'status',
+}: {
+  message: string | null
+  onClose: () => void
+  durationMs?: number
+  role?: ToastRole
+}) {
   useEffect(() => {
     if (!message) return
-    const t = setTimeout(onClose, 2200)
+    if (durationMs <= 0) return
+    const t = setTimeout(onClose, durationMs)
     return () => clearTimeout(t)
-  }, [message, onClose])
+  }, [durationMs, message, onClose])
 
   if (!message) return null
 
   return (
     <div
+      role={role}
+      aria-live={role === 'alert' ? 'assertive' : 'polite'}
+      aria-atomic="true"
       style={{
         position: 'absolute',
         left: 0,

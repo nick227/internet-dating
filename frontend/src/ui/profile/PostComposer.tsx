@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
 import { api } from '../../api/client'
 import { SmartTextarea, type DetectedMedia } from '../form/SmartTextarea'
+import { useMediaUpload } from '../../core/media/useMediaUpload'
+import { ACCEPTED_MEDIA_TYPES } from '../../core/media/mediaConstants'
 
 type Props = {
   onPosted?: () => void
 }
-
-const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp'
 
 export function PostComposer({ onPosted }: Props) {
   const fileRef = useRef<HTMLInputElement | null>(null)
@@ -16,22 +16,52 @@ export function PostComposer({ onPosted }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
+  const { uploadFiles, abortAll } = useMediaUpload()
 
   const handleSubmit = async () => {
     const body = text.trim()
     if (!body && files.length === 0) {
-      setError('Add text or at least one photo.')
+      setError('Add text or at least one media file.')
       return
     }
     setBusy(true)
     setError(null)
     setMessage(null)
+    setUploadProgress({})
     try {
-      const mediaIds: string[] = []
-      for (const file of files) {
-        const upload = await api.media.upload(file)
-        mediaIds.push(String(upload.mediaId))
+      // Upload all files with validation and progress tracking
+      const fileProgressMap: Record<string, number> = {}
+      files.forEach((file, index) => {
+        fileProgressMap[`file-${index}`] = 0
+      })
+      setUploadProgress(fileProgressMap)
+
+      const { results, errors } = await uploadFiles(files, {
+        onProgress: (progress, fileIndex?) => {
+          if (fileIndex !== undefined) {
+            setUploadProgress(prev => ({
+              ...prev,
+              [`file-${fileIndex}`]: progress.percent,
+            }))
+          }
+        },
+      })
+      
+      if (errors.length > 0) {
+        const errorMessages = errors.map(e => e.error).join(', ')
+        setError(`Upload failed: ${errorMessages}`)
+        setBusy(false)
+        return
       }
+
+      if (results.length === 0 && !body) {
+        setError('Add text or at least one media file.')
+        setBusy(false)
+        return
+      }
+
+      const mediaIds = results.map(r => r.mediaId)
       await api.posts.create({
         text: body ? body : null,
         visibility: 'PUBLIC',
@@ -53,11 +83,10 @@ export function PostComposer({ onPosted }: Props) {
   return (
     <div className="u-glass profile__card">
       <div className="u-stack">
-        <div className="profile__sectionTitle">New post</div>
         <SmartTextarea
           value={text}
           onChange={setText}
-          placeholder="Share something with the feed..."
+          placeholder=""
           maxLength={320}
           onDetectMedia={setDetected}
           replaceOnDetect={false}
@@ -70,17 +99,28 @@ export function PostComposer({ onPosted }: Props) {
               onClick={() => fileRef.current?.click()}
               disabled={busy}
             >
-              Add photo
+              Add media
             </button>
             {files.length > 0 && (
-              <button
-                className="topBar__btn"
-                type="button"
-                onClick={() => setFiles([])}
-                disabled={busy}
-              >
-                Clear ({files.length})
-              </button>
+              <>
+                <button
+                  className="topBar__btn"
+                  type="button"
+                  onClick={() => {
+                    if (busy) {
+                      abortAll()
+                      setBusy(false)
+                      setUploadProgress({})
+                    } else {
+                      setFiles([])
+                      setUploadProgress({})
+                    }
+                  }}
+                  disabled={false}
+                >
+                  {busy ? 'Cancel' : `Clear (${files.length})`}
+                </button>
+              </>
             )}
             <span className="profile__meta">
               {files.length > 0
@@ -101,7 +141,7 @@ export function PostComposer({ onPosted }: Props) {
           ref={fileRef}
           className="srOnly"
           type="file"
-          accept={ACCEPTED_TYPES}
+          accept={ACCEPTED_MEDIA_TYPES}
           multiple
           onChange={event => {
             const list = Array.from(event.currentTarget.files ?? [])
@@ -109,7 +149,18 @@ export function PostComposer({ onPosted }: Props) {
             if (list.length) setFiles(list)
           }}
         />
-        <div className="profile__meta">Uploads each photo before publishing the post.</div>
+        {busy && Object.keys(uploadProgress).length > 0 && (
+          <div className="profile__meta">
+            {Object.entries(uploadProgress).map(([key, percent]) => (
+              <div key={key} style={{ marginTop: '4px' }}>
+                Uploading: {percent}%
+                <div style={{ width: '100%', height: '4px', background: '#eee', borderRadius: '2px', marginTop: '2px' }}>
+                  <div style={{ width: `${percent}%`, height: '100%', background: '#4CAF50', borderRadius: '2px', transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {detected.length > 0 && (
           <div className="profile__meta">
             Detected {detected.length} link{detected.length > 1 ? 's' : ''}. Embeds coming soon.

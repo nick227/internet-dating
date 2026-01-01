@@ -3,11 +3,16 @@ model ProfileAccess {
   ownerUserId  BigInt
   viewerUserId BigInt
   status       ProfileAccessStatus @default(PENDING)
+  statusUpdatedAt DateTime         @default(now())
+  respondedAt  DateTime?
+  decisionReason String?           @db.Text
+  source       ProfileAccessSource @default(PROFILE)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
   owner  User @relation("ProfileAccessOwner", fields: [ownerUserId], references: [id])
   viewer User @relation("ProfileAccessViewer", fields: [viewerUserId], references: [id])
+  followRequestMessages Message[] @relation("FollowRequestMessages")
 
   @@unique([ownerUserId, viewerUserId])
   @@index([ownerUserId, status, updatedAt])

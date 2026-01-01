@@ -1,0 +1,22 @@
+@media (min-width: 768px) {
+  .riverCard {
+    height: calc(100vh - var(--safe-top) - var(--safe-bot) - var(--component-size-river-offset));
+    min-height: calc(100vh - var(--safe-top) - var(--safe-bot) - var(--component-size-river-offset));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fullScreenModal__backdrop,
+  .fullScreenModal__panel {
+    transition: none;
+  }
+  .page-transition__content,
+  .page-transition--active .page-transition__content {
+    transition: none;
+    animation: none;
+  }
+  .page-transition--active .page-transition__content {
+    opacity: 1;
+    transform: none;
+  }
+}

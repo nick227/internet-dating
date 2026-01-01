@@ -3,6 +3,8 @@ import { Auth } from '../../../lib/auth/rules.js';
 import { prisma } from '../../../lib/prisma/client.js';
 import { json } from '../../../lib/http/json.js';
 import { parsePositiveBigInt } from '../../../lib/http/parse.js';
+// Note: User traits are rebuilt by the build-user-traits backend job only
+// Do not import rebuildUserTraits here - it's a worker job, not triggered on quiz submission
 
 const quizEditorIds = new Set(
   (process.env.QUIZ_EDITOR_USER_IDS ?? '')
@@ -35,6 +37,7 @@ export const quizzesDomain: DomainRegistry = {
             id: true,
             slug: true,
             title: true,
+            tags: { select: { slug: true, label: true } },
             questions: {
               orderBy: { order: 'asc' },
               select: {
@@ -47,6 +50,101 @@ export const quizzesDomain: DomainRegistry = {
           }
         });
         return json(res, { quiz });
+      }
+    },
+    {
+      id: 'quizzes.GET./quizzes',
+      method: 'GET',
+      path: '/quizzes',
+      auth: Auth.public(),
+      summary: 'List quizzes',
+      tags: ['quizzes'],
+      handler: async (req, res) => {
+        const { q, status, tag } = req.query as { q?: string; status?: string; tag?: string };
+        const userId = req.ctx.userId; // Assuming public auth might populate this if logged in
+
+        const where: any = { isActive: true };
+        
+        if (q) {
+          where.OR = [
+            { title: { contains: q } },
+            { slug: { contains: q } }
+          ];
+        }
+
+        if (tag && tag !== 'all') {
+             where.tags = { some: { slug: tag } };
+        }
+
+        const quizzes = await prisma.quiz.findMany({
+          where,
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            tags: { select: { slug: true, label: true } },
+            _count: { select: { questions: true } },
+            // If user is logged in, we could fetch results here relationally if we map it
+            // but mapped relation with 'where userId' inside 'include' is cleaner if prisma supports it safely
+            // easier to just fetch results separately or accept all results and filter in memory if list is small, 
+            // but let's try separate query for efficiency if list is paginated (future proofing)
+            // ideally: results: { where: { userId } }
+          }
+        });
+
+        let userResults: Map<string, any> = new Map();
+        if (userId) {
+            const results = await prisma.quizResult.findMany({
+                where: { 
+                    userId: BigInt(userId),
+                    quizId: { in: quizzes.map(q => q.id) }
+                },
+                select: { quizId: true, answers: true }
+            });
+            results.forEach(r => userResults.set(r.quizId.toString(), r));
+        }
+
+        const items = quizzes.map(q => {
+            const result = userResults.get(q.id.toString());
+            let itemStatus = 'new';
+            let quizResult = undefined;
+
+            if (result) {
+                itemStatus = 'completed'; 
+                // Identify result based on scoring if we had the logic here, 
+                // for now just say 'Completed' or generic result
+                quizResult = 'Completed'; 
+            }
+
+            return {
+                ...q,
+                questionCount: q._count.questions,
+                status: itemStatus,
+                result: quizResult
+            };
+        });
+        
+        // Post-filtering for status since we compute it
+        const finalItems = status && status !== 'all' 
+            ? items.filter(i => i.status === status) 
+            : items;
+
+        return json(res, { items: finalItems });
+      }
+    },
+    {
+      id: 'quizzes.GET./quizzes/tags',
+      method: 'GET',
+      path: '/quizzes/tags',
+      auth: Auth.public(),
+      summary: 'List quiz tags',
+      tags: ['quizzes'],
+      handler: async (_req, res) => {
+        const tags = await prisma.quizTag.findMany({
+          orderBy: { label: 'asc' }
+        });
+        return json(res, { tags });
       }
     },
     {
@@ -70,6 +168,9 @@ export const quizzesDomain: DomainRegistry = {
           update: { answers, scoreVec: scoreVec ?? undefined },
           create: { userId, quizId, answers, scoreVec: scoreVec ?? undefined }
         });
+
+        // Note: User traits are rebuilt by the build-user-traits backend job only
+        // Do not trigger rebuild here - it's a worker job, not triggered on quiz submission
 
         return json(res, { ok: true });
       }

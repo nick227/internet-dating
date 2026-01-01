@@ -1,19 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useModalKeyboard } from '../../core/hooks/useModalKeyboard'
 import { api } from '../../api/client'
+import { HttpError } from '../../api/http'
 import { Avatar } from '../ui/Avatar'
-import { InlineField } from '../form/InlineField'
-import { InlineChoiceChips } from '../form/InlineChoiceChips'
+import { ProfileInlineEditor } from '../profile/ProfileInlineEditor'
 import type { Id, ProfileResponse } from '../../api/types'
-// eslint-disable-next-line no-restricted-imports
-import type { ApiProfilePatchBody } from '../../api/contracts'
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp'
-
-const visibilityOptions: Array<{ value: string; label: string }> = [
-  { value: 'visible', label: 'Public' },
-  { value: 'hidden', label: 'Private' },
-]
 
 type Props = {
   open: boolean
@@ -32,6 +25,16 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [avatarError, setAvatarError] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
+  const profileSaveFnRef = useRef<(() => Promise<void>) | null>(null)
+  const profileHasChangesRef = useRef<(() => boolean) | null>(null)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null)
+  const [, setFormUpdateTrigger] = useState(0) // Force re-render when form changes
+  
+  // Maintain local profile state to prevent reset during refetches
+  // Initialize with profile prop, but preserve during refetches
+  const [localProfile, setLocalProfile] = useState<ProfileResponse | null>(profile)
+  const lastUserIdRef = useRef<Id | null>(userId)
 
   useEffect(() => {
     if (!open) {
@@ -40,8 +43,69 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
       setPasswordError(null)
       setShowPassword(false)
       setAvatarError(null)
+      // Reset local profile when modal closes
+      setLocalProfile(null)
+      lastUserIdRef.current = null
     }
   }, [open])
+
+  // Update local profile when:
+  // 1. Profile prop changes and is not null (server update)
+  // 2. UserId changes (different user)
+  // Never clear localProfile when profile becomes null during refetch
+  useEffect(() => {
+    console.log('[UserControlPanel] Profile prop changed', { 
+      userId, 
+      profileUserId: profile?.userId, 
+      hasProfile: !!profile,
+      profileName: profile?.name,
+      profileIntent: profile?.intent,
+      profileGender: profile?.gender,
+    })
+    
+    // If userId changed, reset local profile
+    if (userId !== lastUserIdRef.current) {
+      console.log('[UserControlPanel] UserId changed, resetting profile')
+      lastUserIdRef.current = userId
+      if (profile) {
+        setLocalProfile(profile)
+        console.log('[UserControlPanel] Set local profile from new userId')
+      } else {
+        setLocalProfile(null)
+      }
+      return
+    }
+    
+    // If profile prop is not null, update local profile (server update)
+    if (profile) {
+      setLocalProfile(current => {
+        // If we don't have a local profile, use the server one
+        if (!current) {
+          console.log('[UserControlPanel] No local profile, using server profile')
+          return profile
+        }
+        // If userIds don't match, use server one (shouldn't happen, but safety check)
+        if (current.userId !== profile.userId) {
+          console.log('[UserControlPanel] UserId mismatch, using server profile')
+          return profile
+        }
+        // Update with server data (hydration after save)
+        console.log('[UserControlPanel] Updating local profile with server data (hydration)', {
+          oldName: current.name,
+          newName: profile.name,
+          oldIntent: current.intent,
+          newIntent: profile.intent,
+          oldGender: current.gender,
+          newGender: profile.gender,
+          oldBio: current.bio,
+          newBio: profile.bio,
+        })
+        return profile
+      })
+    }
+    // If profile is null but we have localProfile, preserve it (refetch in progress)
+    // This prevents clearing the form during refetches
+  }, [profile, userId])
 
   useModalKeyboard(open, onClose)
 
@@ -87,6 +151,11 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
     try {
       const upload = await api.media.upload(file)
       await api.profileUpdate(userId, { avatarMediaId: upload.mediaId })
+      // Optimistically update avatar URL - will be confirmed when profile refetches
+      if (localProfile) {
+        // Note: We don't have the full URL here, but the refetch will update it
+        // For now, just trigger the refetch
+      }
       onUpdated?.()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Upload failed'
@@ -94,6 +163,82 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
     } finally {
       setAvatarBusy(false)
     }
+  }
+
+  const handleProfileSaveReady = useCallback((saveFn: () => Promise<void>, hasChanges: () => boolean) => {
+    profileSaveFnRef.current = saveFn
+    profileHasChangesRef.current = hasChanges
+    // Trigger re-render to update button disabled state
+    setFormUpdateTrigger(prev => prev + 1)
+  }, [])
+
+  const handleProfileSave = async () => {
+    console.log('[UserControlPanel] Save button clicked')
+    if (!profileSaveFnRef.current) {
+      console.warn('[UserControlPanel] Save function not ready')
+      setProfileSaveError('Save function not ready. Please refresh the page.')
+      return
+    }
+    
+    // Check if there are actually changes
+    if (!profileHasChangesRef.current?.()) {
+      console.warn('[UserControlPanel] No changes to save')
+      return
+    }
+    
+    console.log('[UserControlPanel] Starting save process...')
+    setProfileSaving(true)
+    setProfileSaveError(null)
+    
+    try {
+      const response = await profileSaveFnRef.current()
+      console.log('[UserControlPanel] Save successful, response:', response)
+      
+      // Trigger profile refresh to hydrate with new values
+      console.log('[UserControlPanel] Triggering profile refresh...')
+      onUpdated?.()
+      
+      // Wait a bit for the refresh to complete, then close modal
+      // The profile will be updated via the refetch
+      setTimeout(() => {
+        console.log('[UserControlPanel] Closing modal after successful save')
+        setProfileSaving(false)
+        onClose()
+      }, 300)
+    } catch (err) {
+      console.error('[UserControlPanel] Failed to save profile:', err)
+      setProfileSaving(false)
+      
+      // Handle different error types
+      if (err instanceof HttpError) {
+        if (err.status === 401) {
+          setProfileSaveError('Session expired. Please refresh the page and try again.')
+        } else {
+          const errorMsg = typeof err.body === 'object' && err.body && 'error' in err.body
+            ? String(err.body.error)
+            : err.message || `Failed to save profile (${err.status}). Please try again.`
+          setProfileSaveError(errorMsg)
+        }
+      } else if (err instanceof Error) {
+        setProfileSaveError(err.message || 'Failed to save profile. Please try again.')
+      } else {
+        setProfileSaveError('Failed to save profile. Please try again.')
+      }
+      // Don't close modal on error - let user see the error and retry
+    }
+  }
+
+  const hasProfileChanges = () => {
+    return profileHasChangesRef.current?.() ?? false
+  }
+
+  const handleCancel = () => {
+    // Reset form by updating profile prop (which will trigger form reset)
+    if (localProfile) {
+      // Force a re-render by updating the profile reference
+      setLocalProfile({ ...localProfile })
+    }
+    onClose()
   }
 
   if (!open) return null
@@ -110,7 +255,7 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
         </div>
 
         <div className="modal__body">
-          {profile && (
+          {localProfile ? (
             <>
               <div className="u-stack" style={{ gap: 'var(--s-3)' }}>
                 <div className="inlineField">
@@ -118,7 +263,7 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
                     <div className="inlineField__label">Avatar</div>
                   </div>
                   <div className="u-row u-gap-3" style={{ alignItems: 'center' }}>
-                    <Avatar name={profile.name} size="md" src={profile.avatarUrl ?? null} />
+                    <Avatar name={localProfile.name} size="md" src={localProfile.avatarUrl ?? null} profileId={String(userId)} />
                     <div className="u-stack" style={{ gap: 'var(--s-1)', flex: 1 }}>
                       <button
                         className="topBar__btn topBar__btn--primary"
@@ -150,17 +295,6 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
                     />
                   </div>
                 </div>
-
-                <InlineField
-                  label="Username"
-                  value={profile.name}
-                  placeholder="Your display name"
-                  onSave={async value => {
-                    const patch: ApiProfilePatchBody = { displayName: value }
-                    await api.profileUpdate(userId, patch)
-                    onUpdated?.()
-                  }}
-                />
 
                 <div className="inlineField">
                   <div className="inlineField__labelRow">
@@ -256,26 +390,51 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
                     </button>
                   </div>
                 </div>
-
-                <InlineChoiceChips
-                  label="Profile Status"
-                  value={profile.isVisible === false ? 'hidden' : 'visible'}
-                  options={visibilityOptions}
-                  onSave={async value => {
-                    const isVisible = value !== 'hidden'
-                    await api.profileUpdate(userId, { isVisible })
-                    onUpdated?.()
-                  }}
-                  helper="Private profiles won't show up in suggestions."
-                />
+                
+                <ProfileInlineEditor userId={userId} profile={localProfile} onSaveReady={handleProfileSaveReady} />
+                
+                {profileSaveError && (
+                  <div className="profile__error" style={{ padding: 'var(--s-2)', marginTop: 'var(--s-2)', fontSize: 'var(--fs-2)' }}>
+                    {profileSaveError}
+                  </div>
+                )}
+          
               </div>
             </>
+          ) : (
+            <div className="u-stack" style={{ gap: 'var(--s-2)', padding: 'var(--s-4)' }}>
+              <div className="u-muted">Loading profile...</div>
+            </div>
           )}
+        
         </div>
 
         <div className="modal__actions">
-          <button className="actionBtn actionBtn--nope" type="button" onClick={onClose}>
-            Close
+          <button
+            className="actionBtn actionBtn--nope"
+            type="button"
+            onClick={handleCancel}
+            disabled={profileSaving}
+          >
+            Cancel
+          </button>
+          <button
+            className="actionBtn actionBtn--primary"
+            type="button"
+            onClick={handleProfileSave}
+            disabled={profileSaving || !hasProfileChanges()}
+            style={{ position: 'relative', minWidth: '80px' }}
+          >
+            {profileSaving ? (
+              <>
+                <span style={{ opacity: 0 }}>Save</span>
+                <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+                  Saving...
+                </span>
+              </>
+            ) : (
+              'Save'
+            )}
           </button>
         </div>
       </div>

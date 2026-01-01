@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
 import { api } from '../../api/client'
 import { Avatar } from '../ui/Avatar'
+import { Media } from '../ui/Media'
+import { useMediaUpload } from '../../core/media/useMediaUpload'
+import { ACCEPTED_IMAGE_TYPES } from '../../core/media/mediaConstants'
 
 type Props = {
   userId: string | number
@@ -9,13 +12,12 @@ type Props = {
   onUpdated?: () => void
 }
 
-const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp'
-
 export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: Props) {
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const heroInputRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState<'avatar' | 'hero' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { uploadFile } = useMediaUpload()
 
   const handlePick = (type: 'avatar' | 'hero') => {
     if (type === 'avatar') {
@@ -29,11 +31,11 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
     setError(null)
     setBusy(type)
     try {
-      const upload = await api.media.upload(file)
+      const result = await uploadFile(file)
       if (type === 'avatar') {
-        await api.profileUpdate(userId, { avatarMediaId: upload.mediaId })
+        await api.profileUpdate(userId, { avatarMediaId: result.mediaId })
       } else {
-        await api.profileUpdate(userId, { heroMediaId: upload.mediaId })
+        await api.profileUpdate(userId, { heroMediaId: result.mediaId })
       }
       onUpdated?.()
     } catch (err) {
@@ -51,7 +53,7 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
 
         <div className="u-row-between u-gap-3 u-wrap">
           <div className="u-row u-gap-3 u-wrap">
-            <Avatar name="You" size="sm" src={avatarUrl ?? null} />
+            <Avatar name="You" size="sm" src={avatarUrl ?? null} profileId={String(userId)} />
             <div className="u-stack u-gap-2">
               <div className="profile__itemTitle">Avatar</div>
               <div className="profile__meta">Shows in matches and inbox.</div>
@@ -69,7 +71,7 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
             ref={avatarInputRef}
             className="srOnly"
             type="file"
-            accept={ACCEPTED_TYPES}
+            accept={ACCEPTED_IMAGE_TYPES}
             onChange={event => {
               const file = event.currentTarget.files?.[0]
               event.currentTarget.value = ''
@@ -81,7 +83,7 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
         <div className="u-row-between u-gap-3 u-wrap">
           <div className="u-row u-gap-3 u-wrap">
             <div className="mediaThumb profile__heroThumb">
-              {heroUrl ? <img src={heroUrl} alt="" loading="lazy" /> : null}
+              {heroUrl ? <Media src={heroUrl} alt="" className="mediaThumb__media" /> : null}
             </div>
             <div className="u-stack u-gap-2">
               <div className="profile__itemTitle">Hero photo</div>
@@ -100,7 +102,7 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
             ref={heroInputRef}
             className="srOnly"
             type="file"
-            accept={ACCEPTED_TYPES}
+            accept={ACCEPTED_IMAGE_TYPES}
             onChange={event => {
               const file = event.currentTarget.files?.[0]
               event.currentTarget.value = ''
@@ -109,7 +111,7 @@ export function ProfileMediaManager({ userId, avatarUrl, heroUrl, onUpdated }: P
           />
         </div>
 
-        <div className="profile__meta">JPG, PNG, or WEBP. Max 10MB.</div>
+        <div className="profile__meta">JPG, PNG, or WEBP. Max 50MB. Validated for resolution and format.</div>
         {error && <div className="profile__error">{error}</div>}
       </div>
     </div>

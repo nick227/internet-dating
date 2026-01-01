@@ -1,0 +1,52 @@
+:root {
+  --component-backdrop: rgba(7, 7, 10, 0.65);
+  --component-backdrop-strong: rgba(7, 7, 10, 0.75);
+  --component-border-subtle: rgba(255, 255, 255, 0.08);
+  --component-border: rgba(255, 255, 255, 0.12);
+  --component-border-faint: rgba(255, 255, 255, 0.1);
+  --component-border-soft: rgba(255, 255, 255, 0.14);
+  --component-border-strong: rgba(255, 255, 255, 0.18);
+  --component-border-hover: rgba(255, 255, 255, 0.2);
+  --component-border-extra-subtle: rgba(255, 255, 255, 0.06);
+  --component-surface: rgba(255, 255, 255, 0.06);
+  --component-surface-subtle: rgba(255, 255, 255, 0.08);
+  --component-surface-contrast: rgba(255, 255, 255, 0.1);
+  --component-surface-muted: rgba(0, 0, 0, 0.28);
+  --component-surface-input: rgba(0, 0, 0, 0.2);
+  --component-surface-hover: rgba(0, 0, 0, 0.4);
+  --component-surface-strong: rgba(0, 0, 0, 0.6);
+  --component-surface-stronger: rgba(0, 0, 0, 0.7);
+
+  --component-space-xxs: 6px;
+  --component-bottom-offset: 110px;
+  --layout-page-max-width: 680px;
+
+  --component-size-badge: 22px;
+  --component-size-delete-btn: 28px;
+  --component-height-btn-sm: 30px;
+  --component-size-control: 32px;
+  --component-size-avatar-sm: 36px;
+  --component-size-touch: 44px;
+  --component-size-icon-btn: 48px;
+  --component-height-action: 52px;
+  --component-size-avatar-lg: 54px;
+  --component-size-nav-rail: 60px;
+  --component-size-play-btn: 64px;
+  --component-size-hero-thumb-w: 72px;
+  --component-size-hero-thumb-h: 96px;
+  --component-height-input: 40px;
+  --component-height-input-lg: 46px;
+  --component-textarea-min-height: 110px;
+  --component-textarea-max-height: 120px;
+  --component-size-media-thumb-w: 120px;
+  --component-size-media-thumb-h: 160px;
+  --component-size-media-thumb-lg-w: 140px;
+  --component-size-media-thumb-lg-h: 190px;
+  --component-size-grid-min: 180px;
+  --component-size-conversation-more: 180px;
+  --component-size-match-cta-min: 92px;
+  --component-size-modal-width: 520px;
+  --component-size-modal-handle-w: 40px;
+  --component-size-modal-handle-h: 4px;
+  --component-size-river-offset: 140px;
+}

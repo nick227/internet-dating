@@ -6,6 +6,8 @@ type Props = {
   placeholder?: string
   maxTags?: number
   suggestions?: string[]
+  testId?: string
+  inputTestId?: string
 }
 
 export function TagInput({
@@ -14,6 +16,8 @@ export function TagInput({
   placeholder = 'Add tags...',
   maxTags = 5,
   suggestions = [],
+  testId,
+  inputTestId,
 }: Props) {
   const [inputValue, setInputValue] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -67,7 +71,12 @@ export function TagInput({
   }, [])
 
   return (
-    <div ref={containerRef} className="u-stack" style={{ gap: 'var(--s-2)' }}>
+    <div
+      ref={containerRef}
+      className="u-stack"
+      style={{ gap: 'var(--s-2)' }}
+      data-testid={testId}
+    >
       <div className="u-row u-gap-2 u-wrap" style={{ alignItems: 'center' }}>
         {value.map(tag => (
           <div
@@ -98,6 +107,7 @@ export function TagInput({
             <input
               ref={inputRef}
               type="text"
+              data-testid={inputTestId}
               value={inputValue}
               onChange={e => {
                 setInputValue(e.target.value)

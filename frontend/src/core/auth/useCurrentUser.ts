@@ -40,7 +40,9 @@ export function useCurrentUser() {
 
   return {
     userId,
-    profile,
+    // Normalize profile to null instead of undefined for consistent type handling
+    // Components expect ProfileResponse | null, not ProfileResponse | undefined
+    profile: profile ?? null,
     displayName,
     loading,
     error,

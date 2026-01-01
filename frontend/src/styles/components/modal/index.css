@@ -1,0 +1,195 @@
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  /* Ensure modals are always on top - create new stacking context */
+  isolation: isolate;
+}
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 3, 8, 0.72);
+  backdrop-filter: blur(6px);
+}
+.modal__panel {
+  position: relative;
+  width: min(var(--component-size-modal-width), 92vw);
+  background: rgba(15, 15, 25, 0.95);
+  border: 1px solid var(--component-border);
+  border-radius: var(--r-4);
+  padding: var(--s-5);
+  box-shadow: var(--shadow-2);
+}
+.modal__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--component-space-xxs);
+  margin-bottom: var(--s-3);
+}
+.modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.modal__actions {
+  display: flex;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.fullScreenModal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.fullScreenModal--open {
+  pointer-events: auto;
+}
+.fullScreenModal--open .fullScreenModal__backdrop {
+  opacity: 1;
+}
+.fullScreenModal--open .fullScreenModal__panel {
+  transform: translateY(0);
+}
+.fullScreenModal--closing .fullScreenModal__backdrop {
+  opacity: 0;
+}
+.fullScreenModal--closing .fullScreenModal__panel {
+  transform: translateY(100%);
+}
+.fullScreenModal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 3, 8, 0.72);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fullScreenModal__panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-height: 100vh;
+  background: rgba(15, 15, 25, 0.98);
+  border-top-left-radius: var(--r-4);
+  border-top-right-radius: var(--r-4);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.fullScreenModal__handle {
+  width: var(--component-size-modal-handle-w);
+  height: var(--component-size-modal-handle-h);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  margin: var(--s-2) auto var(--s-3);
+  flex-shrink: 0;
+  cursor: grab;
+}
+.fullScreenModal__handle:active {
+  cursor: grabbing;
+}
+.fullScreenModal__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 var(--s-3) calc(var(--s-4) + var(--safe-bot));
+}
+.fullScreenModal__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--component-space-xxs);
+  margin-bottom: var(--s-3);
+  padding-top: calc(var(--safe-top) + var(--s-2));
+  flex-shrink: 0;
+}
+.fullScreenModal__title {
+  font-size: var(--fs-5);
+  font-weight: 700;
+}
+.fullScreenModal__subtitle {
+  font-size: var(--fs-2);
+}
+.fullScreenModal__body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.fullScreenModal__body[data-scrollable] {
+  overflow-y: auto;
+}
+.fullScreenModal__actions {
+  display: flex;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  flex-shrink: 0;
+  padding-bottom: var(--s-2);
+}
+.fullScreenModal__tabRow {
+  display: flex;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+.fullScreenModal__tabBtn {
+  flex: 1;
+}
+.fullScreenModal__pendingBadge {
+  margin-left: var(--s-1);
+  opacity: 0.8;
+}
+.fullScreenModal__error {
+  margin-bottom: var(--s-3);
+}
+.fullScreenModal__empty {
+  text-align: center;
+  padding: var(--s-6);
+}
+.fullScreenModal__item {
+  padding: var(--s-3);
+  border-radius: var(--r-3);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.fullScreenModal__itemContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.fullScreenModal__itemName {
+  font-size: var(--fs-3);
+  font-weight: 500;
+}
+.fullScreenModal__itemStatus {
+  font-size: var(--fs-2);
+}
+.fullScreenModal__itemActions {
+  display: flex;
+  gap: var(--s-2);
+}
+.fullScreenModal__itemActionBtn {
+  font-size: var(--fs-2);
+  padding: var(--s-2) var(--s-3);
+}
+.ratingModal__container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}

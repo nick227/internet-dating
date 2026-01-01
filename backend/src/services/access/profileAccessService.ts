@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma/client.js'
 
-export type AccessStatus = 'NONE' | 'PENDING' | 'GRANTED'
+export type AccessStatus = 'NONE' | 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED' | 'CANCELED'
 
 export type ProfileAccessSummary = {
   status: AccessStatus
@@ -20,9 +20,7 @@ export async function getProfileAccessSummary(
   })
 
   if (!record) return { status: 'NONE', requestId: null }
-  if (record.status === 'GRANTED') return { status: 'GRANTED', requestId: record.id }
-  if (record.status === 'PENDING') return { status: 'PENDING', requestId: record.id }
-  return { status: 'NONE', requestId: record.id }
+  return { status: record.status as AccessStatus, requestId: record.id }
 }
 
 export async function hasProfileAccess(

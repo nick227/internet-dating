@@ -188,6 +188,11 @@ export interface paths {
       };
     };
   };
+  "/api/comments": {
+    /** Create comment */
+    post: {
+    };
+  };
   "/api/profiles/{userId}": {
     /** Get profile */
     get: {
@@ -363,6 +368,42 @@ export interface paths {
       };
     };
   };
+  "/api/profiles/access-requests/{requestId}/cancel": {
+    /** Cancel a follow request */
+    post: {
+      parameters: {
+        path: {
+          requestId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ProfileAccessResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/profiles/access-requests/{requestId}/revoke": {
+    /** Revoke a follow */
+    post: {
+      parameters: {
+        path: {
+          requestId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["ProfileAccessResponse"];
+          };
+        };
+      };
+    };
+  };
   "/api/likes": {
     /** Like / dislike */
     post: {
@@ -415,8 +456,14 @@ export interface paths {
     };
   };
   "/api/inbox": {
-    /** Inbox list */
+    /** Inbox conversations */
     get: {
+      parameters: {
+        query?: {
+          cursorId?: components["schemas"]["Id"];
+          take?: number;
+        };
+      };
       responses: {
         /** @description OK */
         200: {
@@ -444,6 +491,24 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["MessageListResponse"];
+          };
+        };
+      };
+    };
+  };
+  "/api/conversations/{conversationId}/delete": {
+    /** Delete conversation for current user */
+    post: {
+      parameters: {
+        path: {
+          conversationId: components["schemas"]["Id"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["OkResponse"];
           };
         };
       };
@@ -501,6 +566,16 @@ export interface paths {
           };
         };
       };
+    };
+  };
+  "/api/quizzes": {
+    /** List quizzes */
+    get: {
+    };
+  };
+  "/api/quizzes/tags": {
+    /** List quiz tags */
+    get: {
     };
   };
   "/api/quizzes/{quizId}/submit": {
@@ -640,7 +715,7 @@ export interface paths {
     };
   };
   "/api/media/upload": {
-    /** Upload media */
+    /** Upload media (streaming) */
     post: {
       requestBody: {
         content: {
@@ -723,9 +798,9 @@ export interface components {
     /** @enum {string} */
     Visibility: "PUBLIC" | "PRIVATE";
     /** @enum {string} */
-    AccessStatus: "NONE" | "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
+    AccessStatus: "NONE" | "PENDING" | "GRANTED" | "DENIED" | "REVOKED" | "CANCELED";
     /** @enum {string} */
-    MediaType: "IMAGE" | "VIDEO";
+    MediaType: "IMAGE" | "VIDEO" | "AUDIO";
     /** @enum {string} */
     MediaStatus: "PENDING" | "READY" | "FAILED";
     /** @enum {string} */
@@ -1067,6 +1142,10 @@ export interface components {
       profile?: components["schemas"]["InboxUserProfile"] | null;
       compatibility: components["schemas"]["CompatibilitySummary"] | null;
     };
+    FollowRequestRef: {
+      id: components["schemas"]["Id"];
+      status: components["schemas"]["AccessStatus"];
+    };
     InboxMessage: {
       id: components["schemas"]["Id"];
       body: string;
@@ -1074,6 +1153,7 @@ export interface components {
       createdAt: string;
       senderId: components["schemas"]["Id"];
       isSystem: boolean;
+      followRequest?: components["schemas"]["FollowRequestRef"] | null;
     };
     InboxConversation: {
       id: components["schemas"]["Id"];
@@ -1085,6 +1165,7 @@ export interface components {
     };
     InboxResponse: {
       conversations: components["schemas"]["InboxConversation"][];
+      nextCursorId: components["schemas"]["Id"] | null;
     };
     MessageItem: {
       id: components["schemas"]["Id"];
@@ -1093,6 +1174,7 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
       isSystem: boolean;
+      followRequest?: components["schemas"]["FollowRequestRef"] | null;
     };
     MessageListResponse: {
       conversationId: components["schemas"]["Id"];

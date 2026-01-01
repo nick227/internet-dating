@@ -26,3 +26,6 @@ pnpm-debug.log*
 Thumbs.db
 
 *.tsbuildinfo
+
+backend/uploads
+frontend/test-results

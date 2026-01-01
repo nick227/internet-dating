@@ -1,11 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { api } from '../../api/client'
 import type { FeedCard } from '../../api/types'
-import { SmartTextarea, type DetectedMedia } from '../form/SmartTextarea'
-import { TagInput } from '../form/TagInput'
+import type { DetectedMedia } from '../form/SmartTextarea'
 import { captureFromCamera, captureAudio } from '../../core/media/mediaCapture'
-import { fetchLinkPreview, type LinkPreview } from '../../core/media/linkPreview'
 import { useOptimisticFeed } from '../../core/feed/useOptimisticFeed'
+import { Toast } from '../ui/Toast'
+import { useNetworkStatus } from '../../core/network/useNetworkStatus'
+import {
+  dispatchFeedOptimisticInsert,
+  dispatchFeedRefresh,
+  dispatchFeedRemoveOptimistic,
+} from '../../core/feed/feedEvents'
+import { initialPostComposerState, postComposerReducer } from './postComposerState'
+import { usePostDraftPersistence } from './usePostDraftPersistence'
+import { usePostFileSelection } from './usePostFileSelection'
+import { usePostFileUpload } from './usePostFileUpload'
+import { usePostLinkPreviews } from './usePostLinkPreviews'
+import { ACCEPTED_MEDIA_TYPES, ALLOWED_MIME_TYPES } from '../../core/media/mediaConstants'
+import { PostContentModalHeader } from './PostContentModalHeader'
+import { PostContentModalBody } from './PostContentModalBody'
+import { PostContentModalActions } from './PostContentModalActions'
 
 type Props = {
   open: boolean
@@ -13,35 +28,18 @@ type Props = {
   onPosted?: () => void
 }
 
-const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp'
-const DRAFT_KEY = 'postContentModal:draft'
-
-type FileWithPreview = {
-  file: File
-  preview: string
-  id: string
-}
-
-type UploadProgress = {
-  fileId: string
-  progress: number
-  status: 'pending' | 'uploading' | 'complete' | 'error'
-  error?: string
-}
-
-type DraftData = {
-  text: string
-  fileIds: string[]
-  visibility: 'PUBLIC' | 'PRIVATE'
-  tags: string[]
-  timestamp: number
-}
-
-type LinkPreviewState = {
-  url: string
-  preview: LinkPreview | null
-  loading: boolean
-}
+const ACCEPTED_TYPES = ACCEPTED_MEDIA_TYPES
+const ACCEPTED_MIME_TYPES = ALLOWED_MIME_TYPES
+const ACCEPTED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'webm', 'ogg', 'mp3', 'wav'])
+const MAX_FILE_BYTES = 1024 * 1024 * 1024
+const MAX_TEXT_LENGTH = 320
+const MAX_TAG_LENGTH = 24
+const MAX_AUDIO_CAPTURE_MS = 60000
+const CLOSE_CONFIRM_MESSAGE = 'Discard this draft?'
+const ERROR_TOAST_MS = 6000
+const SUCCESS_TOAST_MS = 2200
+const SUCCESS_CLOSE_DELAY_MS = 1200
+const TAG_PATTERN = /^[a-z0-9][a-z0-9-]*$/i
 
 const TAG_SUGGESTIONS = [
   'dating',
@@ -58,277 +56,241 @@ const TAG_SUGGESTIONS = [
   'gaming',
 ]
 
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
+
+const getFocusableElements = (container: HTMLElement | null) => {
+  if (!container) return []
+  const nodes = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+  return nodes.filter(node => !node.hasAttribute('disabled') && node.tabIndex !== -1)
+}
+
 export function PostContentModal({ open, onClose, onPosted }: Props) {
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const textInputRef = useRef<HTMLDivElement | null>(null)
+  const lastFocusedRef = useRef<HTMLElement | null>(null)
+  const wasOfflineRef = useRef(false)
+  const closeTimerRef = useRef<number | null>(null)
   const { createOptimisticPost } = useOptimisticFeed()
-  const [text, setText] = useState('')
-  const [files, setFiles] = useState<FileWithPreview[]>([])
-  const [detected, setDetected] = useState<DetectedMedia[]>([])
-  const [tags, setTags] = useState<string[]>([])
-  const [linkPreviews, setLinkPreviews] = useState<Map<string, LinkPreviewState>>(new Map())
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC')
-  const [uploadProgress, setUploadProgress] = useState<Map<string, UploadProgress>>(new Map())
-  const [draftSaved, setDraftSaved] = useState(false)
-  const [capturing, setCapturing] = useState<'camera' | 'audio' | null>(null)
-  const draftTimerRef = useRef<number | null>(null)
+  const { isOnline } = useNetworkStatus()
+  const [state, dispatch] = useReducer(postComposerReducer, initialPostComposerState)
+  const [successToast, setSuccessToast] = useState<string | null>(null)
+  const {
+    text,
+    files,
+    detected,
+    tags,
+    linkPreviews,
+    busy,
+    error,
+    visibility,
+    uploadProgress,
+    capturing,
+  } = state
 
-  // Load draft on open
+  const { clearDraft } = usePostDraftPersistence({
+    open,
+    text,
+    files,
+    visibility,
+    tags,
+    dispatch,
+  })
+
+  const { addFiles, removeFile, clearFiles, reorderFiles, cleanupPreviews } = usePostFileSelection({
+    files,
+    acceptedMimeTypes: ACCEPTED_MIME_TYPES,
+    acceptedExtensions: ACCEPTED_EXTENSIONS,
+    maxFileBytes: MAX_FILE_BYTES,
+    dispatch,
+  })
+
+  const { uploadFiles, abortUploads } = usePostFileUpload({ dispatch })
+
+  usePostLinkPreviews({ detected, linkPreviews, dispatch })
+
+  const trimmedText = text.trim()
+  const hasUnsaved = useMemo(
+    () => !!(trimmedText || files.length > 0 || tags.length > 0),
+    [files.length, tags.length, trimmedText]
+  )
+
+  useEffect(() => {
+    if (!open) {
+      wasOfflineRef.current = false
+      if (closeTimerRef.current != null) {
+        window.clearTimeout(closeTimerRef.current)
+        closeTimerRef.current = null
+      }
+      abortUploads()
+      cleanupPreviews()
+      dispatch({ type: 'reset' })
+      setSuccessToast(null)
+    }
+  }, [abortUploads, cleanupPreviews, dispatch, open])
+
   useEffect(() => {
     if (!open) return
-    try {
-      const draftJson = localStorage.getItem(DRAFT_KEY)
-      if (draftJson) {
-        const draft: DraftData = JSON.parse(draftJson)
-        // Only restore if draft is recent (within 24 hours)
-        const age = Date.now() - draft.timestamp
-        if (age < 24 * 60 * 60 * 1000) {
-          const shouldRestore = confirm('Resume your draft?')
-          if (shouldRestore) {
-            setText(draft.text)
-            setVisibility(draft.visibility)
-            setTags(draft.tags || [])
-            // Note: File previews can't be restored from localStorage
-          }
-        } else {
-          localStorage.removeItem(DRAFT_KEY)
-        }
-      }
-    } catch {
-      // Ignore draft load errors
+    lastFocusedRef.current = document.activeElement as HTMLElement | null
+    const focusTimer = window.setTimeout(() => {
+      textInputRef.current?.focus()
+    }, 0)
+    return () => {
+      window.clearTimeout(focusTimer)
+      lastFocusedRef.current?.focus()
     }
   }, [open])
 
-  // Auto-save draft
   useEffect(() => {
-    if (!open || (!text.trim() && files.length === 0)) {
-      if (draftTimerRef.current) {
-        clearTimeout(draftTimerRef.current)
-        draftTimerRef.current = null
+    return () => {
+      if (closeTimerRef.current != null) {
+        window.clearTimeout(closeTimerRef.current)
+        closeTimerRef.current = null
+      }
+      abortUploads()
+      cleanupPreviews()
+    }
+  }, [abortUploads, cleanupPreviews])
+
+  useEffect(() => {
+    if (!open) return
+    if (!isOnline) {
+      if (!wasOfflineRef.current) {
+        dispatch({
+          type: 'setError',
+          value: 'You are offline. Reconnect to post.',
+        })
+        wasOfflineRef.current = true
       }
       return
     }
-
-    if (draftTimerRef.current) {
-      clearTimeout(draftTimerRef.current)
+    if (wasOfflineRef.current) {
+      dispatch({ type: 'setError', value: 'Back online.' })
+      wasOfflineRef.current = false
     }
+  }, [dispatch, isOnline, open])
 
-    draftTimerRef.current = window.setTimeout(() => {
-      try {
-        const draft: DraftData = {
-          text,
-          fileIds: files.map(f => f.id),
-          visibility,
-          tags,
-          timestamp: Date.now(),
-        }
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-        setDraftSaved(true)
-        setTimeout(() => setDraftSaved(false), 2000)
-      } catch {
-        // Ignore draft save errors
-      }
-    }, 2000)
-
-    return () => {
-      if (draftTimerRef.current) {
-        clearTimeout(draftTimerRef.current)
-      }
+  const handleRequestClose = useCallback(() => {
+    if (busy) return
+    if (hasUnsaved) {
+      const shouldClose = window.confirm(CLOSE_CONFIRM_MESSAGE)
+      if (!shouldClose) return
     }
-  }, [open, text, files, visibility, tags])
-
-  // Cleanup on close
-  useEffect(() => {
-    if (!open) {
-      setText('')
-      setFiles([])
-      setDetected([])
-      setTags([])
-      setLinkPreviews(new Map())
-      setError(null)
-      setUploadProgress(new Map())
-      setVisibility('PUBLIC')
-      if (draftTimerRef.current) {
-        clearTimeout(draftTimerRef.current)
-        draftTimerRef.current = null
-      }
-    }
-  }, [open])
+    onClose()
+  }, [busy, hasUnsaved, onClose])
 
   useEffect(() => {
     if (!open) return
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') handleRequestClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  }, [handleRequestClose, open])
 
-  const createFilePreview = useCallback((file: File): FileWithPreview => {
-    return {
-      file,
-      preview: URL.createObjectURL(file),
-      id: `${Date.now()}-${Math.random()}`,
-    }
-  }, [])
-
-  const handleFileSelect = useCallback(
-    (selectedFiles: File[]) => {
-      const newFiles = selectedFiles.map(createFilePreview)
-      setFiles(prev => [...prev, ...newFiles])
-    },
-    [createFilePreview]
+  const handleTextChange = useCallback(
+    (value: string) => dispatch({ type: 'setText', value }),
+    [dispatch]
   )
 
-  const handleRemoveFile = useCallback((id: string) => {
-    setFiles(prev => {
-      const file = prev.find(f => f.id === id)
-      if (file) {
-        URL.revokeObjectURL(file.preview)
-      }
-      return prev.filter(f => f.id !== id)
-    })
-  }, [])
+  const handleDetectMedia = useCallback(
+    (items: DetectedMedia[]) => dispatch({ type: 'setDetected', value: items }),
+    [dispatch]
+  )
 
-  const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
-    setFiles(prev => {
-      const newFiles = [...prev]
-      const [moved] = newFiles.splice(fromIndex, 1)
-      newFiles.splice(toIndex, 0, moved)
-      return newFiles
-    })
-  }, [])
+  const handleTagsChange = useCallback(
+    (value: string[]) => dispatch({ type: 'setTags', value }),
+    [dispatch]
+  )
 
-  // Fetch link previews when URLs are detected
-  useEffect(() => {
-    if (detected.length === 0) return
-    detected.forEach(item => {
-      if (linkPreviews.has(item.url)) return
-      setLinkPreviews(prev => {
-        const next = new Map(prev)
-        next.set(item.url, { url: item.url, preview: null, loading: true })
-        return next
-      })
-      fetchLinkPreview(item.url)
-        .then(preview => {
-          setLinkPreviews(prev => {
-            const next = new Map(prev)
-            next.set(item.url, { url: item.url, preview, loading: false })
-            return next
-          })
-        })
-        .catch(() => {
-          setLinkPreviews(prev => {
-            const next = new Map(prev)
-            next.set(item.url, { url: item.url, preview: null, loading: false })
-            return next
-          })
-        })
-    })
-  }, [detected, linkPreviews])
+  const handleVisibilityChange = useCallback(
+    (value: 'PUBLIC' | 'PRIVATE') => dispatch({ type: 'setVisibility', value }),
+    [dispatch]
+  )
+
+  const handleFilesSelected = useCallback(
+    (selectedFiles: File[]) => {
+      dispatch({ type: 'setError', value: null })
+      addFiles(selectedFiles)
+    },
+    [addFiles, dispatch]
+  )
 
   const handleCaptureCamera = useCallback(async () => {
-    setCapturing('camera')
-    setError(null)
+    dispatch({ type: 'setCapturing', value: 'camera' })
+    dispatch({ type: 'setError', value: null })
     try {
       const file = await captureFromCamera({ video: false })
       if (file) {
-        handleFileSelect([file])
+        addFiles([file])
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to capture from camera'
-      setError(msg)
+      dispatch({ type: 'setError', value: msg })
     } finally {
-      setCapturing(null)
+      dispatch({ type: 'setCapturing', value: null })
     }
-  }, [handleFileSelect])
+  }, [addFiles, dispatch])
 
   const handleCaptureAudio = useCallback(async () => {
-    setCapturing('audio')
-    setError(null)
+    dispatch({ type: 'setCapturing', value: 'audio' })
+    dispatch({ type: 'setError', value: null })
     try {
-      const file = await captureAudio(60000) // 60 second max
+      const file = await captureAudio(MAX_AUDIO_CAPTURE_MS)
       if (file) {
-        handleFileSelect([file])
+        addFiles([file])
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to record audio'
-      setError(msg)
+      dispatch({ type: 'setError', value: msg })
     } finally {
-      setCapturing(null)
+      dispatch({ type: 'setCapturing', value: null })
     }
-  }, [handleFileSelect])
+  }, [addFiles, dispatch])
 
-  const handleSubmit = async () => {
-    const body = text.trim()
-    if (!body && files.length === 0) {
-      setError('Add text or at least one photo.')
+  const handleSubmit = useCallback(async () => {
+    if (!isOnline) {
+      dispatch({ type: 'setError', value: 'You are offline. Reconnect to post.' })
       return
     }
-    setBusy(true)
-    setError(null)
-    setUploadProgress(new Map())
+
+    const body = trimmedText
+    if (!body && files.length === 0) {
+      dispatch({ type: 'setError', value: 'Add text or at least one photo.' })
+      return
+    }
+
+    const normalizedTags = Array.from(
+      new Set(tags.map(tag => tag.trim().toLowerCase()).filter(Boolean))
+    )
+    const invalidTag = normalizedTags.find(
+      tag => tag.length > MAX_TAG_LENGTH || !TAG_PATTERN.test(tag)
+    )
+    if (invalidTag) {
+      dispatch({
+        type: 'setError',
+        value: `Tags must be ${MAX_TAG_LENGTH} characters or less and use letters, numbers, or hyphens.`,
+      })
+      return
+    }
+
+    dispatch({ type: 'setBusy', value: true })
+    dispatch({ type: 'setError', value: null })
+    dispatch({ type: 'setUploadProgress', value: {} })
 
     let optimisticCard: FeedCard | null = null
 
     try {
-      // Initialize upload progress
-      const progressMap = new Map<string, UploadProgress>()
-      files.forEach(f => {
-        progressMap.set(f.id, { fileId: f.id, progress: 0, status: 'pending' })
-      })
-      setUploadProgress(progressMap)
-
-      // Upload files in parallel with progress tracking
-      const uploadPromises = files.map(async fileWithPreview => {
-        const { file, id } = fileWithPreview
-        setUploadProgress(prev => {
-          const next = new Map(prev)
-          next.set(id, { fileId: id, progress: 0, status: 'uploading' })
-          return next
-        })
-
-        try {
-          // Simulate progress (real implementation would use XMLHttpRequest with progress events)
-          const upload = await api.media.upload(file)
-          setUploadProgress(prev => {
-            const next = new Map(prev)
-            next.set(id, { fileId: id, progress: 100, status: 'complete' })
-            return next
-          })
-          return { mediaId: upload.mediaId, fileId: id }
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'Upload failed'
-          setUploadProgress(prev => {
-            const next = new Map(prev)
-            next.set(id, { fileId: id, progress: 0, status: 'error', error: errorMsg })
-            return next
-          })
-          throw err
-        }
-      })
-
-      const uploadResults = await Promise.allSettled(uploadPromises)
-      const mediaIds: string[] = []
-      const errors: string[] = []
-
-      uploadResults.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          mediaIds.push(String(result.value.mediaId))
-        } else {
-          errors.push(`File ${index + 1}: ${result.reason?.message || 'Upload failed'}`)
-        }
-      })
+      const { mediaIds, errors } = await uploadFiles(files)
 
       if (mediaIds.length === 0 && files.length > 0) {
-        setError('All uploads failed. Please try again.')
-        setBusy(false)
+        dispatch({ type: 'setError', value: 'All uploads failed. Please try again.' })
         return
       }
 
       if (errors.length > 0) {
-        setError(`Some uploads failed: ${errors.join(', ')}`)
+        dispatch({ type: 'setError', value: `Some uploads failed: ${errors.join(', ')}` })
       }
 
       // Only create optimistic post for PUBLIC posts (before API call)
@@ -340,11 +302,7 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
         )
 
         // Dispatch event for optimistic feed insert and scroll
-        window.dispatchEvent(
-          new CustomEvent('feed:optimistic-insert', {
-            detail: { card: optimisticCard },
-          })
-        )
+        dispatchFeedOptimisticInsert(optimisticCard)
       }
 
       // Create post
@@ -352,399 +310,193 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
         text: body ? body : null,
         visibility,
         mediaIds: mediaIds.length ? mediaIds : undefined,
+        tags: normalizedTags.length ? normalizedTags : undefined,
       })
 
       // For PUBLIC posts, trigger feed refresh to get the real post
       // The optimistic post will be replaced naturally when the feed loads
       if (optimisticCard && visibility === 'PUBLIC') {
-        // Trigger feed refresh to get the real post
-        window.dispatchEvent(
-          new CustomEvent('feed:refresh', {
-            detail: { removeOptimisticId: optimisticCard.id, newPostId: String(postResult.id) },
-          })
-        )
+        dispatchFeedRefresh({
+          removeOptimisticId: optimisticCard.id,
+          newPostId: String(postResult.id),
+        })
       }
 
       // Clear draft on success
-      localStorage.removeItem(DRAFT_KEY)
-
-      // Cleanup file previews
-      files.forEach(f => URL.revokeObjectURL(f.preview))
-
-      setText('')
-      setFiles([])
-      setDetected([])
-      setTags([])
-      setLinkPreviews(new Map())
+      clearDraft()
+      cleanupPreviews()
+      dispatch({ type: 'reset' })
+      setSuccessToast('Post published!')
       onPosted?.()
-      onClose()
+      if (closeTimerRef.current != null) {
+        window.clearTimeout(closeTimerRef.current)
+      }
+      closeTimerRef.current = window.setTimeout(() => {
+        setSuccessToast(null)
+        onClose()
+      }, SUCCESS_CLOSE_DELAY_MS)
     } catch (err) {
+      const isAbortError =
+        (err instanceof DOMException && err.name === 'AbortError') ||
+        (err instanceof Error && err.name === 'AbortError')
+      if (isAbortError) return
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine
       const msg = err instanceof Error ? err.message : 'Failed to publish post'
-      setError(msg)
+      const finalMessage = isOffline ? 'Network error. Check your connection.' : msg
+      dispatch({ type: 'setError', value: finalMessage })
 
       // Remove optimistic post if backend fails
       if (optimisticCard) {
-        window.dispatchEvent(
-          new CustomEvent('feed:remove-optimistic', {
-            detail: { optimisticId: optimisticCard.id, error: msg },
-          })
-        )
+        dispatchFeedRemoveOptimistic({ optimisticId: optimisticCard.id, error: finalMessage })
+      }
+    } finally {
+      dispatch({ type: 'setBusy', value: false })
+    }
+  }, [
+    cleanupPreviews,
+    clearDraft,
+    createOptimisticPost,
+    dispatch,
+    files,
+    isOnline,
+    onClose,
+    onPosted,
+    tags,
+    trimmedText,
+    uploadFiles,
+    visibility,
+  ])
+
+  const handleRetryUpload = useCallback(() => {
+    void handleSubmit()
+  }, [handleSubmit])
+
+  const progressMeta = useMemo(() => {
+    const values = Object.values(uploadProgress)
+    const completed = values.filter(p => p.status === 'complete').length
+    const hasErrors = values.some(p => p.status === 'error')
+    const allComplete =
+      files.length > 0 &&
+      values.length === files.length &&
+      values.every(p => p.status === 'complete' || p.status === 'error')
+    const totalProgress =
+      values.length === 0
+        ? 0
+        : Math.round(values.reduce((sum, value) => sum + value.progress, 0) / values.length)
+    return {
+      values,
+      completed,
+      hasErrors,
+      allComplete,
+      totalProgress,
+    }
+  }, [files.length, uploadProgress])
+
+  const isSubmitDisabled = useMemo(
+    () =>
+      busy ||
+      !isOnline ||
+      (progressMeta.allComplete &&
+        progressMeta.hasErrors &&
+        files.length > 0 &&
+        progressMeta.completed === 0),
+    [busy, files.length, isOnline, progressMeta]
+  )
+
+  const handlePanelKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Tab') {
+        const focusable = getFocusableElements(panelRef.current)
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        const active = document.activeElement
+        if (event.shiftKey && active === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault()
+          first?.focus()
+        }
       }
 
-      // Show error alert
-      alert(`Failed to post: ${msg}`)
-    } finally {
-      setBusy(false)
-    }
-  }
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault()
+        if (!isSubmitDisabled) {
+          void handleSubmit()
+        }
+      }
+    },
+    [handleSubmit, isSubmitDisabled]
+  )
 
   if (!open) return null
 
-  const hasUploadErrors = Array.from(uploadProgress.values()).some(p => p.status === 'error')
-  const allUploadsComplete =
-    files.length > 0 &&
-    Array.from(uploadProgress.values()).every(p => p.status === 'complete' || p.status === 'error')
-
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-label="Create post">
-      <div className="modal__backdrop" onClick={onClose} />
-      <div className="modal__panel">
-        <div className="modal__header">
-          <div style={{ fontSize: 'var(--fs-5)', fontWeight: 700 }}>Create Post</div>
-          <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>
-            Posting to Feed
-          </div>
-        </div>
+    <div
+      className="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Create post"
+      data-testid="post-content-modal"
+    >
+      <Toast
+        message={error}
+        onClose={() => dispatch({ type: 'setError', value: null })}
+        durationMs={busy ? 0 : ERROR_TOAST_MS}
+        role="alert"
+      />
+      <Toast
+        message={successToast}
+        onClose={() => setSuccessToast(null)}
+        durationMs={SUCCESS_TOAST_MS}
+        role="status"
+      />
+      <div className="modal__backdrop" onClick={handleRequestClose} />
+      <div
+        className="modal__panel"
+        ref={panelRef}
+        onKeyDown={handlePanelKeyDown}
+        data-testid="post-content-panel"
+      >
+        <PostContentModalHeader />
 
-        <div className="modal__body">
-          <SmartTextarea
-            value={text}
-            onChange={setText}
-            placeholder="What's on your mind?"
-            maxLength={320}
-            onDetectMedia={setDetected}
-            replaceOnDetect={false}
-          />
+        <PostContentModalBody
+          text={text}
+          onTextChange={handleTextChange}
+          onDetectMedia={handleDetectMedia}
+          textInputRef={textInputRef}
+          maxTextLength={MAX_TEXT_LENGTH}
+          visibility={visibility}
+          busy={busy}
+          onVisibilityChange={handleVisibilityChange}
+          files={files}
+          uploadProgress={uploadProgress}
+          progressMeta={progressMeta}
+          onRemoveFile={removeFile}
+          onReorderFile={reorderFiles}
+          tags={tags}
+          onTagsChange={handleTagsChange}
+          tagSuggestions={TAG_SUGGESTIONS}
+          linkPreviews={linkPreviews}
+          capturing={capturing}
+          onCaptureCamera={handleCaptureCamera}
+          onCaptureAudio={handleCaptureAudio}
+          onClearFiles={clearFiles}
+          onRetryUpload={handleRetryUpload}
+          isOnline={isOnline}
+          fileRef={fileRef}
+          acceptedTypes={ACCEPTED_TYPES}
+          onFilesSelected={handleFilesSelected}
+          detectedCount={detected.length}
+        />
 
-          {/* Visibility Toggle */}
-          <div className="u-row u-gap-3" style={{ alignItems: 'center' }}>
-            <label style={{ fontSize: 'var(--fs-2)', color: 'var(--muted)' }}>Visibility:</label>
-            <div className="u-row u-gap-2">
-              <button
-                className={`topBar__btn ${visibility === 'PUBLIC' ? 'topBar__btn--primary' : ''}`}
-                type="button"
-                onClick={() => setVisibility('PUBLIC')}
-                disabled={busy}
-              >
-                Public
-              </button>
-              <button
-                className={`topBar__btn ${visibility === 'PRIVATE' ? 'topBar__btn--primary' : ''}`}
-                type="button"
-                onClick={() => setVisibility('PRIVATE')}
-                disabled={busy}
-              >
-                Private
-              </button>
-            </div>
-            <span className="profile__meta" style={{ fontSize: 'var(--fs-1)' }}>
-              {visibility === 'PUBLIC' ? 'Visible to everyone' : 'Only you'}
-            </span>
-          </div>
-
-          {/* Media Preview */}
-          {files.length > 0 && (
-            <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
-              <div
-                className="profile__postMedia u-hide-scroll"
-                style={{ display: 'flex', gap: 'var(--s-2)' }}
-              >
-                {files.map((fileWithPreview, index) => {
-                  const progress = uploadProgress.get(fileWithPreview.id)
-                  const isUploading = progress?.status === 'uploading'
-                  const isError = progress?.status === 'error'
-                  return (
-                    <div
-                      key={fileWithPreview.id}
-                      className="profile__postMediaThumb u-relative"
-                      style={{ position: 'relative' }}
-                    >
-                      <img
-                        src={fileWithPreview.preview}
-                        alt={`Preview ${index + 1}`}
-                        style={{
-                          width: '120px',
-                          height: '160px',
-                          objectFit: 'cover',
-                          borderRadius: 'var(--r-3)',
-                        }}
-                      />
-                      {!busy && (
-                        <button
-                          className="mediaDeleteBtn"
-                          type="button"
-                          onClick={() => handleRemoveFile(fileWithPreview.id)}
-                          aria-label="Remove media"
-                        >
-                          ×
-                        </button>
-                      )}
-                      {index > 0 && !busy && (
-                        <button
-                          className="topBar__btn"
-                          type="button"
-                          onClick={() => handleReorder(index, index - 1)}
-                          style={{
-                            position: 'absolute',
-                            left: '4px',
-                            top: '4px',
-                            padding: '4px 8px',
-                            fontSize: 'var(--fs-1)',
-                          }}
-                          aria-label="Move left"
-                        >
-                          ←
-                        </button>
-                      )}
-                      {index < files.length - 1 && !busy && (
-                        <button
-                          className="topBar__btn"
-                          type="button"
-                          onClick={() => handleReorder(index, index + 1)}
-                          style={{
-                            position: 'absolute',
-                            right: '4px',
-                            top: '4px',
-                            padding: '4px 8px',
-                            fontSize: 'var(--fs-1)',
-                          }}
-                          aria-label="Move right"
-                        >
-                          →
-                        </button>
-                      )}
-                      {isUploading && progress && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            background: 'rgba(0,0,0,0.7)',
-                            padding: '4px',
-                            fontSize: 'var(--fs-1)',
-                          }}
-                        >
-                          Uploading... {Math.round(progress.progress)}%
-                        </div>
-                      )}
-                      {isError && progress?.error && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            background: 'rgba(251,113,133,0.9)',
-                            padding: '4px',
-                            fontSize: 'var(--fs-1)',
-                            color: 'white',
-                          }}
-                        >
-                          Error: {progress.error}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Subject/Interest Tags */}
-          <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
-            <label style={{ fontSize: 'var(--fs-2)', color: 'var(--muted)' }}>
-              Tags (optional):
-            </label>
-            <TagInput
-              value={tags}
-              onChange={setTags}
-              placeholder="Add tags..."
-              maxTags={5}
-              suggestions={TAG_SUGGESTIONS}
-            />
-          </div>
-
-          {/* Link Previews */}
-          {Array.from(linkPreviews.values()).map(state => {
-            if (!state.preview) return null
-            return (
-              <div
-                key={state.url}
-                className="u-glass"
-                style={{ padding: 'var(--s-3)', borderRadius: 'var(--r-3)' }}
-              >
-                {state.preview.type === 'youtube' && state.preview.image && (
-                  <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
-                    <img
-                      src={state.preview.image}
-                      alt="YouTube thumbnail"
-                      style={{ width: '100%', borderRadius: 'var(--r-2)' }}
-                    />
-                    <div>
-                      <div style={{ fontSize: 'var(--fs-3)', fontWeight: 600 }}>
-                        {state.preview.title}
-                      </div>
-                      <div className="profile__meta" style={{ fontSize: 'var(--fs-2)' }}>
-                        {state.preview.siteName}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {state.preview.type === 'image' && state.preview.image && (
-                  <img
-                    src={state.preview.image}
-                    alt="Link preview"
-                    style={{ width: '100%', borderRadius: 'var(--r-2)' }}
-                  />
-                )}
-                {state.preview.type === 'website' && (
-                  <div className="u-stack" style={{ gap: 'var(--s-1)' }}>
-                    {state.preview.title && (
-                      <div style={{ fontSize: 'var(--fs-3)', fontWeight: 600 }}>
-                        {state.preview.title}
-                      </div>
-                    )}
-                    {state.preview.description && (
-                      <div className="profile__meta" style={{ fontSize: 'var(--fs-2)' }}>
-                        {state.preview.description}
-                      </div>
-                    )}
-                    {state.preview.siteName && (
-                      <div className="profile__meta" style={{ fontSize: 'var(--fs-1)' }}>
-                        {state.preview.siteName}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-
-          {/* Media Upload Controls */}
-          <div className="u-row u-gap-3 u-wrap">
-            <button
-              className="topBar__btn"
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={busy || capturing !== null}
-            >
-              📁 Choose from Library
-            </button>
-            <button
-              className="topBar__btn"
-              type="button"
-              onClick={handleCaptureCamera}
-              disabled={busy || capturing !== null}
-            >
-              {capturing === 'camera' ? 'Capturing...' : '📷 Take Photo'}
-            </button>
-            <button
-              className="topBar__btn"
-              type="button"
-              onClick={handleCaptureAudio}
-              disabled={busy || capturing !== null}
-            >
-              {capturing === 'audio' ? 'Recording...' : '🎤 Record Audio'}
-            </button>
-            {files.length > 0 && (
-              <button
-                className="topBar__btn"
-                type="button"
-                onClick={() => {
-                  files.forEach(f => URL.revokeObjectURL(f.preview))
-                  setFiles([])
-                }}
-                disabled={busy}
-              >
-                Clear all ({files.length})
-              </button>
-            )}
-            {hasUploadErrors && (
-              <button
-                className="topBar__btn"
-                type="button"
-                onClick={() => {
-                  // Retry failed uploads - would need to re-upload
-                  setError('Retry not yet implemented. Please remove failed files and try again.')
-                }}
-                disabled={busy}
-              >
-                Retry failed
-              </button>
-            )}
-          </div>
-
-          {detected.length > 0 && (
-            <div className="profile__meta" style={{ fontSize: 'var(--fs-2)' }}>
-              Detected {detected.length} link{detected.length > 1 ? 's' : ''}. Embeds coming soon.
-            </div>
-          )}
-
-          {draftSaved && (
-            <div
-              className="profile__meta"
-              style={{ fontSize: 'var(--fs-2)', color: 'rgba(34,197,94,0.9)' }}
-            >
-              Draft saved
-            </div>
-          )}
-
-          {error && (
-            <div className="profile__error" style={{ fontSize: 'var(--fs-2)' }}>
-              {error}
-            </div>
-          )}
-
-          <input
-            ref={fileRef}
-            className="srOnly"
-            type="file"
-            accept={ACCEPTED_TYPES}
-            multiple
-            onChange={event => {
-              const list = Array.from(event.currentTarget.files ?? [])
-              event.currentTarget.value = ''
-              if (list.length) handleFileSelect(list)
-            }}
-          />
-        </div>
-
-        <div className="modal__actions">
-          <button
-            className="actionBtn actionBtn--nope"
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-          >
-            Cancel
-          </button>
-          <button
-            className="actionBtn actionBtn--like"
-            type="button"
-            onClick={handleSubmit}
-            disabled={
-              busy ||
-              (allUploadsComplete &&
-                hasUploadErrors &&
-                files.length > 0 &&
-                Array.from(uploadProgress.values()).filter(p => p.status === 'complete').length ===
-                  0)
-            }
-          >
-            {busy ? 'Posting...' : 'Post'}
-          </button>
-        </div>
+        <PostContentModalActions
+          busy={busy}
+          isSubmitDisabled={isSubmitDisabled}
+          onCancel={handleRequestClose}
+          onSubmit={handleSubmit}
+        />
       </div>
     </div>
   )

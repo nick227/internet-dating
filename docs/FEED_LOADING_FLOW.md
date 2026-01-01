@@ -145,3 +145,7 @@ This controls logging in:
 - `frontend/src/core/feed/usePhase1FromHTML.ts`
 - `frontend/src/api/client.ts`
 - `frontend/src/api/adapters.ts`
+
+## Draft proposal
+
+- `docs/FEED_RELATIONSHIP_FIRST_PROPOSAL.md`

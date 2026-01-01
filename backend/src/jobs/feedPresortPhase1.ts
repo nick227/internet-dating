@@ -19,7 +19,7 @@ export function generatePhase1JSON(items: PresortedFeedItem[]): string {
         presentation: item.presentation ?? null,
       }
     }),
-    nextCursor: items[2]?.id ?? null,
+    nextCursorId: items[2]?.id ?? null,
   }
 
   // Phase-1 HTML embedding guardrails: Cap inline JSON to <8KB

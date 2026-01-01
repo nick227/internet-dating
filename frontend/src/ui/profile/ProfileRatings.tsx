@@ -15,7 +15,6 @@ export function ProfileRatings({ ratings }: ProfileRatingsProps) {
   return (
     <div className="u-glass profile__card">
       <div className="u-stack">
-        <div className="profile__sectionTitle">Ratings</div>
         <div className="inlineChips">
           {average != null && (
             <Pill>

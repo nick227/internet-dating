@@ -9,7 +9,7 @@ type PageTransitionProps = {
 
 type NavigationDirection = 'forward' | 'back' | 'same' | 'tab'
 
-const MAIN_TABS = ['/feed', '/matches', '/quiz', '/inbox']
+const MAIN_TABS = ['/feed', '/matches', '/quiz', '/inbox', '/followers']
 
 function getTransitionType(
   currentPath: string,

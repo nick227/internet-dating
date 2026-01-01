@@ -8,8 +8,14 @@ export type ApiCommentCreateBody = {
   cardKind: string
   actorId?: Id
   text: string
+  clientRequestId: string
+}
+
+export type ApiCommentCreateResponse = ApiOkResponse & {
+  id: Id
+  createdAt: string
 }
 
 export function createComment(body: ApiCommentCreateBody, signal?: AbortSignal) {
-  return http<ApiOkResponse>(`${API_BASE_URL}/api/comments`, 'POST', { body, signal })
+  return http<ApiCommentCreateResponse>(`${API_BASE_URL}/api/comments`, 'POST', { body, signal })
 }

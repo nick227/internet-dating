@@ -6,8 +6,10 @@ import { getCandidates } from '../candidates/index.js';
 import { scoreCandidates } from '../scoring/index.js';
 import { mergeAndRank } from '../ranking/index.js';
 import { hydrateFeedItems } from '../hydration/index.js';
+import { feedDomain } from '../index.js';
+import { invalidateAllSegmentsForUser, storePresortedSegment } from '../../../../services/feed/presortedFeedService.js';
 import type { ViewerContext } from '../types.js';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 // Helper to create mock request
 function createMockRequest(userId: bigint | null, take = 20, cursorId: bigint | null = null): Request {
@@ -18,6 +20,243 @@ function createMockRequest(userId: bigint | null, take = 20, cursorId: bigint | 
       ...(cursorId ? { cursorId: String(cursorId) } : {})
     }
   } as unknown as Request;
+}
+
+async function createVideoPost(params: {
+  userId: bigint;
+  text: string;
+  visibility: 'PUBLIC' | 'PRIVATE';
+}) {
+  const post = await prisma.post.create({
+    data: {
+      userId: params.userId,
+      text: params.text,
+      visibility: params.visibility
+    }
+  });
+
+  const media = await prisma.media.create({
+    data: {
+      userId: params.userId,
+      ownerUserId: params.userId,
+      type: 'VIDEO',
+      status: 'READY',
+      visibility: 'PUBLIC',
+      url: `https://example.com/${post.id}.mp4`
+    }
+  });
+
+  await prisma.postMedia.create({
+    data: {
+      postId: post.id,
+      mediaId: media.id,
+      order: 0
+    }
+  });
+
+  return post;
+}
+
+async function cleanupUsers(userIds: bigint[]) {
+  if (!userIds.length) return;
+
+  const [posts, profiles, conversations, top5Lists] = await Promise.all([
+    prisma.post.findMany({
+      where: { userId: { in: userIds } },
+      select: { id: true }
+    }),
+    prisma.profile.findMany({
+      where: { userId: { in: userIds } },
+      select: { id: true }
+    }),
+    prisma.conversation.findMany({
+      where: {
+        OR: [{ userAId: { in: userIds } }, { userBId: { in: userIds } }]
+      },
+      select: { id: true }
+    }),
+    prisma.top5List.findMany({
+      where: { profile: { userId: { in: userIds } } },
+      select: { id: true }
+    })
+  ]);
+  const postIds = posts.map((post) => post.id);
+  const profileIds = profiles.map((profile) => profile.id);
+  const conversationIds = conversations.map((conversation) => conversation.id);
+  const top5ListIds = top5Lists.map((list) => list.id);
+
+  await prisma.feedSeen.deleteMany({
+    where: {
+      OR: [
+        { viewerUserId: { in: userIds } },
+        ...(userIds.length ? [{ itemId: { in: userIds } }] : []),
+        ...(postIds.length ? [{ itemId: { in: postIds } }] : [])
+      ]
+    }
+  });
+  await prisma.presortedFeedSegment.deleteMany({
+    where: { userId: { in: userIds } }
+  });
+  await prisma.matchScore.deleteMany({
+    where: {
+      OR: [{ userId: { in: userIds } }, { candidateUserId: { in: userIds } }]
+    }
+  });
+  await prisma.userCompatibility.deleteMany({
+    where: {
+      OR: [{ viewerUserId: { in: userIds } }, { targetUserId: { in: userIds } }]
+    }
+  });
+  await prisma.userInterest.deleteMany({
+    where: { userId: { in: userIds } }
+  });
+  await prisma.quizResult.deleteMany({
+    where: { userId: { in: userIds } }
+  });
+  await prisma.userPreference.deleteMany({
+    where: { userId: { in: userIds } }
+  });
+  await prisma.userAffinityProfile.deleteMany({
+    where: { userId: { in: userIds } }
+  });
+  await prisma.userBlock.deleteMany({
+    where: {
+      OR: [{ blockerId: { in: userIds } }, { blockedId: { in: userIds } }]
+    }
+  });
+  await prisma.userReport.deleteMany({
+    where: {
+      OR: [{ reporterId: { in: userIds } }, { targetId: { in: userIds } }]
+    }
+  });
+  await prisma.profileAccess.deleteMany({
+    where: {
+      OR: [{ ownerUserId: { in: userIds } }, { viewerUserId: { in: userIds } }]
+    }
+  });
+  await prisma.messageReceipt.deleteMany({
+    where: { userId: { in: userIds } }
+  });
+  await prisma.like.deleteMany({
+    where: {
+      OR: [{ fromUserId: { in: userIds } }, { toUserId: { in: userIds } }]
+    }
+  });
+
+  if (conversationIds.length) {
+    const messages = await prisma.message.findMany({
+      where: { conversationId: { in: conversationIds } },
+      select: { id: true }
+    });
+    const messageIds = messages.map((message) => message.id);
+
+    await prisma.messageReceipt.deleteMany({
+      where: {
+        OR: [
+          { userId: { in: userIds } },
+          ...(messageIds.length ? [{ messageId: { in: messageIds } }] : [])
+        ]
+      }
+    });
+    await prisma.message.deleteMany({
+      where: {
+        OR: [
+          { senderId: { in: userIds } },
+          { conversationId: { in: conversationIds } }
+        ]
+      }
+    });
+    await prisma.conversation.deleteMany({
+      where: { id: { in: conversationIds } }
+    });
+  }
+  await prisma.match.deleteMany({
+    where: {
+      OR: [{ userAId: { in: userIds } }, { userBId: { in: userIds } }]
+    }
+  });
+
+  await prisma.likedPost.deleteMany({
+    where: {
+      OR: [
+        { userId: { in: userIds } },
+        ...(postIds.length ? [{ postId: { in: postIds } }] : [])
+      ]
+    }
+  });
+  if (postIds.length) {
+    await prisma.postFeatures.deleteMany({ where: { postId: { in: postIds } } });
+    await prisma.trendingScore.deleteMany({ where: { postId: { in: postIds } } });
+    await prisma.postMedia.deleteMany({ where: { postId: { in: postIds } } });
+    await prisma.postStats.deleteMany({ where: { postId: { in: postIds } } });
+  }
+  await prisma.comment.deleteMany({ where: { authorId: { in: userIds } } });
+  await prisma.post.deleteMany({ where: { userId: { in: userIds } } });
+  if (top5ListIds.length) {
+    await prisma.top5Item.deleteMany({ where: { listId: { in: top5ListIds } } });
+    await prisma.top5List.deleteMany({ where: { id: { in: top5ListIds } } });
+  }
+  if (profileIds.length) {
+    await prisma.profileRating.deleteMany({
+      where: {
+        OR: [{ raterProfileId: { in: profileIds } }, { targetProfileId: { in: profileIds } }]
+      }
+    });
+    await prisma.profileStats.deleteMany({ where: { profileId: { in: profileIds } } });
+  }
+  await prisma.profile.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.media.deleteMany({
+    where: {
+      OR: [{ userId: { in: userIds } }, { ownerUserId: { in: userIds } }]
+    }
+  });
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await prisma.presortedFeedSegment.deleteMany({
+        where: { userId: { in: userIds } }
+      });
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+      break;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+}
+
+function createMockResponse() {
+  let statusCode = 200;
+  let body = '';
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    type() {
+      return res;
+    },
+    send(payload: string) {
+      body = payload;
+      return res;
+    },
+    getBody() {
+      return body;
+    },
+    getStatus() {
+      return statusCode;
+    }
+  };
+  return res as unknown as Response & { getBody: () => string; getStatus: () => number };
+}
+
+async function callFeed(userId: bigint | null, query: Record<string, string>) {
+  const route = feedDomain.routes.find((r) => r.id === 'feed.GET./feed');
+  if (!route) throw new Error('Feed route not found');
+  const req = { ctx: { userId }, query } as unknown as Request;
+  const res = createMockResponse();
+  await route.handler(req, res);
+  return { status: res.getStatus(), body: JSON.parse(res.getBody()) };
 }
 
 test('Feed retrieval - basic functionality', async () => {
@@ -50,20 +289,16 @@ test('Feed retrieval - basic functionality', async () => {
 
   try {
     // Create PUBLIC posts
-    const post1 = await prisma.post.create({
-      data: {
-        userId: user1.id,
-        text: 'First post',
-        visibility: 'PUBLIC'
-      }
+    const post1 = await createVideoPost({
+      userId: user1.id,
+      text: 'First post',
+      visibility: 'PUBLIC'
     });
 
-    const post2 = await prisma.post.create({
-      data: {
-        userId: user2.id,
-        text: 'Second post',
-        visibility: 'PUBLIC'
-      }
+    const post2 = await createVideoPost({
+      userId: user2.id,
+      text: 'Second post',
+      visibility: 'PUBLIC'
     });
 
     // Test feed retrieval
@@ -85,10 +320,8 @@ test('Feed retrieval - basic functionality', async () => {
     assert.ok(postIds.includes(post1.id), 'Should include post1');
     assert.ok(postIds.includes(post2.id), 'Should include post2');
 
-    // Cleanup
-    await prisma.post.deleteMany({ where: { id: { in: [post1.id, post2.id] } } });
   } finally {
-    await prisma.user.deleteMany({ where: { id: { in: [user1.id, user2.id] } } });
+    await cleanupUsers([user1.id, user2.id]);
   }
 });
 
@@ -172,12 +405,10 @@ test('Feed ranking - maxPerActor enforcement', async () => {
     // Create many posts from same user
     const posts = await Promise.all(
       Array.from({ length: 10 }, (_, i) =>
-        prisma.post.create({
-          data: {
-            userId: user.id,
-            text: `Post ${i}`,
-            visibility: 'PUBLIC'
-          }
+        createVideoPost({
+          userId: user.id,
+          text: `Post ${i}`,
+          visibility: 'PUBLIC'
         })
       )
     );
@@ -201,10 +432,8 @@ test('Feed ranking - maxPerActor enforcement', async () => {
       `Should not have more than 3 posts from same actor, got ${actorCount}`
     );
 
-    // Cleanup
-    await prisma.post.deleteMany({ where: { id: { in: posts.map(p => p.id) } } });
   } finally {
-    await prisma.user.delete({ where: { id: user.id } });
+    await cleanupUsers([user.id]);
   }
 });
 
@@ -224,6 +453,7 @@ test('Feed blocking - posts from blocked users are excluded', async () => {
       profile: { create: { displayName: 'Blocked', isVisible: true } }
     }
   });
+  let otherUser: { id: bigint } | null = null;
 
   try {
     // Create block relationship
@@ -235,16 +465,14 @@ test('Feed blocking - posts from blocked users are excluded', async () => {
     });
 
     // Create post from blocked user
-    const blockedPost = await prisma.post.create({
-      data: {
-        userId: blocked.id,
-        text: 'Blocked post',
-        visibility: 'PUBLIC'
-      }
+    const blockedPost = await createVideoPost({
+      userId: blocked.id,
+      text: 'Blocked post',
+      visibility: 'PUBLIC'
     });
 
     // Create post from non-blocked user
-    const otherUser = await prisma.user.create({
+    otherUser = await prisma.user.create({
       data: {
         email: `test-other-${Date.now()}@example.com`,
         passwordHash: 'hash',
@@ -252,12 +480,10 @@ test('Feed blocking - posts from blocked users are excluded', async () => {
       }
     });
 
-    const otherPost = await prisma.post.create({
-      data: {
-        userId: otherUser.id,
-        text: 'Other post',
-        visibility: 'PUBLIC'
-      }
+    const otherPost = await createVideoPost({
+      userId: otherUser.id,
+      text: 'Other post',
+      visibility: 'PUBLIC'
     });
 
     // Test feed retrieval as blocker
@@ -284,15 +510,12 @@ test('Feed blocking - posts from blocked users are excluded', async () => {
       'Should include post from non-blocked user'
     );
 
-    // Cleanup
-    await prisma.post.deleteMany({ where: { id: { in: [blockedPost.id, otherPost.id] } } });
-    await prisma.userBlock.deleteMany({ where: { blockerId: blocker.id } });
-    await prisma.profile.deleteMany({ where: { userId: { in: [blocker.id, blocked.id, otherUser.id] } } });
-    await prisma.user.deleteMany({ where: { id: { in: [blocker.id, blocked.id, otherUser.id] } } });
   } finally {
-    // Additional cleanup if above fails
-    await prisma.profile.deleteMany({ where: { userId: { in: [blocker.id, blocked.id] } } });
-    await prisma.user.deleteMany({ where: { id: { in: [blocker.id, blocked.id] } } });
+    await cleanupUsers([
+      blocker.id,
+      blocked.id,
+      ...(otherUser ? [otherUser.id] : [])
+    ]);
   }
 });
 
@@ -309,46 +532,38 @@ test('Feed pagination - cursor works correctly', async () => {
     // Create multiple posts with delays to ensure different timestamps
     const posts = [];
     for (let i = 0; i < 5; i++) {
-      await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
-      const post = await prisma.post.create({
-        data: {
-          userId: user.id,
-          text: `Post ${i}`,
-          visibility: 'PUBLIC'
-        }
+      await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
+      const post = await createVideoPost({
+        userId: user.id,
+        text: `Post ${i}`,
+        visibility: 'PUBLIC'
       });
       posts.push(post);
     }
 
-    // First page
-    const req1 = createMockRequest(null, 2);
-    const ctx1Result = buildViewerContext(req1);
-    assert.ok(ctx1Result.ok);
-    const ctx1 = ctx1Result.value;
+    const firstPage = await callFeed(user.id, { take: '2' });
+    assert.strictEqual(firstPage.status, 200);
+    const firstPostIds = (firstPage.body.items as Array<{ type: string; post?: { id: string } }>)
+      .filter((item) => item.type === 'post' && item.post)
+      .map((item) => item.post!.id);
 
-    const candidates1 = await getCandidates(ctx1);
-    assert.ok(candidates1.nextCursorId !== null, 'Should have next cursor');
-    
-    const postIds1 = candidates1.posts.map(p => p.id);
-    assert.strictEqual(postIds1.length, 2, 'First page should have 2 posts');
+    assert.strictEqual(firstPostIds.length, 2, 'First page should have 2 posts');
+    assert.ok(firstPage.body.nextCursorId, 'Should have next cursor');
 
-    // Second page using cursor
-    const req2 = createMockRequest(null, 2, candidates1.nextCursorId);
-    const ctx2Result = buildViewerContext(req2);
-    assert.ok(ctx2Result.ok);
-    const ctx2 = ctx2Result.value;
+    const secondPage = await callFeed(user.id, {
+      take: '2',
+      cursorId: String(firstPage.body.nextCursorId)
+    });
+    assert.strictEqual(secondPage.status, 200);
+    const secondPostIds = (secondPage.body.items as Array<{ type: string; post?: { id: string } }>)
+      .filter((item) => item.type === 'post' && item.post)
+      .map((item) => item.post!.id);
 
-    const candidates2 = await getCandidates(ctx2);
-    const postIds2 = candidates2.posts.map(p => p.id);
-
-    // Verify no overlap
-    const overlap = postIds1.filter(id => postIds2.includes(id));
+    const overlap = firstPostIds.filter((id) => secondPostIds.includes(id));
     assert.strictEqual(overlap.length, 0, 'Pages should not overlap');
 
-    // Cleanup
-    await prisma.post.deleteMany({ where: { id: { in: posts.map(p => p.id) } } });
   } finally {
-    await prisma.user.delete({ where: { id: user.id } });
+    await cleanupUsers([user.id]);
   }
 });
 
@@ -368,10 +583,17 @@ test('Feed suggestions - freshness contract (24 hour limit)', async () => {
       profile: { create: { displayName: 'Candidate', isVisible: true } }
     }
   });
+  const staleCandidate = await prisma.user.create({
+    data: {
+      email: `test-freshness-${Date.now()}-stale@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Stale Candidate', isVisible: true } }
+    }
+  });
 
   try {
     // Create fresh score (within 24 hours)
-    const freshScore = await prisma.matchScore.create({
+    await prisma.matchScore.create({
       data: {
         userId: viewer.id,
         candidateUserId: candidate.id,
@@ -384,10 +606,10 @@ test('Feed suggestions - freshness contract (24 hour limit)', async () => {
     const staleDate = new Date();
     staleDate.setDate(staleDate.getDate() - 2); // 2 days ago
     
-    const staleScore = await prisma.matchScore.create({
+    await prisma.matchScore.create({
       data: {
         userId: viewer.id,
-        candidateUserId: candidate.id,
+        candidateUserId: staleCandidate.id,
         score: 0.5,
         scoredAt: staleDate // Stale
       }
@@ -409,8 +631,12 @@ test('Feed suggestions - freshness contract (24 hour limit)', async () => {
     // The candidate should appear if there's a fresh score
     // Note: actual implementation filters in profiles.ts query
     assert.ok(
-      suggestionUserIds.length >= 0,
-      'Suggestions should be retrieved'
+      suggestionUserIds.includes(candidate.id),
+      'Fresh candidate should be included'
+    );
+    assert.ok(
+      !suggestionUserIds.includes(staleCandidate.id),
+      'Stale candidate should be excluded'
     );
 
     // Cleanup
@@ -421,8 +647,7 @@ test('Feed suggestions - freshness contract (24 hour limit)', async () => {
       }
     });
   } finally {
-    await prisma.profile.deleteMany({ where: { userId: { in: [viewer.id, candidate.id] } } });
-    await prisma.user.deleteMany({ where: { id: { in: [viewer.id, candidate.id] } } });
+    await cleanupUsers([viewer.id, candidate.id, staleCandidate.id]);
   }
 });
 
@@ -436,12 +661,10 @@ test('Feed response - returns items array with correct structure', async () => {
   });
 
   try {
-    const post = await prisma.post.create({
-      data: {
-        userId: user.id,
-        text: 'Test post',
-        visibility: 'PUBLIC'
-      }
+    const post = await createVideoPost({
+      userId: user.id,
+      text: 'Test post',
+      visibility: 'PUBLIC'
     });
 
     const req = createMockRequest(null, 20);
@@ -471,10 +694,235 @@ test('Feed response - returns items array with correct structure', async () => {
       }
     }
 
-    // Cleanup
-    await prisma.post.delete({ where: { id: post.id } });
   } finally {
-    await prisma.profile.deleteMany({ where: { userId: user.id } });
-    await prisma.user.delete({ where: { id: user.id } });
+    await cleanupUsers([user.id]);
+  }
+});
+
+test('Feed tiers - ordering and visibility', async () => {
+  const viewer = await prisma.user.create({
+    data: {
+      email: `test-tier-${Date.now()}-viewer@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Viewer', isVisible: true } }
+    }
+  });
+  const following = await prisma.user.create({
+    data: {
+      email: `test-tier-${Date.now()}-following@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Following', isVisible: true } }
+    }
+  });
+  const follower = await prisma.user.create({
+    data: {
+      email: `test-tier-${Date.now()}-follower@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Follower', isVisible: true } }
+    }
+  });
+  const stranger = await prisma.user.create({
+    data: {
+      email: `test-tier-${Date.now()}-stranger@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Stranger', isVisible: true } }
+    }
+  });
+
+  try {
+    await prisma.profileAccess.create({
+      data: {
+        ownerUserId: following.id,
+        viewerUserId: viewer.id,
+        status: 'GRANTED'
+      }
+    });
+    await prisma.profileAccess.create({
+      data: {
+        ownerUserId: viewer.id,
+        viewerUserId: follower.id,
+        status: 'GRANTED'
+      }
+    });
+
+    const selfPost = await createVideoPost({
+      userId: viewer.id,
+      text: 'Self post',
+      visibility: 'PRIVATE'
+    });
+    const followingPost = await createVideoPost({
+      userId: following.id,
+      text: 'Following post',
+      visibility: 'PRIVATE'
+    });
+    const followerPrivate = await createVideoPost({
+      userId: follower.id,
+      text: 'Follower private',
+      visibility: 'PRIVATE'
+    });
+    const followerPublic = await createVideoPost({
+      userId: follower.id,
+      text: 'Follower public',
+      visibility: 'PUBLIC'
+    });
+    const strangerPost = await createVideoPost({
+      userId: stranger.id,
+      text: 'Stranger post',
+      visibility: 'PUBLIC'
+    });
+
+    const res = await callFeed(viewer.id, { take: '10' });
+    assert.strictEqual(res.status, 200);
+    const items = res.body.items as Array<{
+      type: string;
+      post?: { id: string; user: { id: string } };
+    }>;
+
+    assert.ok(items.length >= 3, 'Should return feed items');
+    assert.strictEqual(items[0].type, 'post');
+    assert.strictEqual(items[0].post?.user.id, String(viewer.id));
+    assert.strictEqual(items[1].type, 'post');
+    assert.strictEqual(items[1].post?.user.id, String(following.id));
+    assert.strictEqual(items[2].type, 'post');
+    assert.strictEqual(items[2].post?.user.id, String(follower.id));
+
+    const postIds = items
+      .filter((item) => item.type === 'post' && item.post)
+      .map((item) => item.post!.id);
+
+    assert.ok(postIds.includes(String(selfPost.id)), 'Self post should appear');
+    assert.ok(postIds.includes(String(followingPost.id)), 'Following private post should appear');
+    assert.ok(postIds.includes(String(followerPublic.id)), 'Follower public post should appear');
+    assert.ok(postIds.includes(String(strangerPost.id)), 'Everyone post should appear');
+    assert.ok(!postIds.includes(String(followerPrivate.id)), 'Follower private post should be excluded');
+  } finally {
+    await cleanupUsers([viewer.id, following.id, follower.id, stranger.id]);
+  }
+});
+
+test('Feed presort - bypass when cursorId provided', async () => {
+  const user = await prisma.user.create({
+    data: {
+      email: `test-presort-${Date.now()}@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Presort User', isVisible: true } }
+    }
+  });
+
+  try {
+    const post = await prisma.post.create({
+      data: {
+        userId: user.id,
+        text: 'Presort post',
+        visibility: 'PUBLIC'
+      }
+    });
+
+    await storePresortedSegment({
+      userId: user.id,
+      segmentIndex: 0,
+      items: [
+        {
+          type: 'post',
+          id: String(post.id),
+          score: 1,
+          actorId: user.id,
+          source: 'post',
+          createdAt: Date.now(),
+          actorName: 'Presort User',
+          actorAvatarUrl: null,
+          textPreview: 'Presort post'
+        }
+      ],
+      phase1Json: null,
+      algorithmVersion: 'v1',
+      expiresAt: new Date(Date.now() + 60_000)
+    });
+
+    const res = await callFeed(user.id, { take: '10', cursorId: String(post.id) });
+    assert.strictEqual(res.status, 200);
+    const postIds = (res.body.items as Array<{ type: string; post?: { id: string } }>)
+      .filter((item) => item.type === 'post' && item.post)
+      .map((item) => item.post!.id);
+    assert.ok(!postIds.includes(String(post.id)), 'Cursor should bypass presort posts');
+  } finally {
+    await invalidateAllSegmentsForUser(user.id);
+    await cleanupUsers([user.id]);
+  }
+});
+
+test('Feed presort - records seen entries', async () => {
+  const viewer = await prisma.user.create({
+    data: {
+      email: `test-presort-seen-${Date.now()}-viewer@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Viewer', isVisible: true } }
+    }
+  });
+  const author = await prisma.user.create({
+    data: {
+      email: `test-presort-seen-${Date.now()}-author@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Author', isVisible: true } }
+    }
+  });
+
+  try {
+    const post = await prisma.post.create({
+      data: {
+        userId: author.id,
+        text: 'Seen post',
+        visibility: 'PUBLIC'
+      }
+    });
+
+    const phase1Json = JSON.stringify({
+      items: [
+        {
+          id: String(post.id),
+          kind: 'post',
+          actor: { id: String(author.id), name: 'Author', avatarUrl: null },
+          textPreview: 'Seen post',
+          createdAt: Date.now()
+        }
+      ],
+      nextCursorId: null
+    });
+
+    await storePresortedSegment({
+      userId: viewer.id,
+      segmentIndex: 0,
+      items: [
+        {
+          type: 'post',
+          id: String(post.id),
+          score: 1,
+          actorId: author.id,
+          source: 'post',
+          createdAt: Date.now(),
+          actorName: 'Author',
+          actorAvatarUrl: null,
+          textPreview: 'Seen post'
+        }
+      ],
+      phase1Json,
+      algorithmVersion: 'v1',
+      expiresAt: new Date(Date.now() + 60_000)
+    });
+
+    const res = await callFeed(viewer.id, { take: '2', lite: '1' });
+    assert.strictEqual(res.status, 200);
+
+    const seen = await prisma.feedSeen.findFirst({
+      where: {
+        viewerUserId: viewer.id,
+        itemType: 'POST',
+        itemId: post.id
+      }
+    });
+    assert.ok(seen, 'Seen record should be created for presort path');
+  } finally {
+    await invalidateAllSegmentsForUser(viewer.id);
+    await cleanupUsers([viewer.id, author.id]);
   }
 });

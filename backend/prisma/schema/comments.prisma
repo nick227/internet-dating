@@ -1,0 +1,37 @@
+enum CommentTargetKind {
+  POST
+  PROFILE
+  QUESTION
+  MATCH
+}
+
+enum CommentStatus {
+  ACTIVE
+  HIDDEN
+  DELETED
+}
+
+model Comment {
+  id               BigInt        @id @default(autoincrement())
+  targetKind       CommentTargetKind
+  targetId         BigInt
+  authorId         BigInt
+  clientRequestId  String?
+  body             String        @db.Text
+  status           CommentStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+
+  parentId         BigInt?
+  rootId           BigInt?
+
+  author           User          @relation(fields: [authorId], references: [id])
+
+  @@unique([authorId, targetKind, targetId, clientRequestId])
+  @@index([targetKind, targetId, createdAt])
+  @@index([targetKind, targetId, rootId, createdAt])
+  @@index([authorId, createdAt])
+  @@index([parentId])
+  @@index([rootId])
+}

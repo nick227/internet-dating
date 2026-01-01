@@ -7,8 +7,9 @@ export type LinkPreview = {
   type: 'youtube' | 'image' | 'website'
 }
 
-export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {
+export async function fetchLinkPreview(url: string, signal?: AbortSignal): Promise<LinkPreview | null> {
   try {
+    if (signal?.aborted) return null
     const parsed = new URL(url)
     const host = parsed.hostname.replace(/^www\./, '')
 
@@ -16,6 +17,7 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview | null>
     if (host === 'youtube.com' || host === 'youtu.be') {
       const videoId = host === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v')
       if (videoId) {
+        if (signal?.aborted) return null
         return {
           url,
           title: 'YouTube Video',
@@ -29,6 +31,7 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview | null>
     // Image URL handling
     const ext = parsed.pathname.split('.').pop()?.toLowerCase()
     if (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+      if (signal?.aborted) return null
       return {
         url,
         type: 'image',
@@ -46,6 +49,7 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview | null>
         siteName: host,
       }
     } catch {
+      if (signal?.aborted) return null
       return {
         url,
         type: 'website',

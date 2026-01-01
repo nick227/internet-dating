@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useModalKeyboard } from '../../core/hooks/useModalKeyboard'
 
 type FullScreenModalProps = {
@@ -124,7 +125,7 @@ export function FullScreenModal({
 
   const panelStyle = translateY > 0 ? { transform: `translateY(${translateY}px)` } : undefined
 
-  return (
+  const modal = (
     <div
       className={`fullScreenModal ${open ? 'fullScreenModal--open' : 'fullScreenModal--closing'} ${className}`}
       role="dialog"
@@ -161,4 +162,10 @@ export function FullScreenModal({
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') {
+    return modal
+  }
+
+  return createPortal(modal, document.body)
 }

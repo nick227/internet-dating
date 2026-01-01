@@ -1,0 +1,153 @@
+.inlineField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.inlineField__labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.inlineField__label {
+  font-size: var(--fs-2);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.inlineField__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+.inlineField__status--error {
+  color: rgba(251, 113, 133, 0.9);
+}
+.inlineField__statusIcon {
+  width: var(--s-7);
+  height: var(--s-7);
+  display: block;
+}
+.inlineField__statusIcon--saved {
+  color: rgba(34, 197, 94, 0.9);
+}
+.inlineField__statusIcon--spinning {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.inlineField__input {
+  height: var(--component-height-input-lg);
+  border-radius: var(--r-12);
+  border: 1px solid var(--component-border);
+  background: var(--component-surface-input);
+  color: var(--text);
+  padding: 0 var(--s-3);
+  font-size: var(--fs-3);
+}
+.inlineField__input:focus {
+  outline: none;
+  border-color: rgba(168, 85, 247, 0.55);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+.inlineField__hint {
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+.inlineField__grid {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: repeat(auto-fit, minmax(var(--component-size-grid-min), 1fr));
+}
+.inlineChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.inlineChip {
+  border-radius: 999px;
+  border: 1px solid var(--component-border);
+  background: var(--component-surface-muted);
+  color: var(--text);
+  padding: var(--s-1) var(--s-3);
+  font-size: var(--fs-2);
+  cursor: pointer;
+}
+.inlineChip--active {
+  border-color: rgba(168, 85, 247, 0.45);
+  background: rgba(168, 85, 247, 0.22);
+}
+.smartTextarea {
+  position: relative;
+}
+.smartTextarea__input {
+  min-height: var(--component-textarea-min-height);
+  border-radius: var(--r-12);
+  border: 1px solid var(--component-border);
+  background: var(--component-surface-input);
+  color: var(--text);
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--fs-3);
+  outline: none;
+  white-space: pre-wrap;
+}
+.smartTextarea__input:focus {
+  border-color: rgba(168, 85, 247, 0.55);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+.smartTextarea__input:empty:before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+}
+.smartTextarea__counter {
+  position: absolute;
+  right: var(--s-2);
+  bottom: var(--s-2);
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+.smartTextarea--disabled .smartTextarea__input {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.smartTextarea--conversation .smartTextarea__input {
+  min-height: var(--component-size-touch);
+  max-height: var(--component-textarea-max-height);
+  overflow-y: auto;
+  font-size: var(--fs-3);
+  line-height: var(--lh-normal);
+}
+.messageHelpers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+.messageHelper {
+  border-radius: 999px;
+  border: 1px solid var(--component-border);
+  background: var(--component-surface-muted);
+  color: var(--text);
+  padding: var(--s-1) var(--s-3);
+  font-size: var(--fs-2);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+.messageHelper:hover {
+  background: var(--component-surface-hover);
+  border-color: var(--component-border-hover);
+}
+.messageHelper:active {
+  transform: scale(0.96);
+}

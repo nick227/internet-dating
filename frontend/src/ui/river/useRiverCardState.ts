@@ -94,9 +94,17 @@ export function useRiverCardState(card: FeedCard) {
       }
       setOptimisticComments(prev => [entry, ...prev])
       try {
-        await createComment({ cardId: card.id, cardKind: card.kind, actorId, text })
+        const result = await createComment({
+          cardId: card.id,
+          cardKind: card.kind,
+          actorId,
+          text,
+          clientRequestId: entry.id
+        })
         setOptimisticComments(prev =>
-          prev.map(item => (item.id === entry.id ? { ...item, pending: false } : item))
+          prev.map(item =>
+            item.id === entry.id ? { ...item, id: String(result.id), pending: false } : item
+          )
         )
       } catch (err) {
         setOptimisticComments(prev => prev.filter(item => item.id !== entry.id))

@@ -9,6 +9,7 @@ model Post {
   deletedAt   DateTime?
   media       PostMedia[]
   likes       LikedPost[]
+  stats       PostStats?
   features    PostFeatures?
   trending    TrendingScore?
   @@index([visibility, deletedAt, createdAt])
@@ -52,8 +53,9 @@ model PostMedia {
   order    Int    @default(0)
   post     Post  @relation(fields: [postId], references: [id])
   media    Media @relation(fields: [mediaId], references: [id])
-  @@unique([postId, mediaId])
+  // Removed unique constraint to allow same media in multiple slots (e.g., hero mosaic)
   @@index([postId, order])
+  @@index([postId, mediaId]) // Keep index for query performance, but allow duplicates
 }
 
 model LikedPost {

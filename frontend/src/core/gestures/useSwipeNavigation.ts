@@ -13,7 +13,7 @@ type SwipeNavigationConfig = {
   velocity?: number
 }
 
-const MAIN_TABS = ['/feed', '/matches', '/quiz', '/inbox']
+const MAIN_TABS = ['/feed', '/matches', '/quiz', '/inbox', '/followers']
 
 function getCurrentTabIndex(pathname: string): number {
   return MAIN_TABS.findIndex(tab => pathname.startsWith(tab))

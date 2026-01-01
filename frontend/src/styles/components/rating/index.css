@@ -1,0 +1,27 @@
+.ratingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.ratingLabel {
+  font-size: var(--fs-3);
+  color: var(--text);
+}
+.ratingButtons {
+  display: flex;
+  gap: var(--s-2);
+}
+.ratingBtn {
+  width: var(--component-size-avatar-sm);
+  height: var(--component-size-avatar-sm);
+  border-radius: var(--r-1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--component-surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.ratingBtn--active {
+  border-color: rgba(168, 85, 247, 0.55);
+  background: rgba(168, 85, 247, 0.25);
+}

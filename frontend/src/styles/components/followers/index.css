@@ -1,0 +1,56 @@
+.followers {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior-y: contain;
+}
+.followers__pad {
+  padding: calc(var(--safe-top) + var(--s-4)) var(--s-3) calc(var(--component-bottom-offset) + var(--safe-bot));
+}
+.followers__tabRow {
+  display: flex;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+.followers__tabBtn {
+  flex: 1;
+}
+.followers__pendingBadge {
+  margin-left: var(--s-1);
+  opacity: 0.8;
+  font-size: var(--fs-1);
+}
+.followers__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.followers__item {
+  padding: var(--s-3);
+  border-radius: var(--r-3);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.followers__itemContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.followers__itemName {
+  font-size: var(--fs-3);
+  font-weight: 500;
+}
+.followers__itemStatus {
+  font-size: var(--fs-2);
+  color: var(--muted);
+}
+.followers__itemActions {
+  display: flex;
+  gap: var(--s-2);
+}
+.followers__itemActionBtn {
+  font-size: var(--fs-2);
+  padding: var(--s-2) var(--s-3);
+}

@@ -1,0 +1,33 @@
+enum QuestionTargetKind {
+  POST
+  PROFILE
+  FEED
+}
+
+model FeedQuestion {
+  id             BigInt   @id @default(autoincrement())
+  targetKind     QuestionTargetKind
+  targetId       BigInt
+  quizId         BigInt
+  quizQuestionId BigInt
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  quiz           Quiz         @relation(fields: [quizId], references: [id])
+  question       QuizQuestion @relation(fields: [quizQuestionId], references: [id])
+
+  @@index([targetKind, targetId, isActive])
+  @@index([quizId])
+}
+
+model FeedQuestionCurrent {
+  id             BigInt   @id @default(autoincrement())
+  targetKind     QuestionTargetKind
+  targetId       BigInt
+  feedQuestionId BigInt
+  updatedAt      DateTime @updatedAt
+
+  @@unique([targetKind, targetId])
+  @@index([feedQuestionId])
+}

@@ -53,7 +53,7 @@ export function MatchesPage() {
 
             return (
               <div key={String(match.id)} className="matchItem">
-                <Avatar name={name} size="md" src={avatarUrl} />
+                <Avatar name={name} size="md" src={avatarUrl} profileId={String(other.id)} />
                 <div className="matchItem__main">
                   <div className="matchItem__title">
                     <span>{name}</span>

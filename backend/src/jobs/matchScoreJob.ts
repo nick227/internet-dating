@@ -58,6 +58,46 @@ type RecomputeOptions = {
   newnessHalfLifeDays: number;
   defaultMaxDistanceKm: number;
   weights: MatchScoreJobConfig['weights'];
+  topK?: number; // Number of top scores to keep (default: 200)
+  minTraitOverlap?: number; // Minimum trait overlap required (default: 2)
+  minRatingCount?: number; // Minimum rating count required (default: 3)
+};
+
+type ScoreRow = {
+  userId: bigint;
+  candidateUserId: bigint;
+  score: number;
+  scoreQuiz: number;
+  scoreInterests: number;
+  scoreRatingsQuality: number;
+  scoreRatingsFit: number;
+  scoreNew: number;
+  scoreNearby: number;
+  ratingAttractive: number | null;
+  ratingSmart: number | null;
+  ratingFunny: number | null;
+  ratingInteresting: number | null;
+  distanceKm: number | null;
+  reasons: Record<string, unknown>;
+  scoredAt: Date;
+  algorithmVersion: string;
+};
+
+type ScoreDistribution = {
+  count: number;
+  mean: number;
+  p50: number;
+  p90: number;
+  zeroCount: number;
+  nullCount: number;
+  components: {
+    quiz: { mean: number; p50: number; p90: number };
+    interests: { mean: number; p50: number; p90: number };
+    ratingQuality: { mean: number; p50: number; p90: number };
+    ratingFit: { mean: number; p50: number; p90: number };
+    newness: { mean: number; p50: number; p90: number };
+    proximity: { mean: number; p50: number; p90: number };
+  };
 };
 
 const DEFAULT_CONFIG: MatchScoreJobConfig = {
@@ -216,11 +256,266 @@ function quizSimilarity(userQuiz: QuizRow, candidateQuiz: QuizRow) {
   const vecA = toNumberArray(userQuiz.scoreVec);
   const vecB = toNumberArray(candidateQuiz.scoreVec);
   if (vecA && vecB && vecA.length === vecB.length && vecA.length > 0) {
-    return cosineSimilarity(vecA, vecB);
+    // Normalize cosine similarity from [-1, 1] to [0, 1] to match trait similarity
+    const cosine = cosineSimilarity(vecA, vecB);
+    return clamp((cosine + 1) / 2); // maps [-1,1] → [0,1]
   }
   return answersSimilarity(userQuiz.answers, candidateQuiz.answers);
 }
 
+const CONFIDENCE_NORM = 5; // Normalization constant for confidence calculation
+
+/**
+ * Calculate confidence from contribution count (n)
+ */
+function calculateConfidence(n: number): number {
+  return clamp(n / CONFIDENCE_NORM, 0, 1);
+}
+
+/**
+ * Calculate effective value (confidence-weighted)
+ */
+function calculateEffectiveValue(value: number, confidence: number): number {
+  return value * confidence;
+}
+
+/**
+ * Calculate coverage penalty
+ * Measures how complete the comparison is relative to the weaker profile
+ */
+function calculateCoverage(
+  commonCount: number,
+  userTraitCount: number,
+  candidateTraitCount: number
+): number {
+  const minTraitCount = Math.min(userTraitCount, candidateTraitCount);
+  if (minTraitCount === 0) return 0;
+  return commonCount / minTraitCount;
+}
+
+/**
+ * Interest upper bound for pruning (must overestimate, never underestimate)
+ * Returns maximum possible Jaccard similarity for pruning
+ */
+function interestUpperBound(
+  userInterestCount: number,
+  candidateInterestCount: number
+): number {
+  // If either user has no interests, maximum possible overlap is 0
+  if (userInterestCount === 0 || candidateInterestCount === 0) {
+    return 0;
+  }
+  // Maximum possible Jaccard is 1.0 (all interests overlap)
+  // Using 1.0 as upper bound is intentionally loose but safe for pruning
+  return 1.0;
+}
+
+/**
+ * Min-heap for Top-K candidates (smallest score at root)
+ */
+class MinHeap {
+  private heap: ScoreRow[] = [];
+  private maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  size(): number {
+    return this.heap.length;
+  }
+
+  peek(): ScoreRow | null {
+    return this.heap.length > 0 ? this.heap[0]! : null;
+  }
+
+  push(item: ScoreRow): void {
+    if (this.heap.length < this.maxSize) {
+      this.heap.push(item);
+      this.bubbleUp(this.heap.length - 1);
+    } else if (item.score > this.heap[0]!.score) {
+      this.heap[0] = item;
+      this.bubbleDown(0);
+    }
+  }
+
+  toArray(): ScoreRow[] {
+    return [...this.heap].sort((a, b) => b.score - a.score); // Sort descending
+  }
+
+  private bubbleUp(index: number): void {
+    while (index > 0) {
+      const parent = Math.floor((index - 1) / 2);
+      if (this.heap[parent]!.score <= this.heap[index]!.score) break;
+      [this.heap[parent], this.heap[index]] = [this.heap[index]!, this.heap[parent]!];
+      index = parent;
+    }
+  }
+
+  private bubbleDown(index: number): void {
+    while (true) {
+      const left = 2 * index + 1;
+      const right = 2 * index + 2;
+      let smallest = index;
+
+      if (left < this.heap.length && this.heap[left]!.score < this.heap[smallest]!.score) {
+        smallest = left;
+      }
+      if (right < this.heap.length && this.heap[right]!.score < this.heap[smallest]!.score) {
+        smallest = right;
+      }
+      if (smallest === index) break;
+      [this.heap[index], this.heap[smallest]] = [this.heap[smallest]!, this.heap[index]!];
+      index = smallest;
+    }
+  }
+}
+
+/**
+ * Calculate score distribution statistics
+ */
+function calculateDistribution(scores: ScoreRow[]): ScoreDistribution {
+  if (scores.length === 0) {
+    return {
+      count: 0,
+      mean: 0,
+      p50: 0,
+      p90: 0,
+      zeroCount: 0,
+      nullCount: 0,
+      components: {
+        quiz: { mean: 0, p50: 0, p90: 0 },
+        interests: { mean: 0, p50: 0, p90: 0 },
+        ratingQuality: { mean: 0, p50: 0, p90: 0 },
+        ratingFit: { mean: 0, p50: 0, p90: 0 },
+        newness: { mean: 0, p50: 0, p90: 0 },
+        proximity: { mean: 0, p50: 0, p90: 0 }
+      }
+    };
+  }
+
+  const sorted = [...scores].sort((a, b) => a.score - b.score);
+  const p50 = sorted[Math.floor(sorted.length * 0.5)]!.score;
+  const p90 = sorted[Math.floor(sorted.length * 0.9)]!.score;
+  const mean = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
+  const zeroCount = scores.filter(s => s.score === 0).length;
+  const nullCount = scores.filter(s => s.scoreQuiz === 0 && s.scoreInterests === 0 && s.scoreRatingsQuality === 0 && s.scoreRatingsFit === 0).length;
+
+  const componentStats = (component: (s: ScoreRow) => number) => {
+    const values = scores.map(component).sort((a, b) => a - b);
+    return {
+      mean: values.reduce((sum, v) => sum + v, 0) / values.length,
+      p50: values[Math.floor(values.length * 0.5)]!,
+      p90: values[Math.floor(values.length * 0.9)]!
+    };
+  };
+
+  return {
+    count: scores.length,
+    mean,
+    p50,
+    p90,
+    zeroCount,
+    nullCount,
+    components: {
+      quiz: componentStats(s => s.scoreQuiz),
+      interests: componentStats(s => s.scoreInterests),
+      ratingQuality: componentStats(s => s.scoreRatingsQuality),
+      ratingFit: componentStats(s => s.scoreRatingsFit),
+      newness: componentStats(s => s.scoreNew),
+      proximity: componentStats(s => s.scoreNearby)
+    }
+  };
+}
+
+/**
+ * Calculate trait similarity between two users based on their UserTrait values.
+ * Uses cosine similarity on confidence-weighted trait vectors with coverage penalty.
+ * 
+ * Normalization: Cosine similarity [-1, 1] is normalized to [0, 1] before coverage.
+ * This means:
+ * - Perfect opposites (cosine = -1) → normalized = 0
+ * - Orthogonal traits (cosine = 0) → normalized = 0.5
+ * - Identical traits (cosine = 1) → normalized = 1
+ * 
+ * Semantic note: Neutral (orthogonal) ≠ incompatible. Orthogonal traits represent
+ * independent dimensions, not opposition, so 0.5 reflects neutral similarity rather
+ * than incompatibility.
+ * 
+ * Returns null if no comparable data (no common traits), 0 if orthogonal/different.
+ */
+function traitSimilarity(
+  userTraits: Array<{ traitKey: string; value: number; n: number }>,
+  candidateTraits: Array<{ traitKey: string; value: number; n: number }>
+): { value: number | null; coverage: number; commonCount: number } {
+  if (!userTraits.length || !candidateTraits.length) {
+    return { value: null, coverage: 0, commonCount: 0 };
+  }
+
+  // Build maps for O(1) lookup
+  const userMap = new Map<string, { value: number; n: number }>();
+  for (const trait of userTraits) {
+    userMap.set(trait.traitKey, { value: trait.value, n: trait.n });
+  }
+
+  const candidateMap = new Map<string, { value: number; n: number }>();
+  for (const trait of candidateTraits) {
+    candidateMap.set(trait.traitKey, { value: trait.value, n: trait.n });
+  }
+
+  // Find common traits and build aligned vectors using effectiveValue (confidence-weighted)
+  const userVec: number[] = [];
+  const candidateVec: number[] = [];
+
+  for (const key of userMap.keys()) {
+    const userTrait = userMap.get(key);
+    const candidateTrait = candidateMap.get(key);
+    if (userTrait && candidateTrait) {
+      // Calculate effective values (confidence-weighted)
+      const userConf = calculateConfidence(userTrait.n);
+      const candidateConf = calculateConfidence(candidateTrait.n);
+      const userEffective = calculateEffectiveValue(userTrait.value, userConf);
+      const candidateEffective = calculateEffectiveValue(candidateTrait.value, candidateConf);
+      
+      userVec.push(userEffective);
+      candidateVec.push(candidateEffective);
+    }
+  }
+
+  if (userVec.length === 0) {
+    return { value: null, coverage: 0, commonCount: 0 };
+  }
+
+  if (userVec.length !== candidateVec.length) {
+    return { value: null, coverage: 0, commonCount: 0 };
+  }
+
+  // Calculate cosine similarity (returns [-1, 1])
+  const cosine = cosineSimilarity(userVec, candidateVec);
+
+  // Normalize cosine to [0, 1] range
+  const normalized = (cosine + 1) / 2; // maps [-1,1] → [0,1]
+
+  // Apply coverage penalty (softened with sqrt to prevent "more traits = worse score")
+  const coverage = calculateCoverage(
+    userVec.length,
+    userTraits.length,
+    candidateTraits.length
+  );
+  const softenedCoverage = Math.sqrt(coverage); // Soften penalty while keeping monotonic
+  const finalScore = normalized * softenedCoverage;
+
+  return {
+    value: finalScore,
+    coverage,
+    commonCount: userVec.length
+  };
+}
+
+/**
+ * Calculate interest similarity using Jaccard (overlap ratio)
+ * Interests are categorical overlaps, not continuous signals
+ */
 function scoreInterests(user: InterestRow[], candidate: InterestRow[]) {
   if (!user.length || !candidate.length) {
     return { overlap: 0, matches: [] as string[], intersection: 0, userCount: user.length, candidateCount: candidate.length };
@@ -243,6 +538,7 @@ function scoreInterests(user: InterestRow[], candidate: InterestRow[]) {
     }
   }
 
+  // Calculate intersection
   let intersection = 0;
   const matches: string[] = [];
   for (const key of candidateKeys) {
@@ -252,8 +548,10 @@ function scoreInterests(user: InterestRow[], candidate: InterestRow[]) {
     }
   }
 
-  const denom = Math.sqrt(userKeys.size * candidateKeys.size);
-  const overlap = denom ? intersection / denom : 0;
+  // Calculate union for Jaccard similarity
+  const union = userKeys.size + candidateKeys.size - intersection;
+  const overlap = union > 0 ? intersection / union : 0; // Jaccard: |A ∩ B| / |A ∪ B|
+  
   return {
     overlap,
     matches,
@@ -278,7 +576,10 @@ function resolveRecomputeOptions(overrides: Partial<RecomputeOptions> = {}): Rec
     ratingMax: overrides.ratingMax ?? DEFAULT_CONFIG.ratingMax,
     newnessHalfLifeDays: overrides.newnessHalfLifeDays ?? DEFAULT_CONFIG.newnessHalfLifeDays,
     defaultMaxDistanceKm: overrides.defaultMaxDistanceKm ?? DEFAULT_CONFIG.defaultMaxDistanceKm,
-    weights: { ...DEFAULT_CONFIG.weights, ...(overrides.weights ?? {}) }
+    weights: { ...DEFAULT_CONFIG.weights, ...(overrides.weights ?? {}) },
+    topK: overrides.topK ?? 200,
+    minTraitOverlap: overrides.minTraitOverlap ?? 2,
+    minRatingCount: overrides.minRatingCount ?? 3
   };
 }
 
@@ -308,6 +609,11 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
     where: { userId },
     orderBy: { updatedAt: 'desc' },
     select: { quizId: true, answers: true, scoreVec: true }
+  });
+
+  const userTraits = await prisma.userTrait.findMany({
+    where: { userId },
+    select: { traitKey: true, value: true, n: true }
   });
 
   const userInterests = await prisma.userInterest.findMany({
@@ -349,13 +655,22 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
     viewerRatings ? toRatingVector(viewerRatings, options.ratingMax) : null
   );
 
-  await prisma.matchScore.deleteMany({ where: { userId } });
+  // Versioned swap: Write new scores with new version, delete old version after success
+  const vNext = options.algorithmVersion;
+  // Find previous version (if any) to clean up after successful write
+  const vPrev = await prisma.matchScore.findFirst({
+    where: { userId },
+    select: { algorithmVersion: true },
+    orderBy: { scoredAt: 'desc' }
+  }).then(r => r?.algorithmVersion).catch(() => null);
 
   const meLat = toNumber(meProfile?.lat ?? null);
   const meLng = toNumber(meProfile?.lng ?? null);
 
   let lastId: bigint | null = null;
   let totalWritten = 0;
+  const topK = options.topK ?? 200;
+  const heap = new MinHeap(topK); // Maintain Top-K across all batches for this user
 
   for (;;) {
     const candidates: CandidateProfile[] = await prisma.profile.findMany({
@@ -400,6 +715,24 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
       });
       for (const row of candidateQuiz) {
         quizByUserId.set(row.userId, { answers: row.answers, scoreVec: row.scoreVec });
+      }
+    }
+
+    const traitsByUserId = new Map<bigint, Array<{ traitKey: string; value: number; n: number }>>();
+    if (userTraits.length > 0 && candidateIds.length) {
+      const candidateTraits = await prisma.userTrait.findMany({
+        where: { userId: { in: candidateIds } },
+        select: { userId: true, traitKey: true, value: true, n: true }
+      });
+      for (const trait of candidateTraits) {
+        const existing = traitsByUserId.get(trait.userId);
+        const value = Number(trait.value);
+        const n = trait.n;
+        if (existing) {
+          existing.push({ traitKey: trait.traitKey, value, n });
+        } else {
+          traitsByUserId.set(trait.userId, [{ traitKey: trait.traitKey, value, n }]);
+        }
       }
     }
 
@@ -463,44 +796,56 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
     }
 
     const scoredAt = new Date();
-    const rows: Array<{
-      userId: bigint;
-      candidateUserId: bigint;
-      score: number;
-      scoreQuiz: number;
-      scoreInterests: number;
-      scoreRatingsQuality: number;
-      scoreRatingsFit: number;
-      scoreNew: number;
-      scoreNearby: number;
-      ratingAttractive: number | null;
-      ratingSmart: number | null;
-      ratingFunny: number | null;
-      ratingInteresting: number | null;
-      distanceKm: number | null;
-      reasons: Record<string, unknown>;
-      scoredAt: Date;
-      algorithmVersion: string;
-    }> = [];
 
     for (const candidate of candidates) {
+      // ===== EXPLICIT GATING (ordered) =====
+      let excludedBy: string | null = null;
+
+      // Gender gate
       if (preferredGenders?.length) {
         if (!candidate.gender || !preferredGenders.includes(candidate.gender)) {
-          continue;
+          excludedBy = 'gender';
         }
       }
 
-      const candidateAge = computeAge(candidate.birthdate ?? null);
-      if ((preferredAgeMin !== null || preferredAgeMax !== null) && candidateAge === null) {
-        continue;
+      // Age gate
+      if (!excludedBy) {
+        const candidateAge = computeAge(candidate.birthdate ?? null);
+        if ((preferredAgeMin !== null || preferredAgeMax !== null) && candidateAge === null) {
+          excludedBy = 'age_missing';
+        } else if (preferredAgeMin !== null && candidateAge !== null && candidateAge < preferredAgeMin) {
+          excludedBy = 'age_min';
+        } else if (preferredAgeMax !== null && candidateAge !== null && candidateAge > preferredAgeMax) {
+          excludedBy = 'age_max';
+        }
       }
-      if (preferredAgeMin !== null && candidateAge !== null && candidateAge < preferredAgeMin) {
-        continue;
+
+      // Distance gate
+      if (!excludedBy) {
+        const candidateLat = toNumber(candidate.lat ?? null);
+        const candidateLng = toNumber(candidate.lng ?? null);
+        const hasDistance =
+          meLat !== null &&
+          meLng !== null &&
+          candidateLat !== null &&
+          candidateLng !== null &&
+          isValidLatitude(meLat) &&
+          isValidLongitude(meLng) &&
+          isValidLatitude(candidateLat) &&
+          isValidLongitude(candidateLng);
+        const distanceKm = hasDistance ? haversineKm(meLat, meLng, candidateLat, candidateLng) : null;
+        // Only exclude if we have a distance AND it exceeds preference (allow text-match fallback)
+        if (preferredDistanceKm !== null && distanceKm !== null && distanceKm > preferredDistanceKm) {
+          excludedBy = 'distance';
+        }
       }
-      if (preferredAgeMax !== null && candidateAge !== null && candidateAge > preferredAgeMax) {
+
+      if (excludedBy) {
+        // Skip gated candidates (could optionally store reason for debugging)
         continue;
       }
 
+      // ===== CHEAP SCORE CALCULATION (for pruning) =====
       const candidateLat = toNumber(candidate.lat ?? null);
       const candidateLng = toNumber(candidate.lng ?? null);
       const hasDistance =
@@ -513,40 +858,8 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
         isValidLatitude(candidateLat) &&
         isValidLongitude(candidateLng);
       const distanceKm = hasDistance ? haversineKm(meLat, meLng, candidateLat, candidateLng) : null;
-      if (preferredDistanceKm !== null) {
-        if (distanceKm === null || distanceKm > preferredDistanceKm) {
-          continue;
-        }
-      }
 
-      const interestRows = byCandidate.get(candidate.userId) ?? [];
-      const { overlap: interestOverlap, matches, intersection, userCount, candidateCount } = scoreInterests(
-        normalizedUser,
-        interestRows
-      );
-
-      let quizSim = 0;
-      if (userQuiz) {
-        const candidateQuiz = quizByUserId.get(candidate.userId);
-        if (candidateQuiz) {
-          quizSim = quizSimilarity(userQuiz, candidateQuiz);
-        }
-      }
-
-      const ratingAgg = ratingByProfileId.get(candidate.id) ?? null;
-      const ratingAttractive = ratingAgg?.attractive ?? null;
-      const ratingSmart = ratingAgg?.smart ?? null;
-      const ratingFunny = ratingAgg?.funny ?? null;
-      const ratingInteresting = ratingAgg?.interesting ?? null;
-
-      const ratingQualityRaw = ratingAgg ? averageRatings(ratingAgg) : null;
-      const ratingQuality = ratingQualityRaw != null ? normalizeRating(ratingQualityRaw, options.ratingMax) ?? 0 : 0;
-
-      const candidateVector = toCenteredVector(
-        ratingAgg ? toRatingVector(ratingAgg, options.ratingMax) : null
-      );
-      const ratingFit = viewerVector && candidateVector ? clamp(cosineSimilarity(viewerVector, candidateVector)) : 0;
-
+      // Calculate cheap scores first (for pruning)
       const updatedAt = candidate.updatedAt ?? candidate.createdAt;
       const scoreNew = updatedAt ? newnessScore(updatedAt, options.newnessHalfLifeDays) : 0;
 
@@ -562,10 +875,125 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
         scoreNearby = 0.25;
       }
 
-      const scoreQuiz = quizSim;
-      const scoreInterestsValue = interestOverlap;
-      const scoreRatingsQuality = ratingQuality;
-      const scoreRatingsFit = ratingFit;
+      // Interest upper bound (for pruning, not actual score)
+      const interestRows = byCandidate.get(candidate.userId) ?? [];
+      const interestUpperBoundValue = interestUpperBound(normalizedUser.length, interestRows.length);
+
+      // Cheap score (can compute without expensive operations)
+      const cheapScore =
+        scoreNew * options.weights.newness +
+        scoreNearby * options.weights.proximity +
+        interestUpperBoundValue * options.weights.interests;
+
+      // Max possible score (upper bound for pruning)
+      const maxPossibleScore =
+        cheapScore +
+        options.weights.quiz +
+        options.weights.ratingQuality +
+        options.weights.ratingFit;
+
+      // Pruning: skip if heap is full and max possible is below threshold
+      const currentThreshold = heap.peek()?.score ?? -Infinity;
+      if (heap.size() >= topK && maxPossibleScore < currentThreshold) {
+        continue; // PRUNE - skip expensive calculations
+      }
+
+      // ===== EXPENSIVE SCORE CALCULATION (only for non-pruned candidates) =====
+      
+      // Calculate trait similarity (preferred over legacy quiz similarity)
+      let traitSimResult: { value: number | null; coverage: number; commonCount: number } | null = null;
+      if (userTraits.length > 0) {
+        const candidateTraits = traitsByUserId.get(candidate.userId);
+        if (candidateTraits && candidateTraits.length > 0) {
+          traitSimResult = traitSimilarity(
+            userTraits.map(t => ({ traitKey: t.traitKey, value: Number(t.value), n: t.n })),
+            candidateTraits
+          );
+          
+          // Enforce minimum trait overlap threshold
+          if (traitSimResult.commonCount < (options.minTraitOverlap ?? 2)) {
+            traitSimResult = null; // Treat as missing data
+          }
+        }
+      }
+
+      // ===== QUIZ/TRAIT SCORE =====
+      // Metric semantics:
+      // - null = not comparable (no data available) → use neutral baseline (0.5)
+      // - 0 = valid similarity result (orthogonal/opposite vectors) → use actual 0
+      // - 0.5 = neutral baseline (missing data, not bad data)
+      
+      // Fallback to legacy quiz similarity if no comparable trait data (null, not 0)
+      let legacyQuizScore: number | null = null;
+      let finalQuizScore: number;
+      if (traitSimResult?.value == null) {
+        // No comparable trait data - use legacy quiz similarity
+        // Note: Candidates with no traits are treated as legacy users
+        if (userQuiz) {
+          const candidateQuiz = quizByUserId.get(candidate.userId);
+          if (candidateQuiz) {
+            legacyQuizScore = quizSimilarity(userQuiz, candidateQuiz);
+            finalQuizScore = legacyQuizScore; // Valid score (0..1)
+          } else {
+            finalQuizScore = 0.5; // Neutral baseline: missing data (no quiz)
+          }
+        } else {
+          finalQuizScore = 0.5; // Neutral baseline: missing data (user has no quiz)
+        }
+      } else {
+        // Use trait similarity (even if value is 0 - that's a valid result, not missing)
+        finalQuizScore = traitSimResult.value; // Valid score (0..1, may be 0 for orthogonal)
+      }
+
+      // ===== INTEREST SCORE =====
+      // Metric semantics:
+      // - 0 = no overlap (valid result, not missing)
+      // - 0.1 = neutral baseline (missing data: no interests recorded)
+      // - 0..1 = Jaccard similarity (valid overlap score)
+      
+      const { overlap: interestOverlap, matches, intersection, userCount, candidateCount } = scoreInterests(
+        normalizedUser,
+        interestRows
+      );
+      // If no interests recorded for either user, use neutral baseline
+      // If interests exist but no overlap, use 0 (valid result)
+      const scoreInterestsValue = (userCount === 0 || candidateCount === 0)
+        ? 0.1 // Neutral baseline: missing data (no interests recorded)
+        : interestOverlap; // Valid score: 0 = no overlap, >0 = actual overlap
+
+      // ===== RATING SCORES =====
+      // Metric semantics:
+      // - 0.5 = neutral baseline (missing data or insufficient samples)
+      // - 0..1 = valid quality/fit score
+      
+      const ratingAgg = ratingByProfileId.get(candidate.id) ?? null;
+      const ratingAttractive = ratingAgg?.attractive ?? null;
+      const ratingSmart = ratingAgg?.smart ?? null;
+      const ratingFunny = ratingAgg?.funny ?? null;
+      const ratingInteresting = ratingAgg?.interesting ?? null;
+
+      let scoreRatingsQuality: number;
+      let scoreRatingsFit: number;
+      
+      // Enforce minimum rating count threshold
+      if (ratingAgg && ratingAgg.count >= (options.minRatingCount ?? 3)) {
+        // Sufficient data: use actual scores
+        const ratingQualityRaw = averageRatings(ratingAgg);
+        scoreRatingsQuality = ratingQualityRaw != null ? (normalizeRating(ratingQualityRaw, options.ratingMax) ?? 0.5) : 0.5;
+
+        const candidateVector = toCenteredVector(
+          toRatingVector(ratingAgg, options.ratingMax)
+        );
+        scoreRatingsFit = viewerVector && candidateVector
+          ? clamp((cosineSimilarity(viewerVector, candidateVector) + 1) / 2)
+          : 0.5; // Neutral baseline: missing viewer ratings
+      } else {
+        // Insufficient data: use neutral baseline (missing ≠ bad)
+        scoreRatingsQuality = 0.5; // Neutral baseline: missing/low-count data
+        scoreRatingsFit = 0.5; // Neutral baseline: missing/low-count data
+      }
+
+      const scoreQuiz = finalQuizScore;
 
       const score =
         scoreQuiz * options.weights.quiz +
@@ -578,6 +1006,10 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
       const reasons: Record<string, unknown> = {
         scores: {
           quizSim: scoreQuiz,
+          traitSim: traitSimResult?.value ?? null,
+          traitCoverage: traitSimResult?.coverage,
+          traitCommonCount: traitSimResult?.commonCount,
+          quizSimLegacy: traitSimResult?.value == null ? legacyQuizScore : undefined,
           interestOverlap: scoreInterestsValue,
           ratingQuality: scoreRatingsQuality,
           ratingFit: scoreRatingsFit,
@@ -597,11 +1029,13 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
           attractive: ratingAttractive,
           smart: ratingSmart,
           funny: ratingFunny,
-          interesting: ratingInteresting
+          interesting: ratingInteresting,
+          count: ratingAgg.count
         };
       }
 
-      rows.push({
+      // Add to heap (maintains Top-K)
+      heap.push({
         userId,
         candidateUserId: candidate.userId,
         score,
@@ -618,24 +1052,57 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
         distanceKm,
         reasons,
         scoredAt,
-        algorithmVersion: options.algorithmVersion
+        algorithmVersion: vNext
       });
-    }
-
-    if (rows.length) {
-      await prisma.matchScore.createMany({
-        data: rows.map(row => ({
-          ...row,
-          reasons: row.reasons as unknown as Prisma.InputJsonValue
-        })),
-        skipDuplicates: true
-      });
-      totalWritten += rows.length;
     }
 
     if (options.pauseMs > 0) {
       await sleep(options.pauseMs);
     }
+  }
+
+  // After all batches, write Top-K only (from heap, sorted descending)
+  const topScores = heap.toArray();
+  if (topScores.length > 0) {
+    await prisma.matchScore.createMany({
+      data: topScores.map(row => ({
+        ...row,
+        reasons: row.reasons as unknown as Prisma.InputJsonValue
+      })),
+      skipDuplicates: true
+    });
+    totalWritten = topScores.length;
+
+    // Calculate and log distribution statistics
+    const distribution = calculateDistribution(topScores);
+    console.log(`[match-scores] User ${userId} distribution:`, JSON.stringify({
+      count: distribution.count,
+      mean: distribution.mean.toFixed(4),
+      p50: distribution.p50.toFixed(4),
+      p90: distribution.p90.toFixed(4),
+      zeroCount: distribution.zeroCount,
+      nullCount: distribution.nullCount,
+      components: {
+        quiz: { mean: distribution.components.quiz.mean.toFixed(4), p50: distribution.components.quiz.p50.toFixed(4), p90: distribution.components.quiz.p90.toFixed(4) },
+        interests: { mean: distribution.components.interests.mean.toFixed(4), p50: distribution.components.interests.p50.toFixed(4), p90: distribution.components.interests.p90.toFixed(4) },
+        ratingQuality: { mean: distribution.components.ratingQuality.mean.toFixed(4), p50: distribution.components.ratingQuality.p50.toFixed(4), p90: distribution.components.ratingQuality.p90.toFixed(4) },
+        ratingFit: { mean: distribution.components.ratingFit.mean.toFixed(4), p50: distribution.components.ratingFit.p50.toFixed(4), p90: distribution.components.ratingFit.p90.toFixed(4) },
+        newness: { mean: distribution.components.newness.mean.toFixed(4), p50: distribution.components.newness.p50.toFixed(4), p90: distribution.components.newness.p90.toFixed(4) },
+        proximity: { mean: distribution.components.proximity.mean.toFixed(4), p50: distribution.components.proximity.p50.toFixed(4), p90: distribution.components.proximity.p90.toFixed(4) }
+      }
+    }, null, 2));
+
+    // Delete old version scores after successful write (versioned swap)
+    // Only delete if we successfully wrote new scores and versions differ
+    if (topScores.length > 0 && vPrev && vPrev !== vNext) {
+      const deleted = await prisma.matchScore.deleteMany({
+        where: { userId, algorithmVersion: vPrev }
+      });
+      console.log(`[match-scores] User ${userId} deleted ${deleted.count} old scores (version: ${vPrev})`);
+    }
+  } else {
+    // No scores written - don't delete old version (preserve existing data)
+    console.log(`[match-scores] User ${userId} no scores written, preserving existing version ${vPrev ?? 'none'}`);
   }
 
   return totalWritten;

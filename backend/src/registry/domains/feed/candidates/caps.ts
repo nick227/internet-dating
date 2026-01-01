@@ -1,7 +1,10 @@
 export const feedCandidateCaps = {
   posts: {
     maxLookbackDays: 7,
-    maxItems: 500
+    maxItems: 500,
+    selfMaxItems: 10,
+    followingMaxItems: 50,
+    followersMaxItems: 30
   },
   suggestions: {
     maxItems: 200,

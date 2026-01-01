@@ -1,209 +1,213 @@
-import { useState, useMemo } from 'react'
-import type { ProfilePost, Visibility } from '../../api/types'
+import { useState, useMemo, createContext, useContext } from 'react'
+import type { ProfilePost, ProfileMedia } from '../../api/types'
 import { api } from '../../api/client'
-import { InlineChoiceChips } from '../form/InlineChoiceChips'
-import { InlineTextarea } from '../form/InlineTextarea'
-
-const visibilityOptions: { value: Visibility; label: string }[] = [
-  { value: 'PUBLIC', label: 'Public' },
-  { value: 'PRIVATE', label: 'Private' },
-]
+import { Media } from '../ui/Media'
+import { Avatar } from '../ui/Avatar'
 
 type Props = {
   posts: ProfilePost[]
-  onPostUpdate?: (postId: string | number, patch: Partial<ProfilePost>) => void
   onPostDelete?: (postId: string | number) => void
+  onPostUpdate?: (postId: string | number, patch: Partial<ProfilePost>) => void
   readOnly?: boolean
+  authorName?: string | null
+  authorAvatarUrl?: string | null
+  authorId?: string | number | null
 }
 
-export function ProfilePostList({ posts, onPostUpdate, onPostDelete, readOnly }: Props) {
+type PostListContextType = {
+  onPostDelete?: (postId: string | number) => void
+  onPostUpdate?: (postId: string | number, patch: Partial<ProfilePost>) => void
+  isReadOnly: boolean
+  authorName?: string | null
+  authorAvatarUrl?: string | null
+  authorId?: string | number | null
+}
+
+const PostListContext = createContext<PostListContextType>({
+  isReadOnly: false,
+})
+
+export function ProfilePostList({
+  posts,
+  onPostDelete,
+  onPostUpdate,
+  readOnly,
+  authorName,
+  authorAvatarUrl,
+  authorId,
+}: Props) {
   const isReadOnly = readOnly ?? false
+
   const sortedPosts = useMemo(() => {
-    const copy = [...posts]
-    copy.sort((a, b) => {
-      const aTime = Date.parse(a.createdAt)
-      const bTime = Date.parse(b.createdAt)
-      const aValue = Number.isNaN(aTime) ? -1 : aTime
-      const bValue = Number.isNaN(bTime) ? -1 : bTime
-      return bValue - aValue
+    return [...posts].sort((a, b) => {
+      const tA = new Date(a.createdAt).getTime()
+      const tB = new Date(b.createdAt).getTime()
+      if (Number.isNaN(tA)) return 1
+      if (Number.isNaN(tB)) return -1
+      return tB - tA
     })
-    return copy
   }, [posts])
 
+  const contextValue = useMemo<PostListContextType>(
+    () => ({
+      onPostDelete,
+      onPostUpdate,
+      isReadOnly,
+      authorName,
+      authorAvatarUrl,
+      authorId,
+    }),
+    [onPostDelete, onPostUpdate, isReadOnly, authorName, authorAvatarUrl, authorId]
+  )
+
   if (!posts.length) {
-    const title = isReadOnly ? 'Posts' : 'Your posts'
-    const message = isReadOnly ? 'No posts yet.' : 'No posts yet. Share your first update.'
-    return (
-      <div className="u-glass profile__card">
-        <div className="u-stack">
-          <div className="profile__sectionTitle">{title}</div>
-          <div className="profile__meta">{message}</div>
-        </div>
-      </div>
-    )
+    return <EmptyState isReadOnly={isReadOnly} />
   }
 
   return (
-    <div className="u-stack">
-      {sortedPosts.map(post => {
-        const dateInfo = getDateInfo(post.createdAt)
-        return (
-          <PostItem
-            key={String(post.id)}
-            post={post}
-            dateInfo={dateInfo}
-            isReadOnly={isReadOnly}
-            onPostUpdate={onPostUpdate}
-            onPostDelete={onPostDelete}
-          />
-        )
-      })}
+    <PostListContext.Provider value={contextValue}>
+      <div className="u-stack">
+        {sortedPosts.map(post => (
+          <PostItem key={post.id} post={post} />
+        ))}
+      </div>
+    </PostListContext.Provider>
+  )
+}
+
+function EmptyState({ isReadOnly }: { isReadOnly: boolean }) {
+  const title = isReadOnly ? 'Posts' : 'Your posts'
+  const message = isReadOnly ? 'No posts yet.' : 'No posts yet. Share your first update.'
+
+  return (
+    <div className="u-glass profile__card">
+      <div className="u-stack">
+        <div className="profile__sectionTitle">{title}</div>
+        <div className="profile__meta">{message}</div>
+      </div>
     </div>
   )
 }
 
-function PostItem({
-  post,
-  dateInfo,
-  isReadOnly,
-  onPostUpdate,
-  onPostDelete,
-}: {
-  post: ProfilePost
-  dateInfo: DateInfo | null
-  isReadOnly: boolean
-  onPostUpdate?: (postId: string | number, patch: Partial<ProfilePost>) => void
-  onPostDelete?: (postId: string | number) => void
-}) {
-  const [deleteBusy, setDeleteBusy] = useState(false)
-  const mediaItems = post.media ?? []
+function PostItem({ post }: { post: ProfilePost }) {
+  const {
+    isReadOnly,
+    onPostDelete,
+    authorName,
+    authorAvatarUrl,
+    authorId,
+  } = useContext(PostListContext)
+  const [isBusy, setIsBusy] = useState(false)
+  const displayName = authorName?.trim() || (isReadOnly ? 'User' : 'You')
+  const profileId = authorId != null ? String(authorId) : null
 
-  const handleDelete = async () => {
-    if (!onPostDelete) return
+  const dateInfo = useMemo(() => getDateInfo(post.createdAt), [post.createdAt])
+  const mediaItems = useMemo(() => post.media ?? [], [post.media])
+
+  const gallery = useMemo(
+    () =>
+      mediaItems.map(m => ({
+        src: m.url,
+        alt: 'Post media',
+        type: (isVideoMedia(m) ? 'video' : 'image') as 'video' | 'image',
+        poster: m.thumbUrl ?? m.url,
+      })),
+    [mediaItems]
+  )
+
+  const handleDeletePost = async () => {
+    if (!onPostDelete || isBusy) return
     if (!confirm('Delete this post?')) return
-    setDeleteBusy(true)
+
+    setIsBusy(true)
     try {
       await api.posts.delete(post.id)
       onPostDelete(post.id)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete post')
-    } finally {
-      setDeleteBusy(false)
-    }
-  }
-
-  const handleRemoveMedia = async (mediaId: string | number) => {
-    if (!onPostUpdate) return
-    setDeleteBusy(true)
-    try {
-      await api.posts.deleteMedia(post.id, mediaId)
-      onPostUpdate(post.id, {
-        media: mediaItems.filter(m => String(m.id) !== String(mediaId)),
-      })
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to remove media')
-    } finally {
-      setDeleteBusy(false)
+      setIsBusy(false)
     }
   }
 
   return (
-    <div className="u-glass profile__card">
-      <div className="u-stack">
-        <div className="u-row-between">
-          <div className="profile__sectionTitle">Post</div>
-          <div className="u-row u-gap-3">
-            {dateInfo && (
-              <time className="profile__meta" dateTime={dateInfo.dateTime} title={dateInfo.full}>
-                {dateInfo.short}
-              </time>
-            )}
-            {!isReadOnly && (
-              <button
-                className="topBar__btn profile__postDelete"
-                type="button"
-                onClick={handleDelete}
-                disabled={deleteBusy}
-              >
-                {deleteBusy ? 'Deleting...' : 'Delete'}
-              </button>
-            )}
-          </div>
+    <div className={`u-glass profile__card ${isBusy ? 'u-opacity-50' : ''}`} style={{ transition: 'opacity 0.2s' }}>
+      <div className="u-stack u-gap-3">
+        <div className="u-row u-gap-2 u-items-center">
+          <Avatar name={displayName} size="sm" src={authorAvatarUrl ?? null} profileId={profileId} />
+          <div className="profile__itemTitle">{displayName}</div>
         </div>
 
-        {isReadOnly ? (
-          post.text ? (
-            <div className="profile__postText">{post.text}</div>
-          ) : (
-            <div className="profile__meta">Media-only post.</div>
-          )
-        ) : (
-          <InlineTextarea
-            label="Post text"
-            value={post.text ?? ''}
-            placeholder="Share an update..."
-            maxLength={320}
-            onSave={async value => {
-              if (!onPostUpdate) return
-              const res = await api.posts.update(post.id, { text: value })
-              onPostUpdate(post.id, { text: res.text ?? undefined })
-            }}
-          />
+        {/* Content */}
+        {post.text && (
+          <div className="profile__postText">
+            {post.text}
+          </div>
         )}
 
+        {/* Media Grid */}
         {mediaItems.length > 0 && (
-          <div className="profile__postMedia u-hide-scroll">
-            {mediaItems.map(media => {
+          <div className={`profile__mediaGrid profile__mediaGrid--${Math.min(mediaItems.length, 4)}`}>
+            {mediaItems.map((media, index) => {
               const preview = media.thumbUrl ?? media.url
-              const isVideo = media.type === 'VIDEO'
+              const isVideo = isVideoMedia(media)
+              const mediaSrc = isVideo ? media.url : preview
+              
+              // Only layout logic for first 4 items if we wanted a strict grid, 
+              // but here we just map them. CSS handles the grid columns.
               return (
-                <div key={String(media.id)} className="profile__postMediaThumb u-relative">
-                  {isVideo ? (
-                    <video src={media.url} poster={preview} muted playsInline preload="metadata" />
-                  ) : (
-                    <img src={preview} alt="Post media" loading="lazy" />
-                  )}
-                  {!isReadOnly && (
-                    <button
-                      className="mediaDeleteBtn"
-                      type="button"
-                      onClick={() => handleRemoveMedia(media.id)}
-                      disabled={deleteBusy}
-                      aria-label="Remove media"
-                    >
-                      ×
-                    </button>
-                  )}
+                <div key={media.id} className="profile__mediaItem">
+                  <Media
+                    src={mediaSrc}
+                    alt="Post media"
+                    type={isVideo ? 'video' : 'image'}
+                    poster={isVideo ? preview : undefined}
+                    gallery={gallery}
+                    galleryIndex={index}
+                    autoplayOnScroll={isVideo}
+                    className="u-obj-cover u-full-size u-rounded"
+                  />
                 </div>
               )
             })}
           </div>
         )}
 
-        {!isReadOnly && (
-          <InlineChoiceChips
-            label="Visibility"
-            value={post.visibility ?? 'PUBLIC'}
-            options={visibilityOptions}
-            onSave={async value => {
-              if (!onPostUpdate || !value) return
-              const res = await api.posts.update(post.id, { visibility: value })
-              onPostUpdate(post.id, { visibility: res.visibility })
-            }}
-          />
-        )}
+        {/* Header: Meta & Actions */}
+        <div className="u-row-between">
+          <div className="u-row u-gap-2 u-items-center">
+            {dateInfo && (
+              <time className="profile__meta" dateTime={dateInfo.dateTime} title={dateInfo.full}>
+                {dateInfo.short}
+              </time>
+            )}
+            {post.visibility === 'PRIVATE' && (
+              <span className="u-badge u-badge--subtle" title="Only you can see this post">
+                <span className="u-icon-lock u-text-sm" /> Private
+              </span>
+            )}
+          </div>
+
+          {!isReadOnly && (
+            <button
+              className="u-btn-icon profile__postDelete"
+              type="button"
+              onClick={handleDeletePost}
+              disabled={isBusy}
+              title="Delete post"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          )}
+        </div>
+
       </div>
     </div>
   )
 }
 
-type DateInfo = {
-  short: string
-  full: string
-  dateTime: string
-}
-
-function getDateInfo(value: string): DateInfo | null {
+function getDateInfo(value: string) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return null
   return {
@@ -211,4 +215,13 @@ function getDateInfo(value: string): DateInfo | null {
     full: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
     dateTime: d.toISOString(),
   }
+}
+
+const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v)(\?|#|$)/i
+
+function isVideoMedia(media: ProfileMedia) {
+  if (typeof media.type === 'string' && media.type.toUpperCase() === 'VIDEO') {
+    return true
+  }
+  return VIDEO_EXTENSIONS.test(media.url)
 }

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { ProfileMedia } from '../../api/types'
 import { api } from '../../api/client'
+import { Media } from '../ui/Media'
 
 type Props = {
   items: ProfileMedia[]
@@ -33,7 +34,7 @@ export function ProfileMediaRail({ items, onMediaDelete, readOnly = false }: Pro
         <div className="mediaRail u-hide-scroll">
           {items.map(m => {
             const preview = m.thumbUrl ?? m.url
-            const isVideo = m.type === 'VIDEO'
+            const isVideo = isVideoMedia(m)
             return (
               <MediaThumb
                 key={String(m.id)}
@@ -77,13 +78,18 @@ function MediaThumb({
     }
   }
 
+  const gallery = useMemo(() => [{ src: media.url, alt: '', type: isVideo ? 'video' : 'image', poster: preview }], [media.url, isVideo, preview])
+
   return (
     <div className="mediaThumb u-relative">
-      {isVideo ? (
-        <video src={media.url} poster={preview} muted playsInline preload="metadata" />
-      ) : (
-        <img src={preview} alt="" loading="lazy" />
-      )}
+      <Media
+        src={isVideo ? media.url : preview}
+        alt=""
+        type={isVideo ? 'video' : 'image'}
+        poster={isVideo ? preview : undefined}
+        gallery={gallery}
+        className="mediaThumb__media"
+      />
       {onDelete && (
         <button
           className="mediaDeleteBtn"
@@ -97,4 +103,13 @@ function MediaThumb({
       )}
     </div>
   )
+}
+
+const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v)(\?|#|$)/i
+
+function isVideoMedia(media: ProfileMedia) {
+  if (typeof media.type === 'string' && media.type.toUpperCase() === 'VIDEO') {
+    return true
+  }
+  return VIDEO_EXTENSIONS.test(media.url)
 }

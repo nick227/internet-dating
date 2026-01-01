@@ -90,10 +90,52 @@ export const matchesDomain: DomainRegistry = {
         const toId = toParsed.value;
         if (toId === fromUserId) return json(res, { error: 'Cannot like or dislike yourself' }, 400);
 
-        await prisma.like.upsert({
-          where: { fromUserId_toUserId: { fromUserId, toUserId: toId } },
-          update: { action: normalizedAction },
-          create: { fromUserId, toUserId: toId, action: normalizedAction }
+        await prisma.$transaction(async (tx) => {
+          const existing = await tx.like.findUnique({
+            where: { fromUserId_toUserId: { fromUserId, toUserId: toId } },
+            select: { action: true }
+          });
+
+          await tx.like.upsert({
+            where: { fromUserId_toUserId: { fromUserId, toUserId: toId } },
+            update: { action: normalizedAction },
+            create: { fromUserId, toUserId: toId, action: normalizedAction }
+          });
+
+          if (existing?.action !== normalizedAction) {
+            const targetProfile = await tx.profile.findFirst({
+              where: { userId: toId, deletedAt: null },
+              select: { id: true }
+            });
+            if (targetProfile) {
+              const likeDelta =
+                (normalizedAction === 'LIKE' ? 1 : 0) - (existing?.action === 'LIKE' ? 1 : 0);
+              const dislikeDelta =
+                (normalizedAction === 'DISLIKE' ? 1 : 0) -
+                (existing?.action === 'DISLIKE' ? 1 : 0);
+
+              if (likeDelta !== 0 || dislikeDelta !== 0) {
+                await tx.profileStats.upsert({
+                  where: { profileId: targetProfile.id },
+                  update: {
+                    ...(likeDelta ? { likeCount: { increment: likeDelta } } : {}),
+                    ...(dislikeDelta ? { dislikeCount: { increment: dislikeDelta } } : {})
+                  },
+                  create: {
+                    profileId: targetProfile.id,
+                    likeCount: normalizedAction === 'LIKE' ? 1 : 0,
+                    dislikeCount: normalizedAction === 'DISLIKE' ? 1 : 0,
+                    ratingSums: {
+                      attractive: 0,
+                      smart: 0,
+                      funny: 0,
+                      interesting: 0
+                    }
+                  }
+                });
+              }
+            }
+          }
         });
 
         let matched = false;

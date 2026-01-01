@@ -3,10 +3,9 @@ import { IconButton } from '../ui/IconButton'
 
 type Props = {
   onPostClick: () => void
-  onFollowersClick: () => void
 }
 
-export function BottomNav({ onPostClick, onFollowersClick }: Props) {
+export function BottomNav({ onPostClick }: Props) {
   const nav = useNavigate()
   const loc = useLocation()
   const is = (p: string) => loc.pathname.startsWith(p)
@@ -76,7 +75,7 @@ export function BottomNav({ onPostClick, onFollowersClick }: Props) {
             />
           </svg>
         </IconButton>
-        <IconButton label="Followers" onClick={onFollowersClick}>
+        <IconButton active={is('/followers')} label="Followers" onClick={() => nav('/followers')}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path
               d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"

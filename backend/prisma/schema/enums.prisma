@@ -6,11 +6,25 @@ enum Visibility {
 enum MediaType { 
     IMAGE 
     VIDEO 
+    AUDIO 
 }
 
 enum MediaStatus {
-    PENDING
+    NEW
+    PENDING_UPLOAD
+    UPLOADING
+    UPLOADED
+    FAILED_UPLOAD
+    VALIDATING
+    REJECTED
     READY
+    PROCESSING
+    READY_WITH_VARIANTS
+    FAILED_PROCESSING
+    DELETING
+    DELETED
+    // Legacy states for backward compatibility
+    PENDING
     FAILED
 }
 
@@ -55,6 +69,13 @@ enum ProfileAccessStatus {
      GRANTED
      DENIED
      REVOKED
+     CANCELED
+}
+
+enum ProfileAccessSource {
+     PROFILE
+     INBOX
+     SYSTEM
 }
 
 enum JobRunStatus {

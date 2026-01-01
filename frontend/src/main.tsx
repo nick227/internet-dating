@@ -4,7 +4,11 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './styles/index.css'
 
-console.log('[DEBUG] main.tsx: App starting', { timestamp: Date.now(), url: window.location.href })
+const DEBUG = Boolean(import.meta.env?.DEV)
+
+if (DEBUG) {
+  console.log('[DEBUG] main.tsx: App starting', { timestamp: Date.now(), url: window.location.href })
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

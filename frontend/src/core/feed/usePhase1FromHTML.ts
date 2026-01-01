@@ -56,8 +56,9 @@ export function usePhase1FromHTML(): { data: unknown | null; found: boolean } {
 
       // Parse JSON - but don't block if it fails
       const data = JSON.parse(text)
+      const dataItems = (data as { items?: unknown[] }).items
       debugLog('[DEBUG] usePhase1FromHTML: Found inline Phase-1 data', {
-        hasItems: Array.isArray((data as any)?.items),
+        hasItems: Array.isArray(dataItems),
       })
       return { data, found: true }
     } catch (e) {

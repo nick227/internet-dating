@@ -1,10 +1,8 @@
+import { useState, useEffect } from 'react'
 import type { Id, ProfileResponse, DatingIntent, Gender } from '../../api/types'
 // eslint-disable-next-line no-restricted-imports
 import type { ApiProfilePatchBody } from '../../api/contracts'
 import { api } from '../../api/client'
-import { InlineField } from '../form/InlineField'
-import { InlineChoiceChips } from '../form/InlineChoiceChips'
-import { InlineTextarea } from '../form/InlineTextarea'
 
 const intentOptions: { value: DatingIntent; label: string }[] = [
   { value: 'UNSPECIFIED', label: 'Unspecified' },
@@ -30,100 +28,196 @@ const visibilityOptions = [
 type Props = {
   userId: Id
   profile: ProfileResponse
-  onProfileChange: (patch: Partial<ProfileResponse>) => void
+  onSaveReady: (saveFn: () => Promise<void>, hasChanges: () => boolean) => void
 }
 
-export function ProfileInlineEditor({ userId, profile, onProfileChange }: Props) {
-  const savePatch = async (patch: ApiProfilePatchBody) => {
-    await api.profileUpdate(userId, patch)
-  }
+export function ProfileInlineEditor({ userId, profile, onSaveReady }: Props) {
+  const [formData, setFormData] = useState({
+    displayName: profile.name ?? '',
+    bio: profile.bio ?? '',
+    locationText: profile.locationText ?? '',
+    birthdate: toInputDate(profile.birthdate) ?? '',
+    intent: profile.intent ?? 'UNSPECIFIED',
+    gender: profile.gender ?? 'UNSPECIFIED',
+    isVisible: profile.isVisible !== false,
+  })
+
+  // Reset form when profile changes (e.g., after cancel)
+  useEffect(() => {
+    setFormData({
+      displayName: profile.name ?? '',
+      bio: profile.bio ?? '',
+      locationText: profile.locationText ?? '',
+      birthdate: toInputDate(profile.birthdate) ?? '',
+      intent: profile.intent ?? 'UNSPECIFIED',
+      gender: profile.gender ?? 'UNSPECIFIED',
+      isVisible: profile.isVisible !== false,
+    })
+  }, [profile])
+
+  // Expose save function and hasChanges to parent
+  useEffect(() => {
+    const originalData = {
+      displayName: profile.name ?? '',
+      bio: profile.bio ?? '',
+      locationText: profile.locationText ?? '',
+      birthdate: toInputDate(profile.birthdate) ?? '',
+      intent: profile.intent ?? 'UNSPECIFIED',
+      gender: profile.gender ?? 'UNSPECIFIED',
+      isVisible: profile.isVisible !== false,
+    }
+    
+    // Capture current formData in closure to prevent stale closures
+    const currentFormData = formData
+    const currentOriginalData = originalData
+    
+    const stableSaveFn = async () => {
+      console.log('[ProfileInlineEditor] Save function called', { userId, formData: currentFormData })
+      const patch: ApiProfilePatchBody = {
+        displayName: currentFormData.displayName || null,
+        bio: currentFormData.bio || null,
+        locationText: currentFormData.locationText || null,
+        birthdate: currentFormData.birthdate && currentFormData.birthdate.length ? `${currentFormData.birthdate}T00:00:00.000Z` : null,
+        intent: currentFormData.intent as DatingIntent,
+        gender: currentFormData.gender as Gender,
+        isVisible: currentFormData.isVisible,
+      }
+      console.log('[ProfileInlineEditor] Patch payload:', patch)
+      const response = await api.profileUpdate(userId, patch)
+      console.log('[ProfileInlineEditor] Save response:', response)
+      return response
+    }
+    
+    const stableHasChanges = () => {
+      return JSON.stringify(currentFormData) !== JSON.stringify(currentOriginalData)
+    }
+    
+    onSaveReady(stableSaveFn, stableHasChanges)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, profile, userId])
 
   return (
     <div className="u-glass profile__card">
       <div className="u-stack">
         <div className="profile__sectionTitle">Edit profile</div>
 
-        <InlineField
-          label="Display name"
-          value={profile.name}
-          placeholder="Name"
-          onSave={async value => {
-            await savePatch({ displayName: value })
-            onProfileChange({ name: value ?? '' })
-          }}
-        />
-
-        <InlineTextarea
-          label="Bio"
-          value={profile.bio ?? ''}
-          placeholder="Share a few lines about you"
-          maxLength={240}
-          helper="Keep it short and specific."
-          onSave={async value => {
-            await savePatch({ bio: value })
-            onProfileChange({ bio: value ?? undefined })
-          }}
-        />
-
-        <div className="inlineField__grid">
-          <InlineField
-            label="Location"
-            value={profile.locationText ?? ''}
-            placeholder="City, State"
-            onSave={async value => {
-              await savePatch({ locationText: value })
-              onProfileChange({ locationText: value ?? undefined })
-            }}
-          />
-          <InlineField
-            label="Birthdate"
-            value={toInputDate(profile.birthdate) ?? ''}
-            type="date"
-            onSave={async value => {
-              const next = value && value.length ? value : null
-              await savePatch({ birthdate: next })
-              onProfileChange({ birthdate: next ?? undefined })
-            }}
+        <div className="inlineField">
+          <div className="inlineField__labelRow">
+            <div className="inlineField__label">Display name</div>
+          </div>
+          <input
+            className="inlineField__input"
+            type="text"
+            value={formData.displayName}
+            onChange={e => setFormData({ ...formData, displayName: e.target.value })}
+            placeholder="Name"
           />
         </div>
 
-        <InlineChoiceChips
-          label="Intent"
-          value={profile.intent ?? 'UNSPECIFIED'}
-          options={intentOptions}
-          onSave={async value => {
-            const intentValue: DatingIntent = value ?? 'UNSPECIFIED'
-            await savePatch({ intent: intentValue })
-            onProfileChange({ intent: intentValue })
-          }}
-        />
+        <div className="inlineField">
+          <div className="inlineField__labelRow">
+            <div className="inlineField__label">Bio</div>
+          </div>
+          <textarea
+            className="inlineField__input"
+            value={formData.bio}
+            onChange={e => setFormData({ ...formData, bio: e.target.value })}
+            placeholder="Share a few lines about you"
+            maxLength={240}
+            rows={3}
+            style={{ resize: 'vertical' }}
+          />
+          <div className="inlineField__hint">Keep it short and specific.</div>
+        </div>
 
-        <InlineChoiceChips
-          label="Gender"
-          value={profile.gender ?? 'UNSPECIFIED'}
-          options={genderOptions}
-          onSave={async value => {
-            const genderValue: Gender = value ?? 'UNSPECIFIED'
-            await savePatch({ gender: genderValue })
-            onProfileChange({ gender: genderValue })
-          }}
-        />
+        <div className="inlineField__grid">
+          <div className="inlineField">
+            <div className="inlineField__labelRow">
+              <div className="inlineField__label">Location</div>
+            </div>
+            <input
+              className="inlineField__input"
+              type="text"
+              value={formData.locationText}
+              onChange={e => setFormData({ ...formData, locationText: e.target.value })}
+              placeholder="City, State"
+            />
+          </div>
+          <div className="inlineField">
+            <div className="inlineField__labelRow">
+              <div className="inlineField__label">Birthdate</div>
+            </div>
+            <input
+              className="inlineField__input"
+              type="date"
+              value={formData.birthdate}
+              onChange={e => setFormData({ ...formData, birthdate: e.target.value })}
+            />
+          </div>
+        </div>
 
-        <InlineChoiceChips
-          label="Visibility"
-          value={profile.isVisible === false ? 'hidden' : 'visible'}
-          options={visibilityOptions}
-          onSave={async value => {
-            const isVisible = value !== 'hidden'
-            await savePatch({ isVisible })
-            onProfileChange({ isVisible })
-          }}
-          helper="Hidden profiles won't show up in suggestions."
-        />
+        <div className="inlineField">
+          <div className="inlineField__labelRow">
+            <div className="inlineField__label">Intent</div>
+          </div>
+          <div className="inlineChips">
+            {intentOptions.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                className={`inlineChip${formData.intent === option.value ? ' inlineChip--active' : ''}`}
+                aria-pressed={formData.intent === option.value}
+                onClick={() => setFormData({ ...formData, intent: option.value })}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="inlineField">
+          <div className="inlineField__labelRow">
+            <div className="inlineField__label">Gender</div>
+          </div>
+          <div className="inlineChips">
+            {genderOptions.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                className={`inlineChip${formData.gender === option.value ? ' inlineChip--active' : ''}`}
+                aria-pressed={formData.gender === option.value}
+                onClick={() => setFormData({ ...formData, gender: option.value })}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="inlineField">
+          <div className="inlineField__labelRow">
+            <div className="inlineField__label">Visibility</div>
+          </div>
+          <div className="inlineChips">
+            {visibilityOptions.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                className={`inlineChip${(formData.isVisible ? 'visible' : 'hidden') === option.value ? ' inlineChip--active' : ''}`}
+                aria-pressed={(formData.isVisible ? 'visible' : 'hidden') === option.value}
+                onClick={() => setFormData({ ...formData, isVisible: option.value === 'visible' })}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div className="inlineField__hint">Hidden profiles won't show up in suggestions.</div>
+        </div>
       </div>
     </div>
   )
 }
+
 
 function toInputDate(value: string | null | undefined) {
   if (!value) return null

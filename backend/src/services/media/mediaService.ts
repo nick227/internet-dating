@@ -164,7 +164,9 @@ export const mediaService = {
       const allowed = await hasProfileAccess(media.ownerUserId, viewerId ?? null);
       if (!allowed) throw new MediaError('Forbidden', 403);
     }
-    if (media.status !== 'READY') {
+    // Allow serving if status is READY or READY_WITH_VARIANTS
+    const servableStatuses = ['READY', 'READY_WITH_VARIANTS', 'PENDING', 'UPLOADED'];
+    if (!servableStatuses.includes(media.status || '')) {
       throw new MediaError('Media not ready', 409);
     }
     const stream = await storage.get(media.storageKey);
@@ -193,19 +195,12 @@ export const mediaService = {
   async assertOwnedMediaIds(
     mediaIds: bigint[],
     ownerUserId: bigint,
-    options: { requireReady?: boolean; requirePublic?: boolean; type?: 'IMAGE' | 'VIDEO' } = {}
+    options: { requireReady?: boolean; requirePublic?: boolean; type?: 'IMAGE' | 'VIDEO' | 'AUDIO' } = {}
   ) {
     if (!mediaIds.length) return;
-    const seen = new Set<string>();
-    const uniqueIds: bigint[] = [];
-    for (const id of mediaIds) {
-      const key = id.toString();
-      if (seen.has(key)) {
-        throw new MediaError('Duplicate mediaIds not allowed', 400);
-      }
-      seen.add(key);
-      uniqueIds.push(id);
-    }
+    // Allow duplicates - users should be able to reuse media in different slots
+    // Get unique media IDs for validation, but preserve original array for ordering
+    const uniqueIds = Array.from(new Set(mediaIds));
     const media = await prisma.media.findMany({
       where: { id: { in: uniqueIds }, deletedAt: null },
       select: { id: true, ownerUserId: true, status: true, visibility: true, type: true }
@@ -267,7 +262,7 @@ function isAllowedImageType(type?: string) {
   return type === 'jpg' || type === 'jpeg' || type === 'png' || type === 'webp';
 }
 
-function assertRateLimit(ownerUserId: bigint) {
+export function assertRateLimit(ownerUserId: bigint) {
   const key = ownerUserId.toString();
   const now = Date.now();
   const entry = rateMap.get(key);

@@ -86,8 +86,8 @@ const schemas = {
     required: ['userId']
   },
   Visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE'] },
-  AccessStatus: { type: 'string', enum: ['NONE', 'PENDING', 'GRANTED', 'DENIED', 'REVOKED'] },
-  MediaType: { type: 'string', enum: ['IMAGE', 'VIDEO'] },
+  AccessStatus: { type: 'string', enum: ['NONE', 'PENDING', 'GRANTED', 'DENIED', 'REVOKED', 'CANCELED'] },
+  MediaType: { type: 'string', enum: ['IMAGE', 'VIDEO', 'AUDIO'] },
   MediaStatus: { type: 'string', enum: ['PENDING', 'READY', 'FAILED'] },
   Gender: { type: 'string', enum: ['UNSPECIFIED', 'MALE', 'FEMALE', 'NONBINARY', 'OTHER'] },
   DatingIntent: { type: 'string', enum: ['UNSPECIFIED', 'FRIENDS', 'CASUAL', 'LONG_TERM', 'MARRIAGE'] },
@@ -604,6 +604,14 @@ const schemas = {
     },
     required: ['id', 'compatibility']
   },
+  FollowRequestRef: {
+    type: 'object',
+    properties: {
+      id: ref('Id'),
+      status: ref('AccessStatus')
+    },
+    required: ['id', 'status']
+  },
   InboxMessage: {
     type: 'object',
     properties: {
@@ -611,7 +619,8 @@ const schemas = {
       body: { type: 'string' },
       createdAt: { type: 'string', format: 'date-time' },
       senderId: ref('Id'),
-      isSystem: { type: 'boolean' }
+      isSystem: { type: 'boolean' },
+      followRequest: { anyOf: [ref('FollowRequestRef'), { type: 'null' }] }
     },
     required: ['id', 'body', 'createdAt', 'senderId', 'isSystem']
   },
@@ -629,9 +638,10 @@ const schemas = {
   InboxResponse: {
     type: 'object',
     properties: {
-      conversations: { type: 'array', items: ref('InboxConversation') }
+      conversations: { type: 'array', items: ref('InboxConversation') },
+      nextCursorId: { anyOf: [ref('Id'), { type: 'null' }] }
     },
-    required: ['conversations']
+    required: ['conversations', 'nextCursorId']
   },
   MessageItem: {
     type: 'object',
@@ -640,7 +650,8 @@ const schemas = {
       body: { type: 'string' },
       senderId: ref('Id'),
       createdAt: { type: 'string', format: 'date-time' },
-      isSystem: { type: 'boolean' }
+      isSystem: { type: 'boolean' },
+      followRequest: { anyOf: [ref('FollowRequestRef'), { type: 'null' }] }
     },
     required: ['id', 'body', 'senderId', 'createdAt', 'isSystem']
   },
@@ -832,6 +843,12 @@ const routeSchemas: Record<string, { requestBody?: any; responses?: any; paramet
   'profiles.POST./profiles/access-requests/:requestId/deny': {
     responses: { '200': jsonResponse(ref('ProfileAccessResponse')) }
   },
+  'profiles.POST./profiles/access-requests/:requestId/cancel': {
+    responses: { '200': jsonResponse(ref('ProfileAccessResponse')) }
+  },
+  'profiles.POST./profiles/access-requests/:requestId/revoke': {
+    responses: { '200': jsonResponse(ref('ProfileAccessResponse')) }
+  },
   'profiles.PATCH./profiles/:userId': {
     requestBody: jsonRequestBody(ref('ProfilePatchBody')),
     responses: { '200': jsonResponse(ref('ProfilePatchResponse')) }
@@ -875,6 +892,10 @@ const routeSchemas: Record<string, { requestBody?: any; responses?: any; paramet
       responses: { '200': jsonResponse(ref('SuggestionResponse')) }
     },
   'messaging.GET./inbox': {
+    parameters: [
+      { name: 'cursorId', in: 'query', required: false, schema: ref('Id') },
+      { name: 'take', in: 'query', required: false, schema: { type: 'number' } }
+    ],
     responses: { '200': jsonResponse(ref('InboxResponse')) }
   },
   'messaging.GET./conversations/:conversationId': {
@@ -889,6 +910,9 @@ const routeSchemas: Record<string, { requestBody?: any; responses?: any; paramet
     responses: { '201': jsonResponse(ref('MessageSendResponse')) }
   },
   'messaging.POST./messages/:messageId/read': {
+    responses: { '200': jsonResponse(ref('OkResponse')) }
+  },
+  'messaging.POST./conversations/:conversationId/delete': {
     responses: { '200': jsonResponse(ref('OkResponse')) }
   },
   'quizzes.GET./quizzes/active': {

@@ -1,15 +1,10 @@
-import multer from 'multer';
 import type { DomainRegistry } from '../../types.js';
 import { Auth } from '../../../lib/auth/rules.js';
 import { json } from '../../../lib/http/json.js';
 import { parsePositiveBigInt } from '../../../lib/http/parse.js';
-import { mediaService, MediaError } from '../../../services/media/mediaService.js';
-
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_UPLOAD_BYTES }
-});
+import { MediaError } from '../../../services/media/mediaService.js';
+import { uploadMedia } from '../../../services/media/uploadHandler.js';
+import { streamUploadToDisk } from '../../../services/media/streamingUpload.js';
 
 export const mediaDomain: DomainRegistry = {
   domain: 'media',
@@ -19,30 +14,39 @@ export const mediaDomain: DomainRegistry = {
       method: 'POST',
       path: '/media/upload',
       auth: Auth.user(),
-      summary: 'Upload media',
+      summary: 'Upload media (streaming)',
       tags: ['media'],
       handler: async (req, res) => {
-        upload.single('file')(req, res, async (err) => {
-          if (err) {
-            const status = (err as any)?.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
-            return json(res, { error: err.message ?? 'Upload failed' }, status);
-          }
-          const file = (req as any).file as Express.Multer.File | undefined;
-          if (!file) return json(res, { error: 'file required' }, 400);
+        try {
+          // Stream upload to temp file on disk (no memory buffering)
+          // Conservative limits: 200MB max, 5min total, 30s idle timeout
+          const fileInfo = await streamUploadToDisk(req, res, {
+            maxBytes: 200 * 1024 * 1024, // 200MB (for videos)
+            maxTimeMs: 5 * 60 * 1000, // 5 minutes (fail fast)
+            idleTimeoutMs: 30 * 1000, // 30 seconds (fail fast)
+          });
 
-          try {
-            const result = await mediaService.uploadImage({
-              ownerUserId: req.ctx.userId!,
-              file
-            });
-            return json(res, result, 201);
-          } catch (e) {
-            if (e instanceof MediaError) {
-              return json(res, { error: e.message }, e.status);
-            }
-            return json(res, { error: 'Upload failed' }, 500);
+          // Process and finalize upload
+          const result = await uploadMedia({
+            ownerUserId: req.ctx.userId!,
+            visibility: 'PUBLIC', // TODO: get from form field
+            fileInfo,
+          });
+
+          return json(res, result, 201);
+        } catch (e) {
+          if (e instanceof MediaError) {
+            return json(res, { error: e.message }, e.status);
           }
-        });
+          if (e instanceof Error) {
+            // Handle upload errors (timeout, size limit, etc.)
+            if (e.message.includes('timeout') || e.message.includes('exceed')) {
+              return json(res, { error: e.message }, 413);
+            }
+            return json(res, { error: e.message }, 400);
+          }
+          return json(res, { error: 'Upload failed' }, 500);
+        }
       }
     },
     {

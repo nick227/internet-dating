@@ -28,6 +28,7 @@ export async function getOrCreateFollowConversation(
 
 export async function createFollowRequestMessage(
   conversationId: bigint,
+  requestId: bigint,
   requesterUserId: bigint,
   ownerUserId: bigint
 ): Promise<void> {
@@ -45,6 +46,7 @@ export async function createFollowRequestMessage(
       senderId: requesterUserId,
       body,
       isSystem: true,
+      followRequestId: requestId,
       receipts: {
         create: [
           { userId: ownerUserId, readAt: null },
@@ -62,6 +64,7 @@ export async function createFollowRequestMessage(
 
 export async function createFollowResponseMessage(
   conversationId: bigint,
+  requestId: bigint,
   ownerUserId: bigint,
   requesterUserId: bigint,
   approved: boolean
@@ -82,6 +85,7 @@ export async function createFollowResponseMessage(
       senderId: ownerUserId,
       body,
       isSystem: true,
+      followRequestId: requestId,
       receipts: {
         create: [
           { userId: requesterUserId, readAt: null },

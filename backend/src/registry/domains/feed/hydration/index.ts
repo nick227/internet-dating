@@ -11,10 +11,13 @@ import type {
 } from '../types.js';
 import { buildPostMedia, buildSuggestionMedia } from './media.js';
 import { buildFeedStats } from './stats.js';
+import { buildPostCommentPreviews } from './comments.js';
 
 type HydratedPost = Omit<FeedPostCandidate, 'media'> & {
   media: Array<{ order: number; media: ReturnType<typeof toPublicMedia> }>;
   stats: FeedStats | null;
+  comments: { preview: Array<{ id: bigint; text: string }> };
+  question: null;
   presentation?: FeedPresentation;
 };
 
@@ -44,17 +47,27 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
     }
   }
   
-  const [statsResult, postMediaResult, mediaResult, compatibilityResult] = await Promise.allSettled([
-    buildFeedStats(posts, suggestions, ctx.userId),
-    buildPostMedia(posts),
-    buildSuggestionMedia(suggestions),
-    getCompatibilityMap(ctx.userId, suggestions.map((s) => s.userId))
-  ]);
+  const [statsResult, commentResult, postMediaResult, mediaResult, compatibilityResult] =
+    await Promise.allSettled([
+      buildFeedStats(posts, suggestions, ctx.userId),
+      buildPostCommentPreviews(posts.map((post) => post.id)),
+      buildPostMedia(posts),
+      buildSuggestionMedia(suggestions),
+      getCompatibilityMap(ctx.userId, suggestions.map((s) => s.userId))
+    ]);
 
   const statsByUserId =
     statsResult.status === 'fulfilled'
-      ? statsResult.value
+      ? statsResult.value.statsByUserId
       : new Map<bigint, FeedStats>();
+  const postStatsByPostId =
+    statsResult.status === 'fulfilled'
+      ? statsResult.value.postStatsByPostId
+      : new Map<bigint, Pick<FeedStats, 'likeCount' | 'commentCount'>>();
+  const commentPreviewByPostId =
+    commentResult.status === 'fulfilled'
+      ? commentResult.value
+      : new Map<bigint, { preview: Array<{ id: bigint; text: string }> }>();
   const postMediaByPostId =
     postMediaResult.status === 'fulfilled'
       ? postMediaResult.value
@@ -74,12 +87,18 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
   for (const item of rankedItems) {
     if (item.type === 'post' && item.post) {
       const { score: _score, ...postBase } = item.post;
+      const actorStats = statsByUserId.get(item.post.user.id) ?? null;
+      const postStats = postStatsByPostId.get(item.post.id);
+      const stats =
+        actorStats || postStats ? { ...(actorStats ?? {}), ...(postStats ?? {}) } : null;
       hydrated.push({
         type: 'post',
         post: {
           ...postBase,
           media: postMediaByPostId.get(item.post.id) ?? [],
-          stats: statsByUserId.get(item.post.user.id) ?? null,
+          stats,
+          comments: commentPreviewByPostId.get(item.post.id) ?? { preview: [] },
+          question: null,
           presentation: item.presentation ?? postBase.presentation
         }
       });

@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { api } from '../../api/client'
 import type { ProfileAccessInfo } from '../../api/types'
-import { ACCESS_STATUS } from './accessStatus'
 
 type AccessRequestState = {
   busy: boolean

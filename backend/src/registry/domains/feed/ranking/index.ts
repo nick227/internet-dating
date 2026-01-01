@@ -34,7 +34,8 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
     type: 'post' as const,
     post,
     actorId: post.user.id,
-    source: 'post' as const
+    source: 'post' as const,
+    tier: 'everyone' as const
   }));
   const filteredPostItems = postItems;
 
@@ -43,14 +44,16 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
     type: 'question' as const,
     question,
     actorId: question.id,
-    source: 'question' as const
+    source: 'question' as const,
+    tier: 'everyone' as const
   }));
   
   const rawSuggestionItems: FeedItem[] = candidates.suggestions.map((suggestion) => ({
     type: 'suggestion' as const,
     suggestion,
     actorId: suggestion.userId,
-    source: suggestion.source === 'match' ? 'match' : 'suggested'
+    source: suggestion.source === 'match' ? 'match' : 'suggested',
+    tier: 'everyone' as const
   }));
   const suggestionItems = (() => {
     if (!rawSuggestionItems.length) return rawSuggestionItems;

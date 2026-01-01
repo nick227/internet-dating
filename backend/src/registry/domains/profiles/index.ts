@@ -8,6 +8,7 @@ import { mediaService, MediaError } from '../../../services/media/mediaService.j
 import { getProfileAccessSummary } from '../../../services/access/profileAccessService.js';
 import { getOrCreateFollowConversation, createFollowRequestMessage, createFollowResponseMessage } from '../../../services/access/followConversationService.js';
 import { getCompatibilityMap, resolveCompatibility } from '../../../services/compatibility/compatibilityService.js';
+import { invalidateAllSegmentsForUser } from '../../../services/feed/presortedFeedService.js';
 
 export const profilesDomain: DomainRegistry = {
   domain: 'profiles',
@@ -194,15 +195,27 @@ export const profilesDomain: DomainRegistry = {
 
         const request = await prisma.profileAccess.upsert({
           where: { ownerUserId_viewerUserId: { ownerUserId: targetUserId, viewerUserId } },
-          update: { status: 'PENDING' },
-          create: { ownerUserId: targetUserId, viewerUserId, status: 'PENDING' },
+          update: {
+            status: 'PENDING',
+            statusUpdatedAt: new Date(),
+            respondedAt: null,
+            source: 'PROFILE',
+            decisionReason: null
+          },
+          create: {
+            ownerUserId: targetUserId,
+            viewerUserId,
+            status: 'PENDING',
+            statusUpdatedAt: new Date(),
+            source: 'PROFILE'
+          },
           select: { id: true, status: true }
         });
 
         // Create or get conversation and add system message for follow request
         try {
           const conversationId = await getOrCreateFollowConversation(targetUserId, viewerUserId);
-          await createFollowRequestMessage(conversationId, viewerUserId, targetUserId);
+          await createFollowRequestMessage(conversationId, request.id, viewerUserId, targetUserId);
         } catch (err) {
           // Log error but don't fail the request - conversation creation is secondary
           console.error('Failed to create follow request conversation:', err);
@@ -239,10 +252,33 @@ export const profilesDomain: DomainRegistry = {
 
         const request = await prisma.profileAccess.upsert({
           where: { ownerUserId_viewerUserId: { ownerUserId: targetUserId, viewerUserId } },
-          update: { status: 'GRANTED' },
-          create: { ownerUserId: targetUserId, viewerUserId, status: 'GRANTED' },
+          update: {
+            status: 'GRANTED',
+            statusUpdatedAt: new Date(),
+            respondedAt: new Date(),
+            source: 'PROFILE'
+          },
+          create: {
+            ownerUserId: targetUserId,
+            viewerUserId,
+            status: 'GRANTED',
+            statusUpdatedAt: new Date(),
+            respondedAt: new Date(),
+            source: 'PROFILE'
+          },
           select: { id: true, status: true }
         });
+
+        void (async () => {
+          try {
+            await Promise.all([
+              invalidateAllSegmentsForUser(targetUserId),
+              invalidateAllSegmentsForUser(viewerUserId)
+            ]);
+          } catch (err) {
+            console.error('Failed to invalidate presorted feed segments:', err);
+          }
+        })();
 
         return json(res, { status: 'GRANTED', requestId: request.id });
       }
@@ -355,10 +391,80 @@ export const profilesDomain: DomainRegistry = {
           return json(res, { error: 'Profile not found' }, 404);
         }
 
-        await prisma.profileRating.upsert({
-          where: { raterProfileId_targetProfileId: { raterProfileId, targetProfileId } },
-          update: data,
-          create: { raterProfileId, targetProfileId, ...data }
+        const defaultSums = {
+          attractive: 0,
+          smart: 0,
+          funny: 0,
+          interesting: 0
+        };
+
+        const normalizeSums = (value: unknown) => {
+          if (!value || typeof value !== 'object') return { ...defaultSums };
+          const record = value as Record<string, unknown>;
+          return {
+            attractive: typeof record.attractive === 'number' ? record.attractive : 0,
+            smart: typeof record.smart === 'number' ? record.smart : 0,
+            funny: typeof record.funny === 'number' ? record.funny : 0,
+            interesting: typeof record.interesting === 'number' ? record.interesting : 0
+          };
+        };
+
+        await prisma.$transaction(async (tx) => {
+          const existing = await tx.profileRating.findUnique({
+            where: { raterProfileId_targetProfileId: { raterProfileId, targetProfileId } },
+            select: { attractive: true, smart: true, funny: true, interesting: true }
+          });
+
+          await tx.profileRating.upsert({
+            where: { raterProfileId_targetProfileId: { raterProfileId, targetProfileId } },
+            update: data,
+            create: { raterProfileId, targetProfileId, ...data }
+          });
+
+          const delta = {
+            attractive: data.attractive - (existing?.attractive ?? 0),
+            smart: data.smart - (existing?.smart ?? 0),
+            funny: data.funny - (existing?.funny ?? 0),
+            interesting: data.interesting - (existing?.interesting ?? 0)
+          };
+          const ratingCountDelta = existing ? 0 : 1;
+
+          const stats = await tx.profileStats.findUnique({
+            where: { profileId: targetProfileId },
+            select: { ratingCount: true, ratingSums: true }
+          });
+          const baseSums = normalizeSums(stats?.ratingSums);
+          const nextSums = stats
+            ? {
+                attractive: baseSums.attractive + delta.attractive,
+                smart: baseSums.smart + delta.smart,
+                funny: baseSums.funny + delta.funny,
+                interesting: baseSums.interesting + delta.interesting
+              }
+            : {
+                attractive: data.attractive,
+                smart: data.smart,
+                funny: data.funny,
+                interesting: data.interesting
+              };
+
+          if (stats) {
+            await tx.profileStats.update({
+              where: { profileId: targetProfileId },
+              data: {
+                ratingCount: ratingCountDelta ? { increment: ratingCountDelta } : undefined,
+                ratingSums: nextSums
+              }
+            });
+          } else {
+            await tx.profileStats.create({
+              data: {
+                profileId: targetProfileId,
+                ratingCount: ratingCountDelta || 1,
+                ratingSums: nextSums
+              }
+            });
+          }
         });
 
         return json(res, { ok: true });
@@ -546,14 +652,29 @@ export const profilesDomain: DomainRegistry = {
 
         const updated = await prisma.profileAccess.update({
           where: { id: requestId },
-          data: { status: 'GRANTED' },
+          data: {
+            status: 'GRANTED',
+            statusUpdatedAt: new Date(),
+            respondedAt: new Date()
+          },
           select: { id: true, status: true }
         });
+
+        void (async () => {
+          try {
+            await Promise.all([
+              invalidateAllSegmentsForUser(access.ownerUserId),
+              invalidateAllSegmentsForUser(access.viewerUserId)
+            ]);
+          } catch (err) {
+            console.error('Failed to invalidate presorted feed segments:', err);
+          }
+        })();
 
         // Create system message for approval
         try {
           const conversationId = await getOrCreateFollowConversation(access.ownerUserId, access.viewerUserId);
-          await createFollowResponseMessage(conversationId, access.ownerUserId, access.viewerUserId, true);
+          await createFollowResponseMessage(conversationId, access.id, access.ownerUserId, access.viewerUserId, true);
         } catch (err) {
           console.error('Failed to create follow approval message:', err);
         }
@@ -591,21 +712,145 @@ export const profilesDomain: DomainRegistry = {
           return json(res, { status: 'DENIED', requestId: access.id });
         }
 
+        if (access.status !== 'PENDING') {
+          return json(res, { error: 'Request is not pending' }, 400);
+        }
+
         const updated = await prisma.profileAccess.update({
           where: { id: requestId },
-          data: { status: 'DENIED' },
+          data: {
+            status: 'DENIED',
+            statusUpdatedAt: new Date(),
+            respondedAt: new Date()
+          },
           select: { id: true, status: true }
         });
+
+        void (async () => {
+          try {
+            await Promise.all([
+              invalidateAllSegmentsForUser(access.ownerUserId),
+              invalidateAllSegmentsForUser(access.viewerUserId)
+            ]);
+          } catch (err) {
+            console.error('Failed to invalidate presorted feed segments:', err);
+          }
+        })();
 
         // Create system message for denial
         try {
           const conversationId = await getOrCreateFollowConversation(access.ownerUserId, access.viewerUserId);
-          await createFollowResponseMessage(conversationId, access.ownerUserId, access.viewerUserId, false);
+          await createFollowResponseMessage(conversationId, access.id, access.ownerUserId, access.viewerUserId, false);
         } catch (err) {
           console.error('Failed to create follow denial message:', err);
         }
 
         return json(res, { status: 'DENIED', requestId: updated.id });
+      }
+    },
+    {
+      id: 'profiles.POST./profiles/access-requests/:requestId/cancel',
+      method: 'POST',
+      path: '/profiles/access-requests/:requestId/cancel',
+      auth: Auth.user(),
+      summary: 'Cancel a follow request',
+      tags: ['profiles'],
+      handler: async (req, res) => {
+        const requestParsed = parsePositiveBigInt(req.params.requestId, 'requestId');
+        if (!requestParsed.ok) return json(res, { error: requestParsed.error }, 400);
+        const requestId = requestParsed.value;
+        const me = req.ctx.userId!;
+
+        const access = await prisma.profileAccess.findUnique({
+          where: { id: requestId },
+          select: { id: true, ownerUserId: true, viewerUserId: true, status: true }
+        });
+
+        if (!access) {
+          return json(res, { error: 'Follow request not found' }, 404);
+        }
+
+        if (access.viewerUserId !== me) {
+          return json(res, { error: 'Forbidden' }, 403);
+        }
+
+        if (access.status === 'CANCELED') {
+          return json(res, { status: 'CANCELED', requestId: access.id });
+        }
+
+        if (access.status !== 'PENDING') {
+          return json(res, { error: 'Request is not pending' }, 400);
+        }
+
+        const updated = await prisma.profileAccess.update({
+          where: { id: requestId },
+          data: {
+            status: 'CANCELED',
+            statusUpdatedAt: new Date(),
+            respondedAt: new Date()
+          },
+          select: { id: true, status: true }
+        });
+
+        return json(res, { status: 'CANCELED', requestId: updated.id });
+      }
+    },
+    {
+      id: 'profiles.POST./profiles/access-requests/:requestId/revoke',
+      method: 'POST',
+      path: '/profiles/access-requests/:requestId/revoke',
+      auth: Auth.user(),
+      summary: 'Revoke a follow',
+      tags: ['profiles'],
+      handler: async (req, res) => {
+        const requestParsed = parsePositiveBigInt(req.params.requestId, 'requestId');
+        if (!requestParsed.ok) return json(res, { error: requestParsed.error }, 400);
+        const requestId = requestParsed.value;
+        const me = req.ctx.userId!;
+
+        const access = await prisma.profileAccess.findUnique({
+          where: { id: requestId },
+          select: { id: true, ownerUserId: true, viewerUserId: true, status: true }
+        });
+
+        if (!access) {
+          return json(res, { error: 'Follow request not found' }, 404);
+        }
+
+        if (access.ownerUserId !== me) {
+          return json(res, { error: 'Forbidden' }, 403);
+        }
+
+        if (access.status === 'REVOKED') {
+          return json(res, { status: 'REVOKED', requestId: access.id });
+        }
+
+        if (access.status !== 'GRANTED') {
+          return json(res, { error: 'Request is not granted' }, 400);
+        }
+
+        const updated = await prisma.profileAccess.update({
+          where: { id: requestId },
+          data: {
+            status: 'REVOKED',
+            statusUpdatedAt: new Date(),
+            respondedAt: new Date()
+          },
+          select: { id: true, status: true }
+        });
+
+        void (async () => {
+          try {
+            await Promise.all([
+              invalidateAllSegmentsForUser(access.ownerUserId),
+              invalidateAllSegmentsForUser(access.viewerUserId)
+            ]);
+          } catch (err) {
+            console.error('Failed to invalidate presorted feed segments:', err);
+          }
+        })();
+
+        return json(res, { status: 'REVOKED', requestId: updated.id });
       }
     }
   ]

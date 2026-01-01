@@ -136,6 +136,20 @@ export function ActionBar({
           </svg>
           <span>Rate</span>
         </button>
+        <button className={actionClass.like} type="button" onClick={() => handleReaction('LIKE')}>
+          <svg className="actionBtn__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 20s-7-4.3-7-9a4.5 4.5 0 0 1 7-3.8A4.5 4.5 0 0 1 19 11c0 4.7-7 9-7 9z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>Like</span>
+        </button>
+      </div>
+      <div className='commentsBar'>
         {commentEnabled && (
           <button className={actionClass.comment} type="button" onClick={onComment}>
             <svg className="actionBtn__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -149,19 +163,7 @@ export function ActionBar({
             </svg>
             <span>{commentLabel ?? 'Comment'}</span>
           </button>
-        )}
-        <button className={actionClass.like} type="button" onClick={() => handleReaction('LIKE')}>
-          <svg className="actionBtn__icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 20s-7-4.3-7-9a4.5 4.5 0 0 1 7-3.8A4.5 4.5 0 0 1 19 11c0 4.7-7 9-7 9z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span>Like</span>
-        </button>
+        )} 
       </div>
 
       <RatingModal

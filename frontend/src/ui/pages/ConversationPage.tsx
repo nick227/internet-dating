@@ -131,7 +131,7 @@ export function ConversationPage() {
           </svg>
         </IconButton>
         <div className="conversation__title">
-          <Avatar name={headerName} size="sm" src={headerAvatar} />
+          <Avatar name={headerName} size="sm" src={headerAvatar} profileId={otherUser ? String(otherUser.id) : null} />
           <div className="conversation__titleText">
             <div>{headerName}</div>
             {headerMeta && <div className="conversation__meta">{headerMeta}</div>}

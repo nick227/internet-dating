@@ -52,11 +52,7 @@
 }
 
 .u-glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-3);
-  box-shadow: var(--shadow-1);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(2px);
 }
 .u-pill {
   display: inline-flex;
@@ -129,4 +125,33 @@
 }
 .u-absolute {
   position: absolute;
+}
+.u-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(7, 7, 10, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+}
+.mb-2 {
+  margin-bottom: 2px;
+}
+.mb-4 {
+  margin-bottom: 4px;
+}
+.mb-6 {
+  margin-bottom: 6px;
+}
+.mb-8 {
+  margin-bottom: 8px;
+}
+.mb-24 {
+  margin-bottom: 24px;
+}
+.mb-48 {
+  margin-bottom: 48px;
 }

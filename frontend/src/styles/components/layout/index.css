@@ -1,0 +1,35 @@
+.shell {
+  height: 100dvh;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+.stage {
+  position: relative;
+  height: 91vh;
+  overflow-y: auto;
+  touch-action: pan-y pan-x;
+}
+.bottomNav {
+  height: 5.4vh;
+}
+.topBar {
+  height: 3.6vh;
+}
+
+.page,
+.river__pad,
+.profile,
+.inbox__pad,
+.followers__pad,
+.matches__pad,
+.quiz-portal,
+.quiz__pad,
+.conversation__header,
+.conversation__body,
+.conversation__composer {
+  width: 100%;
+  max-width: var(--layout-page-max-width);
+  margin-left: auto;
+  margin-right: auto;
+}

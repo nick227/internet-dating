@@ -7,6 +7,15 @@ model Quiz {
   updatedAt DateTime @updatedAt
   questions QuizQuestion[]
   results   QuizResult[]
+  feedQuestions FeedQuestion[]
+  tags      QuizTag[]
+}
+
+model QuizTag {
+  id    BigInt @id @default(autoincrement())
+  slug  String @unique
+  label String
+  quizzes Quiz[]
 }
 
 model QuizQuestion {
@@ -15,6 +24,7 @@ model QuizQuestion {
   prompt    String   @db.Text
   order     Int
   quiz      Quiz @relation(fields: [quizId], references: [id])
+  feedQuestions FeedQuestion[]
   options   QuizOption[]
   @@unique([quizId, order])
 }
@@ -25,6 +35,7 @@ model QuizOption {
   label       String
   value       String
   order       Int
+  traitValues Json?  // Map of trait keys to weights (-10 to +10), e.g. {"personality.funny": 2, "personality.nice": -5}
   question    QuizQuestion @relation(fields: [questionId], references: [id])
   @@unique([questionId, order])
 }

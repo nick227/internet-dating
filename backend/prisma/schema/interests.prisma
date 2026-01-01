@@ -15,6 +15,12 @@ model Interest {
   createdAt DateTime @default(now())
   subject   InterestSubject @relation(fields: [subjectId], references: [id])
   userLinks UserInterest[]
+  relationshipsAsA InterestRelationship[] @relation("InterestA")
+  relationshipsAsB InterestRelationship[] @relation("InterestB")
+  stats InterestStats?
+  dirty InterestDirty?
+  relationshipQueue InterestRelationshipQueue[]
+  deltas UserInterestDelta[]
   @@unique([subjectId, key])
   @@index([subjectId, key])
 }
@@ -58,4 +64,80 @@ model MatchScore {
   @@id([userId, candidateUserId])
   @@index([userId, score])
   @@index([userId, scoredAt])
+}
+
+model InterestRelationship {
+  interestAId BigInt
+  interestBId BigInt
+
+  // How many distinct users have both interests
+  pairCount   Int     @default(0)
+
+  // Cached normalization helpers (optional but recommended)
+  interestACount Int   // total users with interest A
+  interestBCount Int   // total users with interest B
+
+  // Derived strength (can be recomputed lazily)
+  strengthAB Float?    // A → B
+  strengthBA Float?    // B → A
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  interestA Interest @relation("InterestA", fields: [interestAId], references: [id])
+  interestB Interest @relation("InterestB", fields: [interestBId], references: [id])
+
+  @@id([interestAId, interestBId])
+  @@index([interestAId, strengthAB])
+  @@index([interestBId, strengthBA])
+}
+
+model InterestStats {
+  interestId BigInt @id
+
+  userCount  Int     @default(0)
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  interest Interest @relation(fields: [interestId], references: [id])
+}
+
+model InterestRelationshipQueue {
+  id BigInt @id @default(autoincrement())
+
+  interestId BigInt
+  reason     String   // "user_added", "user_removed"
+  processed  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  interest Interest @relation(fields: [interestId], references: [id])
+
+  @@index([processed, createdAt])
+}
+
+model UserInterestDelta {
+  id BigInt @id @default(autoincrement())
+
+  userId     BigInt
+  interestId BigInt
+  action     String   // "add" | "remove"
+
+  processed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  interest Interest @relation(fields: [interestId], references: [id])
+
+  @@index([processed, createdAt])
+}
+
+model InterestDirty {
+  interestId BigInt @id
+  touchedAt DateTime @default(now())
+
+  interest Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@index([touchedAt])
 }

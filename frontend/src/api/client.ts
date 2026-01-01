@@ -42,6 +42,20 @@ import type { paths } from './openapi'
 import { http } from './http'
 import type { FeedResponse, ProfileResponse, LikeBody, RateBody } from './types'
 
+export type InterestItem = {
+  id: string
+  key: string
+  label: string
+  subjectId: string
+  subject: {
+    id: string
+    key: string
+    label: string
+  }
+  selected: boolean
+  createdAt?: string
+}
+
 const API_PATHS = {
   signup: '/api/auth/signup',
   login: '/api/auth/login',
@@ -58,6 +72,8 @@ const API_PATHS = {
   following: '/api/profiles/{userId}/following',
   approveFollowRequest: '/api/profiles/access-requests/{requestId}/approve',
   denyFollowRequest: '/api/profiles/access-requests/{requestId}/deny',
+  cancelFollowRequest: '/api/profiles/access-requests/{requestId}/cancel',
+  revokeFollowRequest: '/api/profiles/access-requests/{requestId}/revoke',
   rate: '/api/profiles/{userId}/rate',
   like: '/api/likes',
   postCreate: '/api/posts',
@@ -68,6 +84,7 @@ const API_PATHS = {
   matches: '/api/matches',
   conversation: '/api/conversations/{conversationId}',
   conversationMessages: '/api/conversations/{conversationId}/messages',
+  conversationDelete: '/api/conversations/{conversationId}/delete',
   messageRead: '/api/messages/{messageId}/read',
   quizActive: '/api/quizzes/active',
   quizSubmit: '/api/quizzes/{quizId}/submit',
@@ -77,6 +94,13 @@ const API_PATHS = {
   mediaUpload: '/api/media/upload',
   mediaById: '/api/media/{mediaId}',
   mediaDelete: '/api/media/{mediaId}',
+  quizList: '/api/quizzes',
+  quizTags: '/api/quizzes/tags',
+  interestsSubjects: '/api/interests/subjects',
+  interestsList: '/api/interests',
+  interestsMy: '/api/interests/my',
+  interestSelect: '/api/interests/{interestId}/select',
+  interestSearch: '/api/interests/search',
 } as const satisfies Record<string, keyof paths>
 
 function fillPath(template: string, params: Record<string, string | number>) {
@@ -115,19 +139,23 @@ export const api = {
   },
   meta: (signal?: AbortSignal) =>
     http<ApiMetaResponse>(`${API_BASE_URL}${API_PATHS.meta}`, 'GET', { signal }),
-  feed: async (cursorId?: string | null, signal?: AbortSignal, options?: { limit?: number; lite?: boolean }): Promise<FeedResponse> => {
+  feed: async (cursorId?: string | null, signal?: AbortSignal, options?: { take?: number; lite?: boolean }): Promise<FeedResponse> => {
     const params = new URLSearchParams()
     if (cursorId) params.set('cursorId', cursorId)
-    if (options?.limit) params.set('limit', String(options.limit))
+    if (options?.take) params.set('take', String(options.take))
     if (options?.lite) params.set('lite', '1')
     const q = params.toString() ? `?${params.toString()}` : ''
     const url = `${API_BASE_URL}${API_PATHS.feed}${q}`
-    feedDebugLog('[DEBUG] api.feed: Making request', { url, lite: options?.lite, limit: options?.limit, cursorId })
+    feedDebugLog('[DEBUG] api.feed: Making request', { url, lite: options?.lite, take: options?.take, cursorId })
     // Phase-1 returns different structure, so use unknown and let adapter handle it
     const res = await http<unknown>(url, 'GET', {
       signal,
     })
-    feedDebugLog('[DEBUG] api.feed: Response received', { hasItems: Array.isArray((res as any)?.items), itemsLength: (res as any)?.items?.length })
+    const resItems = (res as { items?: unknown[] }).items
+    feedDebugLog('[DEBUG] api.feed: Response received', {
+      hasItems: Array.isArray(resItems),
+      itemsLength: resItems?.length,
+    })
     return adaptFeedResponse(res as ApiFeedResponse)
   },
   profile: async (userId: string | number, signal?: AbortSignal): Promise<ProfileResponse> => {
@@ -167,6 +195,14 @@ export const api = {
     const path = fillPath(API_PATHS.denyFollowRequest, { requestId })
     return http<ApiProfileAccessResponse>(`${API_BASE_URL}${path}`, 'POST', { signal })
   },
+  cancelFollowRequest: (requestId: string | number, signal?: AbortSignal) => {
+    const path = fillPath(API_PATHS.cancelFollowRequest, { requestId })
+    return http<ApiProfileAccessResponse>(`${API_BASE_URL}${path}`, 'POST', { signal })
+  },
+  revokeFollowRequest: (requestId: string | number, signal?: AbortSignal) => {
+    const path = fillPath(API_PATHS.revokeFollowRequest, { requestId })
+    return http<ApiProfileAccessResponse>(`${API_BASE_URL}${path}`, 'POST', { signal })
+  },
   like: (body: LikeBody, signal?: AbortSignal) =>
     http<ApiSwipeResponse>(`${API_BASE_URL}${API_PATHS.like}`, 'POST', { body, signal }),
   rate: (userId: string | number, body: RateBody, signal?: AbortSignal) => {
@@ -174,11 +210,16 @@ export const api = {
     return http<ApiRateResponse>(`${API_BASE_URL}${path}`, 'POST', { body, signal })
   },
   posts: {
-    create: (body: ApiPostCreateBody, signal?: AbortSignal) =>
-      http<ApiPostCreateResponse>(`${API_BASE_URL}${API_PATHS.postCreate}`, 'POST', {
+    create: async (body: ApiPostCreateBody & { tags?: string[] }, signal?: AbortSignal) => {
+      const res = await http<ApiPostCreateResponse>(`${API_BASE_URL}${API_PATHS.postCreate}`, 'POST', {
         body,
         signal,
-      }),
+      })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('feed:cache-bust', { detail: { reason: 'post-create' } }))
+      }
+      return res
+    },
     update: (postId: string | number, body: ApiPostPatchBody, signal?: AbortSignal) => {
       const path = fillPath(API_PATHS.postUpdate, { postId })
       return http<ApiPostPatchResponse>(`${API_BASE_URL}${path}`, 'PATCH', { body, signal })
@@ -193,8 +234,13 @@ export const api = {
     },
   },
   messaging: {
-    inbox: (signal?: AbortSignal) =>
-      http<ApiInboxResponse>(`${API_BASE_URL}${API_PATHS.inbox}`, 'GET', { signal }),
+    inbox: (cursorId?: string | number | null, take?: number, signal?: AbortSignal) => {
+      const params = new URLSearchParams()
+      if (cursorId) params.set('cursorId', String(cursorId))
+      if (take) params.set('take', String(take))
+      const q = params.toString() ? `?${params.toString()}` : ''
+      return http<ApiInboxResponse>(`${API_BASE_URL}${API_PATHS.inbox}${q}`, 'GET', { signal })
+    },
     matches: (signal?: AbortSignal) =>
       http<ApiMatchListResponse>(`${API_BASE_URL}${API_PATHS.matches}`, 'GET', { signal }),
     conversation: (
@@ -213,6 +259,10 @@ export const api = {
     ) => {
       const path = fillPath(API_PATHS.conversationMessages, { conversationId })
       return http<ApiMessageSendResponse>(`${API_BASE_URL}${path}`, 'POST', { body, signal })
+    },
+    deleteConversation: (conversationId: string | number, signal?: AbortSignal) => {
+      const path = fillPath(API_PATHS.conversationDelete, { conversationId })
+      return http<ApiOkResponse>(`${API_BASE_URL}${path}`, 'POST', { signal })
     },
     markRead: (messageId: string | number, signal?: AbortSignal) => {
       const path = fillPath(API_PATHS.messageRead, { messageId })
@@ -266,6 +316,46 @@ export const api = {
     ) => {
       const path = fillPath(API_PATHS.quizOptionUpdate, { quizId, questionId, optionId })
       return http<ApiQuizOptionPatchResponse>(`${API_BASE_URL}${path}`, 'PATCH', { body, signal })
+    },
+    list: (params?: { q?: string; status?: string; sort?: string; tag?: string }, signal?: AbortSignal) => {
+      const urlParams = new URLSearchParams()
+      if (params?.q) urlParams.set('q', params.q)
+      if (params?.status) urlParams.set('status', params.status)
+      if (params?.sort) urlParams.set('sort', params.sort)
+      if (params?.tag) urlParams.set('tag', params.tag)
+      const q = urlParams.toString() ? `?${urlParams.toString()}` : ''
+      return http<{ items: any[] }>(`${API_BASE_URL}${API_PATHS.quizList}${q}`, 'GET', { signal })
+    },
+    tags: (signal?: AbortSignal) => {
+      return http<{ tags: { slug: string; label: string }[] }>(`${API_BASE_URL}${API_PATHS.quizTags}`, 'GET', { signal })
+    },
+  },
+  interests: {
+    subjects: (signal?: AbortSignal) => {
+      return http<{ subjects: Array<{ id: string; key: string; label: string }> }>(`${API_BASE_URL}${API_PATHS.interestsSubjects}`, 'GET', { signal })
+    },
+    list: (params?: { subjectId?: string; q?: string; cursorId?: string; take?: number }, signal?: AbortSignal) => {
+      const urlParams = new URLSearchParams()
+      if (params?.subjectId) urlParams.set('subjectId', params.subjectId)
+      if (params?.q) urlParams.set('q', params.q)
+      if (params?.cursorId) urlParams.set('cursorId', params.cursorId)
+      if (params?.take) urlParams.set('take', String(params.take))
+      const q = urlParams.toString() ? `?${urlParams.toString()}` : ''
+      return http<{ items: Array<InterestItem>; nextCursor: string | null; hasMore: boolean }>(`${API_BASE_URL}${API_PATHS.interestsList}${q}`, 'GET', { signal })
+    },
+    my: (signal?: AbortSignal) => {
+      return http<{ items: Array<InterestItem> }>(`${API_BASE_URL}${API_PATHS.interestsMy}`, 'GET', { signal })
+    },
+    select: (interestId: string | number, signal?: AbortSignal) => {
+      const path = fillPath(API_PATHS.interestSelect, { interestId })
+      return http<InterestItem>(`${API_BASE_URL}${path}`, 'POST', { signal })
+    },
+    deselect: (interestId: string | number, signal?: AbortSignal) => {
+      const path = fillPath(API_PATHS.interestSelect, { interestId })
+      return http<ApiOkResponse>(`${API_BASE_URL}${path}`, 'DELETE', { signal })
+    },
+    search: (body: { text: string; subjectId: string }, signal?: AbortSignal) => {
+      return http<{ items: Array<InterestItem> }>(`${API_BASE_URL}${API_PATHS.interestSearch}`, 'POST', { body, signal })
     },
   },
   feedSync: {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MessageHelpers } from './MessageHelpers'
 
 export type DetectedMedia = {
@@ -19,6 +19,8 @@ type Props = {
   onSuggestionSelect?: (message: string) => void
   onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
   className?: string
+  inputRef?: React.RefObject<HTMLDivElement>
+  inputTestId?: string
 }
 
 const URL_REGEX = /\bhttps?:\/\/[^\s]+/gi
@@ -36,6 +38,8 @@ export function SmartTextarea({
   onSuggestionSelect,
   onKeyDown,
   className,
+  inputRef,
+  inputTestId,
 }: Props) {
   const ref = useRef<HTMLDivElement | null>(null)
   const lastValue = useRef(value)
@@ -50,6 +54,16 @@ export function SmartTextarea({
   }, [value])
 
   const placeholderText = useMemo(() => placeholder ?? 'Write something...', [placeholder])
+
+  const setInputRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      ref.current = node
+      if (inputRef) {
+        inputRef.current = node
+      }
+    },
+    [inputRef]
+  )
 
   const emitChange = () => {
     const text = ref.current?.innerText ?? ''
@@ -125,13 +139,15 @@ export function SmartTextarea({
         />
       )}
       <div
-        ref={ref}
+        ref={setInputRefs}
         className="smartTextarea__input"
         contentEditable={!disabled}
+        data-testid={inputTestId}
         data-placeholder={placeholderText}
         aria-label={placeholderText}
         role="textbox"
         aria-multiline="true"
+        tabIndex={0}
         spellCheck
         suppressContentEditableWarning
         onInput={emitChange}

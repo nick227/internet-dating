@@ -8,12 +8,29 @@ import { RiverErrorBoundary } from './RiverErrorBoundary'
 import { Toast } from '../ui/Toast'
 import { OptimisticFirstCard, FirstCardShell } from './OptimisticFirstCard'
 
+const DEBUG = Boolean(import.meta.env?.DEV)
+
+const isFeedDebugEnabled = () => {
+  if (!DEBUG || typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem('debug:feed') === '1'
+  } catch {
+    return false
+  }
+}
+
+const debugLog = (...args: unknown[]) => {
+  if (isFeedDebugEnabled()) {
+    console.log(...args)
+  }
+}
+
 export function River() {
-  console.log('[DEBUG] River: Component function called')
+  debugLog('[DEBUG] River: Component function called')
   const nav = useNavigate()
-  console.log('[DEBUG] River: About to call useRiverFeedPhased')
+  debugLog('[DEBUG] River: About to call useRiverFeedPhased')
   const { items, cursor, loading, error, loadMore, isPhase1, phase1Items, sentinelRef } = useRiverFeedPhased()
-  console.log('[DEBUG] River: Hook call completed', { itemsCount: items.length, loading, error })
+  debugLog('[DEBUG] River: Hook call completed', { itemsCount: items.length, loading, error })
   const [toast, setToast] = useState<string | null>(null)
   const riverRef = useRef<HTMLDivElement>(null)
   
@@ -80,6 +97,28 @@ export function River() {
       }
     })
   }, [items.length, loading])
+
+  useEffect(() => {
+    const root = riverRef.current
+    const sentinel = sentinelRef.current
+    if (!root || !sentinel) return
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (!entries[0]?.isIntersecting) return
+        if (loading || cursor === null) return
+        loadMore()
+      },
+      {
+        root,
+        rootMargin: '800px 0px',
+        threshold: 0,
+      }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [cursor, loadMore, loading, sentinelRef])
 
   // Pre-compute card keys to avoid repeated key calculations
   // Fail fast if card.id is missing - index-based fallback breaks on reorder
@@ -153,7 +192,7 @@ export function River() {
 
   // Debug logging - placed after all variable definitions
   useEffect(() => {
-    console.log('[DEBUG] River: Render', { 
+    debugLog('[DEBUG] River: Render', { 
       itemsCount: items.length, 
       loading, 
       error, 
@@ -165,7 +204,7 @@ export function River() {
     })
   }, [items.length, loading, error, isPhase1, phase1Items.length, cursor, showOptimistic, cardKeys.length])
 
-  console.log('[DEBUG] River: About to render JSX', { itemsCount: items.length, loading, error, showOptimistic })
+  debugLog('[DEBUG] River: About to render JSX', { itemsCount: items.length, loading, error, showOptimistic })
 
 
   return (

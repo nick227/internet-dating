@@ -1,243 +1,157 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { api } from '../../api/client'
-import { useAuth } from '../../core/auth/useAuth'
-import { useActiveQuiz } from '../../core/quiz/useActiveQuiz'
-import { getErrorMessage } from '../../core/utils/errors'
-import { InlineField } from '../form/InlineField'
-import { InlineTextarea } from '../form/InlineTextarea'
+import { useNavigate } from 'react-router-dom'
+import { QuizEditor } from '../quiz/QuizEditor'
+import { QuizQuestion } from '../quiz/QuizQuestion'
+import { useQuizState } from '../quiz/useQuizState'
 
-type AnswerMap = Record<string, string>
+function getDynamicFontSize(text: string): string {
+  const len = text.length
+  if (len < 10) return '3rem'
+  if (len < 30) return '2rem'
+  if (len < 60) return '1.5rem'
+  return '1.1rem'
+}
 
 export function QuizPage() {
   const nav = useNavigate()
-  const location = useLocation()
-  const { userId } = useAuth()
-  const { data, loading, error } = useActiveQuiz()
-  const quiz = data?.quiz ?? null
-  const errorMessage = error == null ? null : getErrorMessage(error, 'Failed to load quiz.')
-  const [quizDraft, setQuizDraft] = useState(quiz)
-  const editorEnabled = useMemo(() => {
-    if (!userId) return false
-    const params = new URLSearchParams(location.search)
-    return params.has('edit')
-  }, [location.search, userId])
-  const [editMode, setEditMode] = useState(false)
-  const activeQuiz = quizDraft ?? quiz
-  const questions = useMemo(() => activeQuiz?.questions ?? [], [activeQuiz?.questions])
-  const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState<AnswerMap>({})
-  const [submitting, setSubmitting] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  const {
+    loading,
+    error,
+    activeQuiz,
+    currentQuestion,
+    currentAnswer,
+    progress,
+    state,
+    editorEnabled,
+    dispatch,
+    actions,
+  } = useQuizState()
 
-  useEffect(() => {
-    setStep(0)
-    setAnswers({})
-    setMessage(null)
-    setEditMode(editorEnabled)
-    setQuizDraft(quiz ?? null)
-  }, [editorEnabled, quiz])
+  const { editMode, submitting, message } = state
 
-  const current = questions[step]
-  const selected = current ? answers[String(current.id)] : undefined
-  const progress = questions.length ? Math.round(((step + 1) / questions.length) * 100) : 0
-
-  function handleSelect(value: string) {
-    if (!current) return
-    setAnswers(prev => ({ ...prev, [String(current.id)]: value }))
+  // Error State
+  if (error) {
+    return (
+      <div className="quiz-page u-center-text u-pad-6">
+        <div style={{ fontSize: 'var(--fs-3)' }}>Quiz error</div>
+        <div className="u-muted u-mt-2">{error}</div>
+        <button className="actionBtn u-mt-4" onClick={() => nav('/feed')}>Return Home</button>
+      </div>
+    )
   }
 
-  async function handleSubmit() {
-    if (!activeQuiz) return
-    if (!userId) {
-      setMessage('Login required to save your quiz.')
-      return
-    }
-    setSubmitting(true)
-    setMessage(null)
-    try {
-      await api.quizzes.submit(activeQuiz.id, { answers })
-      setMessage('Quiz saved to your profile.')
-    } catch (e: unknown) {
-      setMessage(getErrorMessage(e, 'Failed to submit quiz.'))
-    } finally {
-      setSubmitting(false)
-    }
+  // Loading State
+  if (loading) {
+     return <div className="quiz-page u-center-text u-pad-6 u-muted">Loading quiz...</div>
+  }
+
+  // No Quiz State
+  if (!activeQuiz) {
+     return (
+        <div className="quiz-page u-center-text u-pad-6">
+            <div style={{ fontSize: 'var(--fs-3)' }}>No active quiz</div>
+            <div className="u-muted u-mt-2">Check back later for independent verification.</div>
+            <button className="actionBtn u-mt-4" onClick={() => nav('/feed')}>Return Home</button>
+        </div>
+     )
   }
 
   return (
-    <div className="quiz u-hide-scroll">
-      <div className="quiz__pad">
-        <div className="u-title">Quiz</div>
-        {loading && <div className="u-muted u-mt-4">Loading quiz...</div>}
-        {errorMessage && (
-          <div className="u-glass u-pad-4 u-mt-4" style={{ borderRadius: 'var(--r-4)' }}>
-            <div style={{ fontSize: 'var(--fs-3)' }}>Quiz error</div>
-            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>
-              {errorMessage}
-            </div>
-          </div>
-        )}
-        {!loading && !errorMessage && !quiz && (
-          <div className="u-glass u-pad-4 u-mt-4" style={{ borderRadius: 'var(--r-4)' }}>
-            <div style={{ fontSize: 'var(--fs-3)' }}>No active quiz</div>
-            <div className="u-muted u-mt-2" style={{ fontSize: 'var(--fs-2)' }}>
-              Check back later for the next personality quiz.
-            </div>
-          </div>
-        )}
+    <div className="quiz-page">
+      {/* Top Section: Question */}
+      <div className="quiz-split-top">
+        {/* Progress Header */}
+        <div className="quiz-progress-header">
+           <div className="quiz-progress-fill" style={{ width: `${progress}%` }} />
+        </div>
+        
+        {/* Meta Badge */}
+        <div className="quiz-meta-badge">
+           {activeQuiz.title} • Q{state.step + 1}/{activeQuiz.questions.length}
+        </div>
 
-        {activeQuiz && current && (
-          <div className="quiz__card u-glass u-pad-6 u-mt-4">
-            <div className="quiz__meta">
-              <div className="quiz__title">{activeQuiz.title}</div>
-              <div className="quiz__progress">{progress}%</div>
-            </div>
-            {editorEnabled && (
-              <div className="u-row-between" style={{ marginBottom: 12 }}>
-                <div className="u-muted" style={{ fontSize: 'var(--fs-2)' }}>
-                  Edit mode uses autosave.
-                </div>
-                <button
-                  className={`topBar__btn${editMode ? ' topBar__btn--primary' : ''}`}
-                  type="button"
-                  onClick={() => setEditMode(value => !value)}
-                >
-                  {editMode ? 'Editing' : 'Edit'}
-                </button>
-              </div>
-            )}
-            {editMode ? (
-              <div className="u-stack">
-                <InlineField
-                  label="Quiz title"
-                  value={activeQuiz.title}
-                  onSave={async value => {
-                    if (!value) return
-                    const res = await api.quizzes.update(activeQuiz.id, { title: value })
-                    setQuizDraft(prev => (prev ? { ...prev, title: res.title } : prev))
-                  }}
-                />
-                <InlineTextarea
-                  label={`Question ${step + 1}`}
-                  value={current.prompt}
-                  placeholder="Question prompt"
-                  maxLength={220}
-                  onSave={async value => {
-                    if (!value) return
-                    const res = await api.quizzes.updateQuestion(activeQuiz.id, current.id, {
-                      prompt: value,
-                    })
-                    setQuizDraft(prev =>
-                      prev
-                        ? {
-                            ...prev,
-                            questions: prev.questions.map(q =>
-                              String(q.id) === String(current.id) ? { ...q, prompt: res.prompt } : q
-                            ),
-                          }
-                        : prev
-                    )
-                  }}
-                />
-                <div className="u-stack">
-                  {current.options.map((opt, idx) => (
-                    <InlineField
-                      key={String(opt.id)}
-                      label={`Option ${idx + 1}`}
-                      value={opt.label}
-                      onSave={async value => {
-                        if (!value) return
-                        const res = await api.quizzes.updateOption(
-                          activeQuiz.id,
-                          current.id,
-                          opt.id,
-                          { label: value }
-                        )
-                        setQuizDraft(prev =>
-                          prev
-                            ? {
-                                ...prev,
-                                questions: prev.questions.map(q =>
-                                  String(q.id) === String(current.id)
-                                    ? {
-                                        ...q,
-                                        options: q.options.map(o =>
-                                          String(o.id) === String(opt.id)
-                                            ? { ...o, label: res.label }
-                                            : o
-                                        ),
-                                      }
-                                    : q
-                                ),
-                              }
-                            : prev
-                        )
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="quiz__prompt">{current.prompt}</div>
-                <div className="quiz__options">
-                  {current.options.map(opt => {
-                    const active = selected === opt.value
-                    return (
-                      <button
-                        key={String(opt.id)}
-                        type="button"
-                        className={`quiz__option${active ? ' quiz__option--active' : ''}`}
-                        onClick={() => handleSelect(opt.value)}
-                      >
-                        {opt.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </>
-            )}
-
-            <div className="quiz__actions">
-              <button className="actionBtn" type="button" onClick={() => nav('/feed')}>
-                Skip for now
+        {editMode ? (
+           <div style={{ width: '100%', maxWidth: 600 }}>
+              <button 
+                className="u-badge u-mb-4"
+                onClick={() => dispatch({ type: 'TOGGLE_EDIT_MODE' })}
+                style={{ background: 'var(--c-primary)', color: '#fff', border: 'none' }}
+              >
+                Exit Edit Mode
               </button>
-              <div className="quiz__nav">
-                <button
+              {currentQuestion && (
+                <QuizEditor 
+                  quiz={activeQuiz} 
+                  question={currentQuestion}
+                  step={state.step}
+                  onUpdateTitle={actions.updateTitle}
+                  onUpdatePrompt={actions.updateQuestionPrompt}
+                  onUpdateOption={actions.updateOptionLabel}
+                />
+              )}
+           </div>
+        ) : (
+          <div 
+             className="quiz-question-text"
+             style={{ fontSize: currentQuestion ? getDynamicFontSize(currentQuestion.prompt) : '1.5rem' }}
+          >
+            {currentQuestion?.prompt}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Section: Answers & Nav */}
+      <div className="quiz-split-bottom">
+         <div className="quiz-options-list">
+            {!editMode && currentQuestion && (
+               <QuizQuestion
+                 question={currentQuestion}
+                 selectedValue={currentAnswer}
+                 onSelect={actions.selectOption}
+               />
+            )}
+            {message && <div className="u-muted u-center-text u-mt-2">{message}</div>}
+         </div>
+
+         {/* Fixed Bottom Nav */}
+         <div className="quiz-nav-bar">
+               {editorEnabled && (
+                  <button 
+                    className="actionBtn" 
+                    onClick={() => dispatch({ type: 'TOGGLE_EDIT_MODE' })}
+                    style={{ fontSize: '0.9rem', padding: '8px 16px' }}
+                  >
+                    Edit
+                  </button>
+               )}
+               {!editorEnabled && (
+                 <button className="actionBtn" onClick={actions.skip}>Skip</button>
+               )}
+               <button
                   className="actionBtn"
-                  type="button"
-                  onClick={() => setStep(s => Math.max(0, s - 1))}
-                  disabled={step === 0}
-                >
+                  onClick={actions.navPrev}
+                  disabled={state.step === 0}
+               >
                   Back
-                </button>
-                {step < questions.length - 1 && (
+               </button>
+               
+               {state.step < activeQuiz.questions.length - 1 ? (
                   <button
                     className="actionBtn actionBtn--like"
-                    type="button"
-                    onClick={() => setStep(s => Math.min(questions.length - 1, s + 1))}
-                    disabled={!editMode && !selected}
+                    onClick={actions.navNext}
+                    disabled={!editMode && !currentAnswer}
                   >
                     Next
                   </button>
-                )}
-                {step === questions.length - 1 && (
+               ) : (
                   <button
                     className="actionBtn actionBtn--like"
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={editMode || !selected || submitting}
+                    onClick={actions.submitQuiz}
+                    disabled={editMode || !currentAnswer || submitting}
                   >
                     {submitting ? 'Saving...' : 'Submit'}
                   </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {message && <div className="u-muted u-mt-4">{message}</div>}
+               )}
+         </div>
       </div>
     </div>
   )

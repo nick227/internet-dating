@@ -1,4 +1,4 @@
-﻿-- CreateTable
+-- CreateTable
 CREATE TABLE `conversation` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `matchId` BIGINT NULL,

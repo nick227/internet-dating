@@ -7,6 +7,7 @@ import type {
   DatingIntent,
   FeedMedia,
   Gender,
+  MediaType,
   ProfileMedia,
   ProfileResponse,
   ProfilePost,
@@ -222,7 +223,8 @@ type Phase1FeedResponse = {
     createdAt: number // Epoch ms
     presentation?: { mode: string; accent?: string | null } | null
   }>
-  nextCursor: string | null
+  nextCursor?: string | null
+  nextCursorId?: string | null
 }
 
 /**
@@ -272,12 +274,17 @@ function adaptPhase1Response(res: Phase1FeedResponse): FeedResponse {
 
   return {
     items,
-    nextCursor: res.nextCursor ?? null,
+    nextCursor: res.nextCursorId ?? res.nextCursor ?? null,
   }
 }
 
 export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): FeedResponse {
-  feedDebugLog('[DEBUG] adaptFeedResponse: Starting', { isPhase1: isPhase1Response(res), hasItems: Array.isArray((res as any)?.items), itemsLength: (res as any)?.items?.length })
+  const resItems = (res as { items?: unknown[] }).items
+  feedDebugLog('[DEBUG] adaptFeedResponse: Starting', {
+    isPhase1: isPhase1Response(res),
+    hasItems: Array.isArray(resItems),
+    itemsLength: resItems?.length,
+  })
   
   // Check if this is Phase-1 format (lite)
   if (isPhase1Response(res)) {
@@ -525,9 +532,13 @@ function toFeedMedia(items?: ApiFeedMedia[] | null): FeedMedia[] | undefined {
   const result: FeedMedia[] = []
   for (const item of items) {
     if (item?.url) {
+      // Preserve media type (IMAGE, VIDEO, or AUDIO) or default to IMAGE
+      const mediaType: MediaType = (item.type === 'VIDEO' || item.type === 'AUDIO' || item.type === 'IMAGE')
+        ? item.type
+        : 'IMAGE'
       result.push({
         id: item.id,
-        type: item.type === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+        type: mediaType,
         url: item.url ?? '',
         thumbUrl: item.thumbUrl ?? null,
         width: item.width ?? null,

@@ -212,6 +212,25 @@ const applyPhase2SnapshotToStore = (snapshot: CachedSnapshot) => {
   })
 }
 
+const schedulePhase1CacheWrite = (snapshot: CachedSnapshot) => {
+  if (!import.meta.env?.DEV || typeof window === 'undefined') return
+  const write = () => {
+    try {
+      localStorage.setItem(
+        'phase1-feed-dev',
+        JSON.stringify({ items: snapshot.items ?? [], nextCursor: snapshot.cursor })
+      )
+    } catch {
+      // Ignore storage errors in dev
+    }
+  }
+  if (typeof queueMicrotask === 'function') {
+    queueMicrotask(write)
+  } else {
+    setTimeout(write, 0)
+  }
+}
+
 /**
  * Two-phase feed loading:
  * Phase 1: Fetch 1-2 cards with lite=true (minimal fields, no media)
@@ -241,6 +260,21 @@ export function useRiverFeedPhased() {
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = (event: Event) => {
+      const reason =
+        event instanceof CustomEvent && event.detail && typeof event.detail.reason === 'string'
+          ? event.detail.reason
+          : 'external-bust'
+      clearFeedCache(reason)
+    }
+    window.addEventListener('feed:cache-bust', handler)
+    return () => {
+      window.removeEventListener('feed:cache-bust', handler)
+    }
+  }, [])
+
   const getPhase1Snapshot = useCallback(async (): Promise<CachedSnapshot> => {
     const cached = getFreshPhase1Snapshot()
     if (cached) return cached
@@ -252,14 +286,15 @@ export function useRiverFeedPhased() {
           const res = phase1FromHTML.data as {
             items?: FeedCard[]
             nextCursor?: string | null
+            nextCursorId?: string | null
           }
           return toCachedSnapshot({
             items: res.items ?? [],
-            cursor: res.nextCursor ?? null,
+            cursor: res.nextCursorId ?? res.nextCursor ?? null,
           })
         }
 
-        const res = await api.feed(undefined, undefined, { limit: 2, lite: true })
+        const res = await api.feed(undefined, undefined, { take: 2, lite: true })
         return toCachedSnapshot({
           items: res.items ?? [],
           cursor: res.nextCursor ?? null,
@@ -273,16 +308,7 @@ export function useRiverFeedPhased() {
         return snapshot
       }
       phase1Snapshot = snapshot
-      if (import.meta.env?.DEV && typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(
-            'phase1-feed-dev',
-            JSON.stringify({ items: snapshot.items ?? [], nextCursor: snapshot.cursor })
-          )
-        } catch {
-          // Ignore storage errors in dev
-        }
-      }
+      schedulePhase1CacheWrite(snapshot)
       return snapshot
     } finally {
       phase1Promise = null
@@ -296,8 +322,7 @@ export function useRiverFeedPhased() {
 
     if (!phase2Promise) {
       phase2Promise = (async () => {
-        const store = getFeedStoreSnapshot()
-        const res = await api.feed(store.cursor ?? undefined, undefined)
+        const res = await api.feed(undefined, undefined)
         return toCachedSnapshot({
           items: res.items ?? [],
           cursor: res.nextCursor ?? null,
@@ -400,42 +425,39 @@ export function useRiverFeedPhased() {
   useEffect(() => {
     if (!state.phase1Complete || state.status === 'phase2-loading' || phase2Snapshot) return
 
-    let rafId1: number
-    let rafId2: number
+    let rafId: number
     let taskHandle: { abort: () => void } | null = null
     let timeoutId: ReturnType<typeof setTimeout>
 
-    // Double RAF ensures paint is committed and layout is stable
-    rafId1 = requestAnimationFrame(() => {
-      rafId2 = requestAnimationFrame(() => {
-        // Use scheduler.postTask if available (Chrome/modern browsers)
-        // Falls back to setTimeout for older browsers
-        if ('scheduler' in window && 'postTask' in (window as { scheduler?: { postTask?: unknown } }).scheduler!) {
-          const scheduler = (window as {
-            scheduler: {
-              postTask: (fn: () => void, opts?: { priority?: string }) => { abort: () => void }
-            }
-          }).scheduler
-          const maybeHandle = scheduler.postTask(
-            () => {
-              if (!isLoadingStatus(getFeedStoreSnapshot().status)) {
-                loadPhase2()
-              }
-            },
-            { priority: 'background' }
-          )
-          if (maybeHandle && typeof (maybeHandle as { abort?: unknown }).abort === 'function') {
-            taskHandle = maybeHandle as { abort: () => void }
+    // Single RAF ensures paint is committed before scheduling work.
+    rafId = requestAnimationFrame(() => {
+      // Use scheduler.postTask if available (Chrome/modern browsers)
+      // Falls back to setTimeout for older browsers
+      if ('scheduler' in window && 'postTask' in (window as { scheduler?: { postTask?: unknown } }).scheduler!) {
+        const scheduler = (window as {
+          scheduler: {
+            postTask: (fn: () => void, opts?: { priority?: string }) => { abort: () => void }
           }
-        } else {
-          // Fallback: setTimeout(0) to avoid microtask flooding
-          timeoutId = setTimeout(() => {
+        }).scheduler
+        const maybeHandle = scheduler.postTask(
+          () => {
             if (!isLoadingStatus(getFeedStoreSnapshot().status)) {
               loadPhase2()
             }
-          }, 0)
+          },
+          { priority: 'background' }
+        )
+        if (maybeHandle && typeof (maybeHandle as { abort?: unknown }).abort === 'function') {
+          taskHandle = maybeHandle as { abort: () => void }
         }
-      })
+      } else {
+        // Fallback: setTimeout(0) to avoid microtask flooding
+        timeoutId = setTimeout(() => {
+          if (!isLoadingStatus(getFeedStoreSnapshot().status)) {
+            loadPhase2()
+          }
+        }, 0)
+      }
     })
 
     // Safety timeout for slow devices (max 500ms delay)
@@ -446,8 +468,7 @@ export function useRiverFeedPhased() {
     }, 500)
 
     return () => {
-      if (rafId1) cancelAnimationFrame(rafId1)
-      if (rafId2) cancelAnimationFrame(rafId2)
+      if (rafId) cancelAnimationFrame(rafId)
       if (taskHandle) taskHandle.abort()
       if (timeoutId) clearTimeout(timeoutId)
       if (safetyTimeout) clearTimeout(safetyTimeout)

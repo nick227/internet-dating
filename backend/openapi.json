@@ -1222,14 +1222,18 @@
         "enum": [
           "NONE",
           "PENDING",
-          "GRANTED"
+          "GRANTED",
+          "DENIED",
+          "REVOKED",
+          "CANCELED"
         ]
       },
       "MediaType": {
         "type": "string",
         "enum": [
           "IMAGE",
-          "VIDEO"
+          "VIDEO",
+          "AUDIO"
         ]
       },
       "MediaStatus": {
@@ -2278,6 +2282,21 @@
           "id"
         ]
       },
+      "FollowRequestRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AccessStatus"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
       "InboxMessage": {
         "type": "object",
         "properties": {
@@ -2293,13 +2312,27 @@
           },
           "senderId": {
             "$ref": "#/components/schemas/Id"
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "followRequest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FollowRequestRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "id",
           "body",
           "createdAt",
-          "senderId"
+          "senderId",
+          "isSystem"
         ]
       },
       "InboxConversation": {
@@ -2366,13 +2399,27 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "followRequest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FollowRequestRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "id",
           "body",
           "senderId",
-          "createdAt"
+          "createdAt",
+          "isSystem"
         ]
       },
       "MessageListResponse": {

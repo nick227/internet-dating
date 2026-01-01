@@ -1,0 +1,26 @@
+import type { JobDefinition } from './types.js';
+import { parseIntArg, parseBigIntArg, getEnvVar } from './utils.js';
+import { runMatchScoreJob } from '../../src/jobs/matchScoreJob.js';
+
+export const matchScoresJob: JobDefinition = {
+  name: 'match-scores',
+  description: 'Compute match scores between users',
+  examples: [
+    'tsx scripts/runJobs.ts match-scores --userId=8 --batchSize=100 --candidateBatchSize=500'
+  ],
+  run: async () => {
+    const userId = parseBigIntArg('--userId');
+    const userBatchSize = parseIntArg('--batchSize', 100);
+    const candidateBatchSize = parseIntArg('--candidateBatchSize', 500);
+    const pauseMs = parseIntArg('--pauseMs', 50);
+    const algorithmVersion = getEnvVar('MATCH_ALGO_VERSION', 'v1');
+
+    await runMatchScoreJob({
+      userId,
+      userBatchSize,
+      candidateBatchSize,
+      pauseMs,
+      algorithmVersion
+    });
+  }
+};
