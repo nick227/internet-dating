@@ -488,6 +488,41 @@
   margin-top: 4px;
 }
 
+/* Error Display */
+.interests-portal__error {
+  grid-column: 1 / -1;
+  padding: 24px;
+  background: rgba(251, 113, 133, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 16px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.interests-portal__error p {
+  margin: 0 0 16px 0;
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.interests-portal__error-retry {
+  padding: 10px 20px;
+  background: var(--danger);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.interests-portal__error-retry:hover {
+  background: #f43f5e;
+  transform: translateY(-1px);
+}
+
 /* Mobile Optimizations */
 @media (max-width: 639px) {
   .interest-list {

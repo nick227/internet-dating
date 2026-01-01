@@ -18,6 +18,7 @@ export function InterestsPortalPage() {
     hasMore,
     loadMore,
     updateItemSelection,
+    error,
   } = useInterestsDiscovery(selectedSubjectId, '')
   
   const { selectInterest, deselectInterest, isProcessing } = useInterestSelection()
@@ -31,16 +32,11 @@ export function InterestsPortalPage() {
       if (selected) {
         // Currently selected, so deselect
         await deselectInterest(interestId)
-        // Confirm state after successful deselect
-        updateItemSelection(interestId, false)
       } else {
         // Currently not selected, so select
-        const result = await selectInterest(interestId)
-        if (result) {
-          // Confirm state after successful select
-          updateItemSelection(interestId, true)
-        }
+        await selectInterest(interestId)
       }
+      // State already updated optimistically, no need to update again
     } catch (e) {
       // Revert on error - restore original state
       updateItemSelection(interestId, selected)
@@ -55,11 +51,8 @@ export function InterestsPortalPage() {
     updateItemSelection(interest.id, true)
 
     try {
-      const result = await selectInterest(interest.id)
-      if (result) {
-        // Update with server response
-        updateItemSelection(interest.id, true)
-      }
+      await selectInterest(interest.id)
+      // State already updated optimistically
     } catch (e) {
       // Revert on error
       updateItemSelection(interest.id, false)
@@ -68,10 +61,10 @@ export function InterestsPortalPage() {
   }, [selectInterest, updateItemSelection])
 
   const handleNewInterestSubmit = useCallback(async (text: string) => {
-    // For now, just show a message that they should select from suggestions
-    // In the future, this could create a new interest
-    console.log('New interest submitted:', text)
-    // You could add an API call here to create a new interest if needed
+    // Note: Currently, users must select from existing interests
+    // In the future, this could create a new interest via API
+    console.log('New interest submitted (not yet implemented):', text)
+    // TODO: Add API endpoint to create new interests if needed
   }, [])
 
   return (
@@ -105,6 +98,18 @@ export function InterestsPortalPage() {
       </div>
       
       <div className="interests-portal__grid">
+        {error && (
+          <div className="interests-portal__error">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="interests-portal__error-retry"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+          </div>
+        )}
         <InterestList
           items={items}
           loading={loading}
