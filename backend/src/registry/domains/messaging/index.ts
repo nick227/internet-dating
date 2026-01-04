@@ -6,6 +6,9 @@ import { assertConversationParticipant } from '../../../lib/auth/guards.js';
 import { parseLimit, parseOptionalPositiveBigInt, parsePositiveBigInt } from '../../../lib/http/parse.js';
 import { toAvatarUrl } from '../../../services/media/presenter.js';
 import { getCompatibilityMap, resolveCompatibility } from '../../../services/compatibility/compatibilityService.js';
+import { notify } from '../../../ws/notify.js';
+import type { WsMessage, WsSubscribeTopic } from '@app/shared/ws/contracts';
+import type { ServerEventType, WsEvents } from '@app/shared/ws/contracts';
 
 export const messagingDomain: DomainRegistry = {
   domain: 'messaging',
@@ -258,13 +261,32 @@ export const messagingDomain: DomainRegistry = {
               ]
             }
           },
-          select: { id: true, createdAt: true }
+          select: { id: true, body: true, senderId: true, createdAt: true, isSystem: true }
         });
 
         // bump conversation updatedAt
         await prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
 
-        return json(res, msg, 201);
+        // Emit WebSocket event for real-time delivery
+        const event: WsMessage<'server.messenger.message_new'> = {
+          type: 'server.messenger.message_new',
+          data: {
+            conversationId: String(conversationId),
+            messageId: String(msg.id),
+            senderId: String(msg.senderId),
+            body: msg.body,
+            createdAt: msg.createdAt.toISOString(),
+            isSystem: msg.isSystem,
+          },
+          ts: Date.now(),
+        };
+        const targets: WsSubscribeTopic[] = [
+          { kind: 'conversation', id: String(conversationId) },
+          { kind: 'user', id: String(otherUserId) },
+        ];
+        notify({ event, targets });
+
+        return json(res, { id: msg.id, createdAt: msg.createdAt }, 201);
       }
     },
     {
@@ -282,17 +304,34 @@ export const messagingDomain: DomainRegistry = {
 
         const message = await prisma.message.findUnique({
           where: { id: messageId },
-          select: { id: true, conversationId: true }
+          select: { id: true, conversationId: true, senderId: true }
         });
         if (!message) return json(res, { error: 'Message not found' }, 404);
 
         const guard = await assertConversationParticipant(message.conversationId, me);
         if (!guard.ok) return json(res, { error: guard.error }, guard.status);
 
+        const readAt = new Date();
         await prisma.messageReceipt.update({
           where: { messageId_userId: { messageId, userId: me } },
-          data: { readAt: new Date() }
+          data: { readAt }
         }).catch(() => null);
+
+        // Emit WebSocket event for real-time read receipt
+        const event: WsMessage<'server.messenger.message_read'> = {
+          type: 'server.messenger.message_read',
+          data: {
+            conversationId: String(message.conversationId),
+            messageId: String(messageId),
+            readerId: String(me),
+            readAt: readAt.toISOString(),
+          },
+          ts: Date.now(),
+        };
+        const targets: WsSubscribeTopic[] = [
+          { kind: 'user', id: String(message.senderId) },
+        ];
+        notify({ event, targets });
 
         return json(res, { ok: true });
       }

@@ -4,6 +4,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { SmartTextarea, type DetectedMedia } from '../form/SmartTextarea'
 import { TagInput } from '../form/TagInput'
 import type { FileWithPreview, LinkPreviewState, UploadProgress } from './postComposerState'
+import type { FeedTarget } from './usePostFormState'
 
 type ProgressMeta = {
   completed: number
@@ -18,8 +19,12 @@ type Props = {
   textInputRef: RefObject<HTMLDivElement>
   maxTextLength: number
   visibility: 'PUBLIC' | 'PRIVATE'
+  feedTarget: FeedTarget
+  targetUserId: string | null
   busy: boolean
   onVisibilityChange: (visibility: 'PUBLIC' | 'PRIVATE') => void
+  onFeedTargetChange: (feedTarget: FeedTarget) => void
+  onTargetUserIdChange: (targetUserId: string | null) => void
   files: FileWithPreview[]
   uploadProgress: Record<string, UploadProgress>
   progressMeta: ProgressMeta
@@ -48,8 +53,12 @@ export function PostContentModalBody({
   textInputRef,
   maxTextLength,
   visibility,
+  feedTarget,
+  targetUserId,
   busy,
   onVisibilityChange,
+  onFeedTargetChange,
+  onTargetUserIdChange,
   files,
   uploadProgress,
   progressMeta,
@@ -88,6 +97,14 @@ export function PostContentModalBody({
         inputTestId="post-content-text"
         onDetectMedia={onDetectMedia}
         replaceOnDetect={false}
+      />
+
+      <FeedSelector
+        feedTarget={feedTarget}
+        targetUserId={targetUserId}
+        busy={busy}
+        onFeedTargetChange={onFeedTargetChange}
+        onTargetUserIdChange={onTargetUserIdChange}
       />
 
       <VisibilityToggle
@@ -155,6 +172,65 @@ type VisibilityProps = {
   visibility: 'PUBLIC' | 'PRIVATE'
   busy: boolean
   onVisibilityChange: (visibility: 'PUBLIC' | 'PRIVATE') => void
+}
+
+type FeedSelectorProps = {
+  feedTarget: FeedTarget
+  targetUserId: string | null
+  busy: boolean
+  onFeedTargetChange: (feedTarget: FeedTarget) => void
+  onTargetUserIdChange: (targetUserId: string | null) => void
+}
+
+function FeedSelector({ feedTarget, targetUserId, busy, onFeedTargetChange, onTargetUserIdChange }: FeedSelectorProps) {
+  return (
+    <div className="u-row u-gap-3" style={{ alignItems: 'center' }}>
+      <label style={{ fontSize: 'var(--fs-2)', color: 'var(--muted)' }}>Post to:</label>
+      <div className="u-row u-gap-2">
+        <button
+          className={`topBar__btn ${feedTarget === 'profile' ? 'topBar__btn--primary' : ''}`}
+          type="button"
+          onClick={() => {
+            onFeedTargetChange('profile')
+            onTargetUserIdChange(null)
+          }}
+          disabled={busy}
+          data-testid="post-content-feed-profile"
+        >
+          Profile
+        </button>
+        <button
+          className={`topBar__btn ${feedTarget === 'main' ? 'topBar__btn--primary' : ''}`}
+          type="button"
+          onClick={() => {
+            onFeedTargetChange('main')
+            onTargetUserIdChange(null)
+          }}
+          disabled={busy}
+          data-testid="post-content-feed-main"
+        >
+          Main Feed
+        </button>
+        <button
+          className={`topBar__btn ${feedTarget === 'both' ? 'topBar__btn--primary' : ''}`}
+          type="button"
+          onClick={() => {
+            onFeedTargetChange('both')
+            onTargetUserIdChange(null)
+          }}
+          disabled={busy}
+          data-testid="post-content-feed-both"
+        >
+          Both
+        </button>
+      </div>
+      <span className="profile__meta" style={{ fontSize: 'var(--fs-1)' }}>
+        {feedTarget === 'profile' && 'Your profile feed only'}
+        {feedTarget === 'main' && 'Main site feed only'}
+        {feedTarget === 'both' && 'Both feeds'}
+      </span>
+    </div>
+  )
 }
 
 function VisibilityToggle({ visibility, busy, onVisibilityChange }: VisibilityProps) {

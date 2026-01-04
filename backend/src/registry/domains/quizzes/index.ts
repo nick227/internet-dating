@@ -53,6 +53,41 @@ export const quizzesDomain: DomainRegistry = {
       }
     },
     {
+      id: 'quizzes.GET./quizzes/:quizId',
+      method: 'GET',
+      path: '/quizzes/:quizId',
+      auth: Auth.public(),
+      summary: 'Get quiz by id',
+      tags: ['quizzes'],
+      handler: async (req, res) => {
+        const quizParsed = parsePositiveBigInt(req.params.quizId, 'quizId');
+        if (!quizParsed.ok) return json(res, { error: quizParsed.error }, 400);
+        const quizId = quizParsed.value;
+
+        const quiz = await prisma.quiz.findUnique({
+          where: { id: quizId },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            tags: { select: { slug: true, label: true } },
+            questions: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                prompt: true,
+                order: true,
+                options: { orderBy: { order: 'asc' }, select: { id: true, label: true, value: true, order: true } }
+              }
+            }
+          }
+        });
+
+        if (!quiz) return json(res, { error: 'Quiz not found' }, 404);
+        return json(res, { quiz });
+      }
+    },
+    {
       id: 'quizzes.GET./quizzes',
       method: 'GET',
       path: '/quizzes',

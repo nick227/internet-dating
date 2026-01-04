@@ -99,7 +99,16 @@ export type FeedCardPresentation = {
 
 export type FeedCardComments = {
   intent?: 'ask' | 'react' | 'respond'
-  preview?: Array<{ id: string; text: string }>
+  preview?: Array<{
+    id: string
+    text: string
+    author?: {
+      id: string
+      name: string
+      avatarUrl?: string
+    }
+  }>
+  count?: number // Total comment count
 }
 
 export type FeedCardFlags = {
@@ -159,9 +168,15 @@ export type ProfileAccessInfo = {
 
 export type ProfilePost = {
   id: Id
+  userId: Id
   text?: string
   createdAt: string
   visibility?: Visibility
+  author?: {
+    id: Id
+    displayName: string | null
+    avatarUrl: string | null
+  }
   media?: ProfileMedia[]
 }
 

@@ -26,12 +26,50 @@ model Comment {
   parentId         BigInt?
   rootId           BigInt?
 
+  // Cached counters (updated atomically, not computed on-read)
+  likeCount    Int      @default(0)
+  replyCount   Int      @default(0)  // Direct replies only
+
   author           User          @relation(fields: [authorId], references: [id])
+  
+  // Relations
+  likes     CommentLike[]
+  mentions  CommentMention[]
+  replies   Comment[]      @relation("CommentReplies")
+  parent    Comment?       @relation("CommentReplies", fields: [parentId], references: [id])
 
   @@unique([authorId, targetKind, targetId, clientRequestId])
   @@index([targetKind, targetId, createdAt])
   @@index([targetKind, targetId, rootId, createdAt])
+  @@index([targetKind, targetId, likeCount, createdAt])  // For sorting by popularity
   @@index([authorId, createdAt])
   @@index([parentId])
   @@index([rootId])
+}
+
+model CommentLike {
+  id        BigInt   @id @default(autoincrement())
+  commentId BigInt
+  userId    BigInt
+  createdAt DateTime @default(now())
+  
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@unique([commentId, userId])
+  @@index([commentId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model CommentMention {
+  id        BigInt   @id @default(autoincrement())
+  commentId BigInt
+  userId    BigInt   // Mentioned user
+  
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation("MentionedUser", fields: [userId], references: [id])
+  
+  @@unique([commentId, userId])  // One mention per user per comment
+  @@index([commentId])
+  @@index([userId])
 }

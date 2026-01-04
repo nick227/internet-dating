@@ -1,18 +1,19 @@
+/**
+ * Simplified link preview handling for post composer
+ */
 import { useEffect, useRef } from 'react'
-import type { Dispatch } from 'react'
 import type { DetectedMedia } from '../form/SmartTextarea'
 import { fetchLinkPreview } from '../../core/media/linkPreview'
-import type { LinkPreviewState, PostComposerAction } from './postComposerState'
+import type { LinkPreview } from '../../core/media/linkPreview'
+import type { LinkPreviewState } from './postComposerState'
 
-type Options = {
-  detected: DetectedMedia[]
-  linkPreviews: Record<string, LinkPreviewState>
-  dispatch: Dispatch<PostComposerAction>
-}
-
-export function usePostLinkPreviews({ detected, linkPreviews, dispatch }: Options) {
-  const previewsRef = useRef(linkPreviews)
+export function usePostLinkPreviews(
+  detected: DetectedMedia[],
+  linkPreviews: Record<string, LinkPreviewState>,
+  onSetLinkPreview: (url: string, preview: LinkPreview | null, loading: boolean) => void
+) {
   const controllersRef = useRef<Map<string, AbortController>>(new Map())
+  const previewsRef = useRef(linkPreviews)
 
   useEffect(() => {
     previewsRef.current = linkPreviews
@@ -23,6 +24,7 @@ export function usePostLinkPreviews({ detected, linkPreviews, dispatch }: Option
     const activeUrls = new Set(detected.map(item => item.url))
     const controllers = controllersRef.current
 
+    // Cancel previews for URLs no longer detected
     controllers.forEach((controller, url) => {
       if (!activeUrls.has(url)) {
         controller.abort()
@@ -30,33 +32,33 @@ export function usePostLinkPreviews({ detected, linkPreviews, dispatch }: Option
       }
     })
 
+    // Start previews for new URLs
     const pending = detected.filter(item => !current[item.url] && !controllers.has(item.url))
 
     pending.forEach(item => {
       const controller = new AbortController()
       controllers.set(item.url, controller)
-      dispatch({ type: 'linkPreviewStart', url: item.url })
+      onSetLinkPreview(item.url, null, true)
       fetchLinkPreview(item.url, controller.signal)
         .then(preview => {
           if (controller.signal.aborted) return
-          dispatch({ type: 'linkPreviewSuccess', url: item.url, preview })
+          onSetLinkPreview(item.url, preview, false)
         })
         .catch(() => {
           if (controller.signal.aborted) return
-          dispatch({ type: 'linkPreviewFailure', url: item.url })
+          onSetLinkPreview(item.url, null, false)
         })
         .finally(() => {
           controllers.delete(item.url)
         })
     })
-
-  }, [detected, dispatch])
+  }, [detected, linkPreviews, onSetLinkPreview])
 
   useEffect(() => {
-    const controllers = controllersRef
+    const controllers = controllersRef.current
     return () => {
-      controllers.current.forEach(controller => controller.abort())
-      controllers.current.clear()
+      controllers.forEach(controller => controller.abort())
+      controllers.clear()
     }
   }, [])
 }

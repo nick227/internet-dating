@@ -6,7 +6,6 @@ type RiverCardActionsProps = {
   onToast?: (message: string) => void
   initialRating?: FeedCardStats['myRating'] | null
   onRated?: (rating: NonNullable<FeedCardStats['myRating']>) => void
-  onComment?: () => void
   commentLabel?: string
 }
 
@@ -15,8 +14,6 @@ export function RiverCardActions({
   onToast,
   initialRating,
   onRated,
-  onComment,
-  commentLabel,
 }: RiverCardActionsProps) {
   if (!actorId) return null
 
@@ -27,8 +24,6 @@ export function RiverCardActions({
         onToast={onToast}
         initialRating={initialRating ?? null}
         onRated={onRated}
-        onComment={onComment}
-        commentLabel={commentLabel}
       />
     </div>
   )

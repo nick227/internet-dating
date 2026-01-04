@@ -1,19 +1,22 @@
 model Post {
-  id          BigInt     @id @default(autoincrement())
-  userId      BigInt
-  user        User       @relation(fields: [userId], references: [id])
-  visibility  Visibility @default(PUBLIC)
-  text        String?    @db.Text
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
-  media       PostMedia[]
-  likes       LikedPost[]
-  stats       PostStats?
-  features    PostFeatures?
-  trending    TrendingScore?
+  id                 BigInt     @id @default(autoincrement())
+  userId             BigInt
+  user               User       @relation(fields: [userId], references: [id])
+  targetProfileUserId BigInt?
+  targetProfile      User?      @relation("PostTargetProfile", fields: [targetProfileUserId], references: [id])
+  visibility         Visibility @default(PUBLIC)
+  text               String?    @db.Text
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
+  media              PostMedia[]
+  likes              LikedPost[]
+  stats              PostStats?
+  features           PostFeatures?
+  trending           TrendingScore?
   @@index([visibility, deletedAt, createdAt])
   @@index([userId, deletedAt, createdAt])
+  @@index([targetProfileUserId, deletedAt, createdAt])
   @@index([deletedAt])
 }
 

@@ -6,120 +6,104 @@ import { InterestFilterBar } from '../interests-portal/InterestFilterBar'
 import { InterestList } from '../interests-portal/InterestList'
 import { InterestSearchTextarea } from '../interests-portal/InterestSearchTextarea'
 import type { InterestItem } from '../../api/client'
+import { PersonalityPortalFrame } from '../personality-portal/PersonalityPortalFrame'
 
-export function InterestsPortalPage() {
+type InterestsPortalPageProps = {
+  variant?: 'standalone' | 'embedded'
+}
+
+export function InterestsPortalPage({ variant = 'standalone' }: InterestsPortalPageProps) {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
+  const isEmbedded = variant === 'embedded'
   
   const { subjects, loading: subjectsLoading } = useInterestsSubjects()
+  const { toggle, reconcile, isProcessing, isSelected } = useInterestSelection()
   const {
     items,
     loading,
     loadingMore,
     hasMore,
     loadMore,
-    updateItemSelection,
     error,
-  } = useInterestsDiscovery(selectedSubjectId, '')
-  
-  const { selectInterest, deselectInterest, isProcessing } = useInterestSelection()
+  } = useInterestsDiscovery(selectedSubjectId, '', reconcile)
 
-  const handleToggle = useCallback(async (interestId: string, selected: boolean) => {
-    // Optimistic update - toggle to opposite state
-    const newState = !selected
-    updateItemSelection(interestId, newState)
-
+  const handleToggle = useCallback(async (interestId: string) => {
     try {
-      if (selected) {
-        // Currently selected, so deselect
-        await deselectInterest(interestId)
-      } else {
-        // Currently not selected, so select
-        await selectInterest(interestId)
-      }
-      // State already updated optimistically, no need to update again
+      await toggle(interestId)
     } catch (e) {
-      // Revert on error - restore original state
-      updateItemSelection(interestId, selected)
       console.error('Failed to toggle interest:', e)
     }
-  }, [selectInterest, deselectInterest, updateItemSelection])
+  }, [toggle])
 
   const handleInterestSelect = useCallback(async (interest: InterestItem) => {
-    if (interest.selected) return
-
-    // Optimistic update
-    updateItemSelection(interest.id, true)
-
+    if (isSelected(interest.id)) return
     try {
-      await selectInterest(interest.id)
-      // State already updated optimistically
+      await toggle(interest.id)
     } catch (e) {
-      // Revert on error
-      updateItemSelection(interest.id, false)
       console.error('Failed to select interest:', e)
     }
-  }, [selectInterest, updateItemSelection])
+  }, [isSelected, toggle])
 
   const handleNewInterestSubmit = useCallback(async (text: string) => {
     // Note: Currently, users must select from existing interests
     // In the future, this could create a new interest via API
-    console.log('New interest submitted (not yet implemented):', text)
+    console.log('Newbbb interest submitted (not yet implemented):', text)
     // TODO: Add API endpoint to create new interests if needed
   }, [])
 
+  const searchBlock = !subjectsLoading ? (
+    <div className="portal-shell__search">
+      <InterestSearchTextarea
+        subjectId={selectedSubjectId}
+        onInterestSelect={handleInterestSelect}
+        onNewInterestSubmit={handleNewInterestSubmit}
+        placeholder="Type to search or add interests..."
+      />
+    </div>
+  ) : null
+
   return (
-    <div className="interests-portal">
-      <div className="interests-portal__hero">
-        <div className="interests-portal__hero-content">
-          <h1 className="interests-portal__title">Your Interests</h1>
-          <p className="interests-portal__subtitle">
-            We use this to find better connections.
-          </p>
+    <PersonalityPortalFrame variant={variant}>
+      <div className="interests-portal">
+        <div className="portal-shell__body">
+          {searchBlock}
+          <div className={`portal-shell__filters${isEmbedded ? '' : ' portal-shell__filters--sticky'}`}>
+            <InterestFilterBar
+              subjects={subjects}
+              selectedSubjectId={selectedSubjectId}
+              onSubjectChange={setSelectedSubjectId}
+            />
+          </div>
           
-          {!subjectsLoading && (
-            <div className="interests-portal__search">
-              <InterestSearchTextarea
-                subjectId={selectedSubjectId}
-                onInterestSelect={handleInterestSelect}
-                onNewInterestSubmit={handleNewInterestSubmit}
-                placeholder="Type to search or add interests..."
-              />
-            </div>
-          )}
+          <div className="portal-shell__main interests-portal__grid">
+            {error && (
+              <div className="interests-portal__error">
+                <p>{error}</p>
+                <button
+                  type="button"
+                  className="interests-portal__error-retry"
+                  onClick={() => window.location.reload()}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          <InterestList
+            items={items.map(item => ({
+              ...item,
+              selected: isSelected(item.id),
+            }))}
+            loading={loading}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            onToggle={handleToggle}
+            isProcessing={isProcessing}
+            isFiltered={Boolean(selectedSubjectId)}
+          />
         </div>
       </div>
-
-      <div className="interests-portal__filters">
-        <InterestFilterBar
-          subjects={subjects}
-          selectedSubjectId={selectedSubjectId}
-          onSubjectChange={setSelectedSubjectId}
-        />
       </div>
-      
-      <div className="interests-portal__grid">
-        {error && (
-          <div className="interests-portal__error">
-            <p>{error}</p>
-            <button
-              type="button"
-              className="interests-portal__error-retry"
-              onClick={() => window.location.reload()}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-        <InterestList
-          items={items}
-          loading={loading}
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          onLoadMore={loadMore}
-          onToggle={handleToggle}
-          isProcessing={isProcessing}
-        />
-      </div>
-    </div>
+    </PersonalityPortalFrame>
   )
 }

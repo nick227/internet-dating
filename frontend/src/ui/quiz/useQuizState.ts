@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../core/auth/useAuth'
 import { useActiveQuiz } from '../../core/quiz/useActiveQuiz'
+import { useQuizById } from '../../core/quiz/useQuizById'
 import { getErrorMessage } from '../../core/utils/errors'
 import { AnswerMap, Quiz } from './types'
 
@@ -62,11 +63,13 @@ function quizReducer(state: QuizState, action: Action): QuizState {
   }
 }
 
-export function useQuizState() {
+export function useQuizState(quizId?: string) {
   const nav = useNavigate()
   const location = useLocation()
   const { userId } = useAuth()
-  const { data, loading, error } = useActiveQuiz()
+  const byIdResponse = useQuizById(quizId)
+  const activeResponse = useActiveQuiz(!quizId)
+  const { data, loading, error } = quizId ? byIdResponse : activeResponse
   
   // Cast data.quiz to our local Quiz type if it matches structurally
   const quiz = (data?.quiz as unknown as Quiz) ?? null

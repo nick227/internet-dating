@@ -53,7 +53,7 @@ const MediaViewer = lazy(() => import('../ui/MediaViewer').then(m => ({ default:
 export function AppShell({ children }: { children: ReactNode }) {
   const currentUser = useCurrentUser()
   const { logout } = useLogout()
-  const { goToFeed, goToLogin, goToProfile, goToQuizPortalPage, goToInterestsPortalPage } = useAppNavigation()
+  const { goToFeed, goToLogin, goToProfile } = useAppNavigation()
   const { openModal, openControlPanel, openPost, closeModal } = useModalState()
   const { triggerAuthChange } = useDebouncedAuthChange()
 
@@ -79,14 +79,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (userId) {
       goToProfile(userId)
     }
-  }
-
-  const onQuizClick = () => {
-    goToQuizPortalPage()
-  }
-
-  const onInterestsClick = () => {
-    goToInterestsPortalPage()
   }
 
   // Disable logout during initial load to prevent race conditions
@@ -134,8 +126,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               onSignup={() => goToLogin('signup')}
               onLogout={handleLogout}
               onUserClick={handleUserClick}
-              onQuizClick={onQuizClick}
-              onInterestsClick={onInterestsClick}
             />
             {!isLoading && userId && (
               <>
@@ -173,7 +163,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 openModal={openModal}
                 component={MediaViewer}
                 props={{
-                  open: openModal === 'mediaViewer',
                   onClose: closeModal,
                 }}
               />

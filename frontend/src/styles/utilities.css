@@ -81,6 +81,7 @@
   font-size: var(--fs-4);
   line-height: var(--lh-normal);
   color: var(--muted);
+  white-space: pre-line;
 }
 .u-input {
   height: 46px;

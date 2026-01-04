@@ -1,12 +1,12 @@
-import { memo, useCallback } from 'react'
-import type { FeedCard } from '../../api/types'
+import { memo, useCallback, useState } from 'react'
+import type { FeedCard, FeedCardStats } from '../../api/types'
 import type { WsPresenceStatus } from '@app/shared/ws/contracts'
 import { RiverCardFrame } from './RiverCardFrame'
 import { RiverCardBody } from './RiverCardBody'
-import { RiverCardCommentsInline } from './RiverCardCommentsInline'
+import { CommentWidget } from './CommentWidget'
 import { RiverCardEngagement } from './RiverCardEngagement'
 import { RiverCardActions } from './RiverCardActions'
-import { useRiverCardState } from './useRiverCardState'
+import { useRiverCardCommentAdapter } from './useRiverCardState'
 
 type PostCardProps = {
   card: FeedCard
@@ -25,22 +25,44 @@ function PostCardComponent({
 }: PostCardProps) {
   const {
     actorId,
-    commentLabel,
-    commentEntries,
-    commentOpen,
     mergedStats,
-    toggleComment,
-    submitComment,
     handleRated,
-  } = useRiverCardState(card)
+    setAuthoritativeCommentCount,
+  } = useRiverCardCommentAdapter(card)
 
-  const handleSubmitComment = useCallback(
-    (text: string) => {
-      submitComment(text).catch(() => {
-        onToast?.('Comment failed')
-      })
+  const [commentOpen, setCommentOpen] = useState(false)
+
+  const handleToggleComments = useCallback(() => {
+    setCommentOpen(prev => !prev)
+  }, [])
+
+  // Adapter: Bridges authoritative count from widget (single writer) to card (read-only display)
+  // Card state is READ-ONLY - only updates via setAuthoritativeCommentCount (enforced)
+  // Widget owns all mutations - this adapter just syncs the count
+  const handleCommentPosted = useCallback(
+    (authoritativeCount: number | undefined) => {
+      // Use adapter method (enforces single-writer pattern)
+      // If undefined, keep current count (will update on feed refresh)
+      if (authoritativeCount !== undefined) {
+        setAuthoritativeCommentCount(authoritativeCount)
+      }
     },
-    [submitComment, onToast]
+    [setAuthoritativeCommentCount]
+  )
+  
+  // TODO Phase 1: Add handlers for other mutation events
+  // const handleCommentRemoved = useCallback((authoritativeCount: number) => {
+  //   setAuthoritativeCommentCount(authoritativeCount)
+  // })
+  // const handleCommentHidden = useCallback((authoritativeCount: number) => {
+  //   setAuthoritativeCommentCount(authoritativeCount)
+  // })
+
+  const handleMentionClick = useCallback(
+    (userId: string) => {
+      onOpenProfile(userId)
+    },
+    [onOpenProfile]
   )
 
   return (
@@ -49,14 +71,17 @@ function PostCardComponent({
       presenceStatus={presenceStatus}
       position={position}
       onOpenProfile={onOpenProfile}
+      commentWidgetOpen={commentOpen}
     >
       <RiverCardBody content={card.content} />
-      <RiverCardCommentsInline
-        comments={card.comments}
-        entries={commentEntries}
-        open={commentOpen}
-        onSubmit={handleSubmitComment}
-        label={commentLabel}
+      <CommentWidget
+        postId={card.id}
+        initialCommentCount={card.comments?.count ?? mergedStats?.commentCount ?? 0}
+        isOpen={commentOpen}
+        onToggle={handleToggleComments}
+        onMentionClick={handleMentionClick}
+        onError={err => onToast?.(err.message)}
+        onCommentPosted={handleCommentPosted}
       />
       <RiverCardEngagement stats={mergedStats} />
       <RiverCardActions
@@ -64,8 +89,6 @@ function PostCardComponent({
         onToast={onToast}
         initialRating={mergedStats?.myRating ?? null}
         onRated={handleRated}
-        onComment={toggleComment}
-        commentLabel={commentLabel}
       />
     </RiverCardFrame>
   )

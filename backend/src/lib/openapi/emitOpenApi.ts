@@ -93,7 +93,7 @@ const schemas = {
   DatingIntent: { type: 'string', enum: ['UNSPECIFIED', 'FRIENDS', 'CASUAL', 'LONG_TERM', 'MARRIAGE'] },
   MatchState: { type: 'string', enum: ['ACTIVE', 'BLOCKED', 'CLOSED'] },
   CompatibilityStatus: { type: 'string', enum: ['READY', 'INSUFFICIENT_DATA'] },
-  SwipeAction: { type: 'string', enum: ['LIKE', 'DISLIKE'] },
+  SwipeAction: { type: 'string', enum: ['LIKE', 'DISLIKE', 'UNLIKE'] },
   ReportReason: { type: 'string', enum: ['SPAM', 'HARASSMENT', 'IMPERSONATION', 'NUDITY', 'HATE', 'OTHER'] },
   Media: {
     type: 'object',
@@ -324,7 +324,8 @@ const schemas = {
     properties: {
       text: { type: ['string', 'null'] },
       visibility: ref('Visibility'),
-      mediaIds: { type: 'array', items: ref('Id') }
+      mediaIds: { type: 'array', items: ref('Id') },
+      targetUserId: ref('Id')
     }
   },
   PostCreateResponse: {
@@ -549,6 +550,33 @@ const schemas = {
       matchId: { anyOf: [ref('Id'), { type: 'null' }] }
     },
     required: ['ok']
+  },
+  LikeProfile: {
+    type: ['object', 'null'],
+    properties: {
+      displayName: { type: ['string', 'null'] },
+      locationText: { type: ['string', 'null'] },
+      intent: { type: ['string', 'null'] },
+      avatarUrl: { type: ['string', 'null'] }
+    }
+  },
+  LikeItem: {
+    type: 'object',
+    properties: {
+      id: ref('Id'),
+      userId: ref('Id'),
+      likedAt: { type: 'string', format: 'date-time' },
+      profile: ref('LikeProfile'),
+      compatibility: { anyOf: [ref('CompatibilitySummary'), { type: 'null' }] }
+    },
+    required: ['id', 'userId', 'likedAt', 'profile', 'compatibility']
+  },
+  LikesResponse: {
+    type: 'object',
+    properties: {
+      likes: { type: 'array', items: ref('LikeItem') }
+    },
+    required: ['likes']
   },
   MatchUserProfile: {
     type: 'object',
@@ -860,6 +888,9 @@ const routeSchemas: Record<string, { requestBody?: any; responses?: any; paramet
   'matches.POST./likes': {
     requestBody: jsonRequestBody(ref('SwipeBody')),
     responses: { '200': jsonResponse(ref('SwipeResponse')) }
+  },
+  'matches.GET./likes': {
+    responses: { '200': jsonResponse(ref('LikesResponse')) }
   },
   'matches.GET./matches': {
     responses: { '200': jsonResponse(ref('MatchListResponse')) }

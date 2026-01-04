@@ -16,18 +16,22 @@ export function useAppNavigation() {
     nav(`/profiles/${encodeURIComponent(String(userId))}`)
   }, [nav])
 
+  const goToQuizPortalPage = useCallback(() => {
+    nav('/personality/quizzes')
+  }, [nav])
+
+  const goToInterestsPortalPage = useCallback(() => {
+    nav('/personality/interests')
+  }, [nav])
+
+  const goToPersonalityPortalPage = useCallback(() => {
+    nav('/personality/quizzes')
+  }, [nav])
+
   const toUserIdString = useCallback((userId: string | number | null | undefined): string | null => {
     if (userId == null) return null
     return String(userId)
   }, [])
-
-  const goToQuizPortalPage = useCallback(() => {
-    nav('/quizzes')
-  }, [nav])
-
-  const goToInterestsPortalPage = useCallback(() => {
-    nav('/interests')
-  }, [nav])
 
   return {
     goToFeed,
@@ -35,6 +39,7 @@ export function useAppNavigation() {
     goToProfile,
     goToQuizPortalPage,
     goToInterestsPortalPage,
+    goToPersonalityPortalPage,
     toUserIdString,
   }
 }

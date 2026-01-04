@@ -5,6 +5,7 @@ model InterestSubject {
   createdAt DateTime @default(now())
   interests Interest[]
   userLinks UserInterest[]
+  userSets  InterestSubjectUserSet[]
 }
 
 model Interest {
@@ -21,6 +22,7 @@ model Interest {
   dirty InterestDirty?
   relationshipQueue InterestRelationshipQueue[]
   deltas UserInterestDelta[]
+  userSets InterestUserSet[]
   @@unique([subjectId, key])
   @@index([subjectId, key])
 }

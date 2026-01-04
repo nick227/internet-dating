@@ -33,49 +33,7 @@ export function BottomNav({ onPostClick }: Props) {
             />
           </svg>
         </IconButton>
-        <IconButton active={is('/matches')} label="Likes" onClick={() => nav('/matches')}>
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path
-              d="M12 20s-7-4.3-7-9a4.5 4.5 0 0 1 7-3.8A4.5 4.5 0 0 1 19 11c0 4.7-7 9-7 9z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </IconButton>
-        <IconButton label="Post" onClick={onPostClick} className="bottomNav__postBtn">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path
-              d="M12 5v14M5 12h14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </IconButton>
-        <IconButton active={is('/inbox')} label="Inbox" onClick={() => nav('/inbox')}>
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path
-              d="M4 6h16v12H4z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M4 7l8 6 8-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </IconButton>
-        <IconButton active={is('/followers')} label="Followers" onClick={() => nav('/followers')}>
+        <IconButton active={is('/connections')} label="Connections" onClick={() => nav('/connections/inbox')}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path
               d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
@@ -105,7 +63,108 @@ export function BottomNav({ onPostClick }: Props) {
             />
           </svg>
         </IconButton>
+        <IconButton label="Post" onClick={onPostClick} className="bottomNav__postBtn">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path
+              d="M12 5v14M5 12h14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </IconButton>
+        <IconButton active={is('/personality')} label="Personality" onClick={() => nav('/personality/quizzes')}>
+          {/* Interest tags icon: three pills with small dots */}
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            {/* pill 1 */}
+            <rect
+              x="4"
+              y="5"
+              width="16"
+              height="4"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <circle cx="7" cy="7" r="1" fill="currentColor" />
+
+            {/* pill 2 */}
+            <rect
+              x="4"
+              y="10"
+              width="12"
+              height="4"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <circle cx="7" cy="12" r="1" fill="currentColor" />
+
+            {/* pill 3 */}
+            <rect
+              x="4"
+              y="15"
+              width="14"
+              height="4"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <circle cx="7" cy="17" r="1" fill="currentColor" />
+          </svg>
+        </IconButton>
+
+        <IconButton active={is('/quizzes')} label="Quiz" onClick={() => nav('/profiles/search')}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <rect
+              x="4"
+              y="4"
+              width="7"
+              height="7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+            <rect
+              x="13"
+              y="4"
+              width="7"
+              height="7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+            <rect
+              x="4"
+              y="13"
+              width="7"
+              height="7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+            <rect
+              x="13"
+              y="13"
+              width="7"
+              height="7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </IconButton>
       </div>
     </div>
   )
 }
+

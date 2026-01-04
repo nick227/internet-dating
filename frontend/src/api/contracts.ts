@@ -68,6 +68,8 @@ export type ApiFollowingResponse = Schemas['FollowingResponse']
 // Swipes & Ratings
 export type ApiSwipeResponse = Schemas['SwipeResponse']
 export type ApiRateResponse = Schemas['OkResponse']
+export type ApiLikeItem = Schemas['LikeItem']
+export type ApiLikesResponse = Schemas['LikesResponse']
 
 // Messaging
 export type ApiInboxResponse = Schemas['InboxResponse']

@@ -11,6 +11,9 @@ import { mediaOrphanCleanupJob } from './mediaOrphanCleanup.js';
 import { mediaMetadataJob } from './mediaMetadata.js';
 import { mediaMetadataBatchJob } from './mediaMetadataBatch.js';
 import { buildUserTraitsJob } from './buildUserTraits.js';
+import { profileSearchIndexJob } from './profileSearchIndex.js';
+import { userInterestSetsJob } from './userInterestSets.js';
+import { searchableUserJob } from './searchableUser.js';
 
 const jobs: JobRegistry = {
   'match-scores': matchScoresJob,
@@ -25,6 +28,9 @@ const jobs: JobRegistry = {
   'media-metadata': mediaMetadataJob,
   'media-metadata-batch': mediaMetadataBatchJob,
   'build-user-traits': buildUserTraitsJob,
+  'profile-search-index': profileSearchIndexJob,
+  'user-interest-sets': userInterestSetsJob,
+  'searchable-user': searchableUserJob,
 };
 
 export function getJob(name: string): JobDefinition | undefined {

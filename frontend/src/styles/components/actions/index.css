@@ -25,6 +25,12 @@
 .actionBtn:active {
   transform: scale(0.99);
 }
+.actionBtn--submit {
+  padding: var(--s-4) 0;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-contrast);
+}
 .actionBtn--like {
   border-color: rgba(34, 197, 94, 0.25);
 }

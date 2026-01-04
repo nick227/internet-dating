@@ -1,0 +1,78 @@
+model ProfileSearchIndex {
+  userId        BigInt   @id
+  user          User     @relation(fields: [userId], references: [id])
+  
+  // Precomputed profile fields
+  displayName   String?
+  bio           String?  @db.Text
+  locationText  String?
+  gender        Gender
+  intent        DatingIntent
+  age           Int?     // Computed from birthdate, immutable until refresh
+  ageBucket     Int?     // 0=18-24, 1=25-34, 2=35-44, etc.
+  birthdate     DateTime? // For age recalculation
+  
+  // Location tokens (normalized)
+  locationCity  String?
+  locationState String?
+  locationCountry String?
+  
+  // Aggregated counts
+  interestCount Int      @default(0)
+  traitCount    Int      @default(0)
+  
+  // Trait summaries (JSON - key: value pairs)
+  traitSummary  Json?    // { "personality.funny": 7.5, "values.adventure": 3.2, ... }
+  
+  // Top5 keywords (extracted, normalized)
+  top5Keywords  Json?    // ["hiking", "music", "cooking", ...]
+  
+  // Visibility flags (hard safety boundary)
+  isVisible     Boolean
+  isDeleted     Boolean
+  accountCreatedAt DateTime
+  
+  // Metadata
+  updatedAt     DateTime @updatedAt
+  indexedAt     DateTime @default(now())
+  
+  @@index([isVisible, isDeleted, gender, intent])
+  @@index([ageBucket, gender, intent])
+  @@index([locationCity, locationState])
+  @@index([locationText(50)]) // Prefix index for text search
+  @@index([accountCreatedAt])
+}
+
+model InterestUserSet {
+  interestId    BigInt
+  userId        BigInt
+  interest      Interest @relation(fields: [interestId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+  
+  @@id([interestId, userId])
+  @@index([interestId])
+  @@index([userId])
+}
+
+model InterestSubjectUserSet {
+  subjectId     BigInt
+  userId        BigInt
+  subject       InterestSubject @relation(fields: [subjectId], references: [id])
+  user          User            @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+  
+  @@id([subjectId, userId])
+  @@index([subjectId])
+  @@index([userId])
+}
+
+model SearchableUser {
+  userId        BigInt   @id
+  user          User     @relation(fields: [userId], references: [id])
+  isVisible     Boolean
+  isDeleted     Boolean
+  updatedAt     DateTime @updatedAt
+  
+  @@index([isVisible, isDeleted])
+}

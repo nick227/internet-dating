@@ -15,7 +15,6 @@ export async function http<T>(
   method: HttpMethod,
   opts?: { body?: unknown; signal?: AbortSignal; headers?: Record<string, string> }
 ): Promise<T> {
-  console.log('[DEBUG] http: Starting request', { url, method, hasSignal: !!opts?.signal })
   const body = opts?.body
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
 
@@ -29,8 +28,6 @@ export async function http<T>(
       body: body == null ? undefined : isFormData ? body : JSON.stringify(body),
       signal: opts?.signal,
     })
-
-    console.log('[DEBUG] http: Response received', { url, status: res.status, ok: res.ok, contentType: res.headers.get('content-type') })
 
   const isJson = (res.headers.get('content-type') || '').includes('application/json')
   const data: unknown = isJson
@@ -48,8 +45,6 @@ export async function http<T>(
     console.error('[DEBUG] http: Request failed', { url, status: res.status, message: msg, data })
     throw new HttpError(msg || 'Request failed', res.status, data)
   }
-
-  console.log('[DEBUG] http: Request successful', { url, dataType: typeof data, isArray: Array.isArray(data), isNull: data === null, data })
   
   // Guard against null responses
   if (data === null) {

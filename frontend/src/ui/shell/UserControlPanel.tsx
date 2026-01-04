@@ -54,22 +54,12 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
   // 2. UserId changes (different user)
   // Never clear localProfile when profile becomes null during refetch
   useEffect(() => {
-    console.log('[UserControlPanel] Profile prop changed', { 
-      userId, 
-      profileUserId: profile?.userId, 
-      hasProfile: !!profile,
-      profileName: profile?.name,
-      profileIntent: profile?.intent,
-      profileGender: profile?.gender,
-    })
     
     // If userId changed, reset local profile
     if (userId !== lastUserIdRef.current) {
-      console.log('[UserControlPanel] UserId changed, resetting profile')
       lastUserIdRef.current = userId
       if (profile) {
         setLocalProfile(profile)
-        console.log('[UserControlPanel] Set local profile from new userId')
       } else {
         setLocalProfile(null)
       }
@@ -81,25 +71,13 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
       setLocalProfile(current => {
         // If we don't have a local profile, use the server one
         if (!current) {
-          console.log('[UserControlPanel] No local profile, using server profile')
           return profile
         }
         // If userIds don't match, use server one (shouldn't happen, but safety check)
         if (current.userId !== profile.userId) {
-          console.log('[UserControlPanel] UserId mismatch, using server profile')
           return profile
         }
         // Update with server data (hydration after save)
-        console.log('[UserControlPanel] Updating local profile with server data (hydration)', {
-          oldName: current.name,
-          newName: profile.name,
-          oldIntent: current.intent,
-          newIntent: profile.intent,
-          oldGender: current.gender,
-          newGender: profile.gender,
-          oldBio: current.bio,
-          newBio: profile.bio,
-        })
         return profile
       })
     }
@@ -173,7 +151,6 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
   }, [])
 
   const handleProfileSave = async () => {
-    console.log('[UserControlPanel] Save button clicked')
     if (!profileSaveFnRef.current) {
       console.warn('[UserControlPanel] Save function not ready')
       setProfileSaveError('Save function not ready. Please refresh the page.')
@@ -186,22 +163,18 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
       return
     }
     
-    console.log('[UserControlPanel] Starting save process...')
     setProfileSaving(true)
     setProfileSaveError(null)
     
     try {
       const response = await profileSaveFnRef.current()
-      console.log('[UserControlPanel] Save successful, response:', response)
       
       // Trigger profile refresh to hydrate with new values
-      console.log('[UserControlPanel] Triggering profile refresh...')
       onUpdated?.()
       
       // Wait a bit for the refresh to complete, then close modal
       // The profile will be updated via the refetch
       setTimeout(() => {
-        console.log('[UserControlPanel] Closing modal after successful save')
         setProfileSaving(false)
         onClose()
       }, 300)

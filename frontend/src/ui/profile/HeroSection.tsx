@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ProfileResponse } from '../../api/types'
 import { usePresence } from '../../core/ws/presence'
 import { useNavigate } from 'react-router-dom'
@@ -25,11 +25,37 @@ export function HeroSection({ profile, isOwner = false, onMediaUpdate, onMore }:
   const nav = useNavigate()
   const presenceStatus = usePresence(profile?.userId)
   const presenceLabel = usePresenceLabel(presenceStatus)
-  const items = useHeroItems(profile)
-  const { viewState, openPicker, closePicker } = useHeroMosaicState(items)
+  const baseItems = useHeroItems(profile)
+  const [optimisticallyRemovedSlot, setOptimisticallyRemovedSlot] = useState<number | null>(null)
+  const { viewState, openPicker, closePicker } = useHeroMosaicState(baseItems)
   const { openViewer } = useMediaViewer()
   const { openMediaViewer } = useModalState()
   const { uploadFile } = useMediaUpload()
+
+  // Apply optimistic removal to items
+  // Items array structure: [hero (index 0), media1 (index 1), media2 (index 2), ...]
+  // This matches slot indices: slot 0 = hero, slots 1-6 = media items
+  // HeroMosaic accesses items[slotIndex], so we need to preserve slot alignment
+  const items = useMemo(() => {
+    if (optimisticallyRemovedSlot === null) return baseItems
+    // Create an array that preserves slot alignment
+    // Copy baseItems but set the removed slot to undefined
+    const result: (HeroMediaItem | undefined)[] = []
+    for (let i = 0; i < baseItems.length; i++) {
+      if (i === optimisticallyRemovedSlot) {
+        result.push(undefined)
+      } else {
+        result.push(baseItems[i])
+      }
+    }
+    // Type assertion: TypeScript will see this as potentially sparse
+    return result as HeroMediaItem[]
+  }, [baseItems, optimisticallyRemovedSlot])
+
+  // Reset optimistic state when profile changes (refresh completed)
+  useEffect(() => {
+    setOptimisticallyRemovedSlot(null)
+  }, [profile?.heroUrl, profile?.posts])
 
 
   const handleTileClick = useCallback(
@@ -175,51 +201,60 @@ export function HeroSection({ profile, isOwner = false, onMediaUpdate, onMore }:
       }
       const slotIndex = viewState.pickerSlotIndex ?? 0
       
-      // Slot 0 is the hero - remove by setting to null
-      if (slotIndex === 0) {
-        await api.profileUpdate(profile.userId, { heroMediaId: null })
-      } else {
-        // For slots 1-6, remove from post media array
-        const currentItems = items
-        const currentMediaIds: string[] = []
-        
-        // Extract media IDs from slots 1-6 (skip slot 0 which is hero)
-        for (let i = 1; i < currentItems.length && i < 7; i++) {
-          if (currentItems[i]?.mediaId) {
-            currentMediaIds.push(String(currentItems[i].mediaId))
-          }
-        }
-        
-        const targetPostIndex = slotIndex - 1
-        
-        // Remove media at target position
-        const postMediaIds = currentMediaIds.filter((_, i) => i !== targetPostIndex)
-        
-        // Find existing post with media
-        const postsWithMedia = (profile.posts ?? []).filter(p => p.media && p.media.length > 0)
-        const mosaicPost = postsWithMedia.find(p => !p.text) || postsWithMedia[0]
-        
-        if (mosaicPost) {
-          if (postMediaIds.length > 0) {
-            // Delete existing post and create new one with updated media
-            // (PATCH doesn't support mediaIds, so we recreate)
-            await api.posts.delete(mosaicPost.id)
-            await api.posts.create({
-              text: null,
-              visibility: 'PUBLIC',
-              mediaIds: postMediaIds.slice(0, 6)
-            })
-          } else {
-            // Delete post if no media left
-            await api.posts.delete(mosaicPost.id)
-          }
-        }
-      }
-      
-      onMediaUpdate?.()
+      // Optimistically remove from UI immediately
+      setOptimisticallyRemovedSlot(slotIndex)
       closePicker()
+      
+      try {
+        // Slot 0 is the hero - remove by setting to null
+        if (slotIndex === 0) {
+          await api.profileUpdate(profile.userId, { heroMediaId: null })
+        } else {
+          // For slots 1-6, remove from post media array
+          const currentItems = baseItems
+          const currentMediaIds: string[] = []
+          
+          // Extract media IDs from slots 1-6 (skip slot 0 which is hero)
+          for (let i = 1; i < currentItems.length && i < 7; i++) {
+            if (currentItems[i]?.mediaId) {
+              currentMediaIds.push(String(currentItems[i].mediaId))
+            }
+          }
+          
+          const targetPostIndex = slotIndex - 1
+          
+          // Remove media at target position
+          const postMediaIds = currentMediaIds.filter((_, i) => i !== targetPostIndex)
+          
+          // Find existing post with media
+          const postsWithMedia = (profile.posts ?? []).filter(p => p.media && p.media.length > 0)
+          const mosaicPost = postsWithMedia.find(p => !p.text) || postsWithMedia[0]
+          
+          if (mosaicPost) {
+            if (postMediaIds.length > 0) {
+              // Delete existing post and create new one with updated media
+              // (PATCH doesn't support mediaIds, so we recreate)
+              await api.posts.delete(mosaicPost.id)
+              await api.posts.create({
+                text: null,
+                visibility: 'PUBLIC',
+                mediaIds: postMediaIds.slice(0, 6)
+              })
+            } else {
+              // Delete post if no media left
+              await api.posts.delete(mosaicPost.id)
+            }
+          }
+        }
+        
+        onMediaUpdate?.()
+      } catch (error) {
+        // Revert optimistic update on error
+        setOptimisticallyRemovedSlot(null)
+        throw error
+      }
     },
-    [profile?.userId, profile?.posts, items, viewState.pickerSlotIndex, onMediaUpdate, closePicker]
+    [profile?.userId, profile?.posts, baseItems, viewState.pickerSlotIndex, onMediaUpdate, closePicker]
   )
 
   const handleMore = onMore ?? (() => alert('TODO: menu'))

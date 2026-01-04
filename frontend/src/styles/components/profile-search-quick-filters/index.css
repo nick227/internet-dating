@@ -1,0 +1,55 @@
+.profile-search-quick-filters {
+  width: 100%;
+}
+
+.profile-search-quick-filters__list {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--s-1);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.profile-search-quick-filters__list::-webkit-scrollbar {
+  display: none;
+}
+
+.profile-search-quick-filters__button {
+  flex-shrink: 0;
+  height: var(--component-size-touch);
+  padding: 0 var(--s-3);
+  border-radius: 999px;
+  border: 1px solid var(--component-border-subtle);
+  background: var(--component-surface-muted);
+  color: var(--text);
+  font-size: var(--fs-2);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.profile-search-quick-filters__button:hover {
+  border-color: var(--component-border-hover);
+  background: var(--component-surface-hover);
+}
+
+.profile-search-quick-filters__button--active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.profile-search-quick-filters__button-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

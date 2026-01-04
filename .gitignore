@@ -29,3 +29,11 @@ Thumbs.db
 
 backend/uploads
 frontend/test-results
+
+private/
+art/
+artifacts/
+uploads/
+media/
+tmp/
+*.zip

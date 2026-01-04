@@ -15,6 +15,7 @@ type WsClientOptions = {
 }
 
 const DEBUG = Boolean(import.meta.env?.DEV)
+const NORMAL_CLOSE_CODES = new Set([1000, 1001])
 
 export function createWsClient(options: WsClientOptions) {
   const reconnectMinMs = options.reconnectMinMs ?? 1000
@@ -31,7 +32,6 @@ export function createWsClient(options: WsClientOptions) {
   function connect() {
     shouldReconnect = true
     if (socket && socket.readyState === WebSocket.OPEN) return
-    if (DEBUG) console.debug('[ws] connect', { url: options.url })
     socket = new WebSocket(options.url)
     socket.addEventListener('open', handleOpen)
     socket.addEventListener('message', handleMessage)
@@ -46,7 +46,6 @@ export function createWsClient(options: WsClientOptions) {
       reconnectTimer = null
     }
     if (!socket) return
-    if (DEBUG) console.debug('[ws] disconnect')
     socket.close()
   }
 
@@ -66,7 +65,6 @@ export function createWsClient(options: WsClientOptions) {
   }
 
   function subscribe(topics: WsSubscribeTopic[]) {
-    if (DEBUG) console.debug('[ws] subscribe', { topics: topics.length })
     send('client.system.subscribe', { topics })
   }
 
@@ -81,7 +79,6 @@ export function createWsClient(options: WsClientOptions) {
 
   function handleOpen() {
     reconnectAttempts = 0
-    if (DEBUG) console.debug('[ws] open')
     if (lastSubscribe !== null) {
       sendNow({
         type: 'client.system.subscribe',
@@ -109,12 +106,16 @@ export function createWsClient(options: WsClientOptions) {
   }
 
   function handleClose(event: CloseEvent) {
-    if (DEBUG) {
-      console.debug('[ws] close', {
+    if (!NORMAL_CLOSE_CODES.has(event.code) && DEBUG) {
+      console.warn('[ws] close', {
         code: event.code,
         reason: event.reason,
         wasClean: event.wasClean,
       })
+    }
+    if (event.code === 4401) {
+      shouldReconnect = false
+      return
     }
     if (!shouldReconnect) return
     scheduleReconnect()
@@ -122,7 +123,7 @@ export function createWsClient(options: WsClientOptions) {
 
   function handleError(event: Event) {
     if (DEBUG) {
-      console.debug('[ws] error', event)
+      console.warn('[ws] error', event)
       return
     }
     console.warn('WS error', event)

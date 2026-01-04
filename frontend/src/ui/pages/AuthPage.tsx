@@ -285,7 +285,7 @@ export function AuthPage() {
           )}
 
           <button
-            className="actionBtn actionBtn--like"
+            className="actionBtn actionBtn--submit"
             type="submit"
             disabled={loading || !!emailError || !!passwordError}
           >

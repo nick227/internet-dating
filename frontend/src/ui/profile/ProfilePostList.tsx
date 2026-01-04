@@ -1,8 +1,10 @@
-import { useState, useMemo, createContext, useContext } from 'react'
+import { useState, useMemo, createContext, useContext, useCallback } from 'react'
 import type { ProfilePost, ProfileMedia } from '../../api/types'
 import { api } from '../../api/client'
 import { Media } from '../ui/Media'
 import { Avatar } from '../ui/Avatar'
+import { CommentWidget } from '../river/CommentWidget'
+import { useCurrentUser } from '../../core/auth/useCurrentUser'
 
 type Props = {
   posts: ProfilePost[]
@@ -98,11 +100,35 @@ function PostItem({ post }: { post: ProfilePost }) {
     authorId,
   } = useContext(PostListContext)
   const [isBusy, setIsBusy] = useState(false)
-  const displayName = authorName?.trim() || (isReadOnly ? 'User' : 'You')
-  const profileId = authorId != null ? String(authorId) : null
+  const [commentOpen, setCommentOpen] = useState(false)
+  
+  // Use post author info if available, otherwise fall back to context (for backwards compatibility)
+  const postAuthor = post.author
+  const displayName = postAuthor?.displayName?.trim() || authorName?.trim() || (isReadOnly ? 'User' : 'You')
+  const avatarUrl = postAuthor?.avatarUrl ?? authorAvatarUrl ?? null
+  const profileId = postAuthor?.id ? String(postAuthor.id) : (authorId != null ? String(authorId) : null)
+  
+  // Check if current user is the post author
+  const { userId: currentUserId } = useCurrentUser()
+  const canDelete = onPostDelete && (
+    (currentUserId && String(currentUserId) === String(post.userId)) || 
+    (currentUserId && postAuthor?.id && String(currentUserId) === String(postAuthor.id))
+  )
 
   const dateInfo = useMemo(() => getDateInfo(post.createdAt), [post.createdAt])
   const mediaItems = useMemo(() => post.media ?? [], [post.media])
+  
+  const handleToggleComments = useCallback(() => {
+    setCommentOpen(prev => !prev)
+  }, [])
+  
+  const handleCommentPosted = useCallback(() => {
+    // Comment count will update via feed refresh
+  }, [])
+  
+  const handleMentionClick = useCallback((userId: string) => {
+    // Navigate to profile - can be enhanced later if needed
+  }, [])
 
   const gallery = useMemo(
     () =>
@@ -133,7 +159,7 @@ function PostItem({ post }: { post: ProfilePost }) {
     <div className={`u-glass profile__card ${isBusy ? 'u-opacity-50' : ''}`} style={{ transition: 'opacity 0.2s' }}>
       <div className="u-stack u-gap-3">
         <div className="u-row u-gap-2 u-items-center">
-          <Avatar name={displayName} size="sm" src={authorAvatarUrl ?? null} profileId={profileId} />
+          <Avatar name={displayName} size="sm" src={avatarUrl} profileId={profileId} />
           <div className="profile__itemTitle">{displayName}</div>
         </div>
 
@@ -172,6 +198,15 @@ function PostItem({ post }: { post: ProfilePost }) {
           </div>
         )}
 
+        <CommentWidget
+          postId={String(post.id)}
+          initialCommentCount={0}
+          isOpen={commentOpen}
+          onToggle={handleToggleComments}
+          onMentionClick={handleMentionClick}
+          onCommentPosted={handleCommentPosted}
+        />
+
         {/* Header: Meta & Actions */}
         <div className="u-row-between">
           <div className="u-row u-gap-2 u-items-center">
@@ -187,7 +222,7 @@ function PostItem({ post }: { post: ProfilePost }) {
             )}
           </div>
 
-          {!isReadOnly && (
+          {canDelete && (
             <button
               className="u-btn-icon profile__postDelete"
               type="button"

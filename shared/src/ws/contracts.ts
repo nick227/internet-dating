@@ -25,7 +25,9 @@ export type WsEvents = {
     conversationId: string
     messageId: string
     senderId: string
+    body: string
     createdAt: string
+    isSystem: boolean
   }
   'server.messenger.message_read': {
     conversationId: string

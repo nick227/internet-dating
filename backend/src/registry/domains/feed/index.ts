@@ -366,7 +366,7 @@ export const feedDomain: DomainRegistry = {
       tags: ['feed'],
       handler: async (req, res) => {
         const userId = req.ctx.userId!;
-        const { text, visibility, mediaIds } = (req.body ?? {}) as { text?: string; visibility?: 'PUBLIC'|'PRIVATE'; mediaIds?: Array<string|number> };
+        const { text, visibility, mediaIds, targetUserId } = (req.body ?? {}) as { text?: string; visibility?: 'PUBLIC'|'PRIVATE'; mediaIds?: Array<string|number>; targetUserId?: string | number };
 
         const mediaParsed = parseOptionalPositiveBigIntList(mediaIds, 'mediaIds');
         if (!mediaParsed.ok) return json(res, { error: mediaParsed.error }, 400);
@@ -377,6 +377,28 @@ export const feedDomain: DomainRegistry = {
         const vis = visibility ?? 'PUBLIC';
         if (vis !== 'PUBLIC' && vis !== 'PRIVATE') {
           return json(res, { error: 'visibility must be PUBLIC or PRIVATE' }, 400);
+        }
+
+        // Parse and validate targetUserId if provided
+        let parsedTargetUserId: bigint | null = null;
+        if (targetUserId !== undefined && targetUserId !== null) {
+          const targetParsed = parsePositiveBigInt(targetUserId, 'targetUserId');
+          if (!targetParsed.ok) return json(res, { error: targetParsed.error }, 400);
+          parsedTargetUserId = targetParsed.value;
+
+          // If posting to another user's profile, validate follow relationship
+          if (parsedTargetUserId !== userId) {
+            const followRelationship = await prisma.profileAccess.findFirst({
+              where: {
+                ownerProfile: { userId: parsedTargetUserId },
+                viewerProfile: { userId },
+                status: 'GRANTED',
+              },
+            });
+            if (!followRelationship) {
+              return json(res, { error: 'You must be following this user to post on their profile' }, 403);
+            }
+          }
         }
 
         try {
@@ -399,6 +421,7 @@ export const feedDomain: DomainRegistry = {
           const created = await tx.post.create({
             data: {
               userId,
+              targetProfileUserId: parsedTargetUserId,
               visibility: vis,
               text: text ?? null,
               media: parsedMediaIds.length

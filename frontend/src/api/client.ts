@@ -9,6 +9,7 @@ import type {
   ApiFollowersResponse,
   ApiFollowingResponse,
   ApiInboxResponse,
+  ApiLikesResponse,
   ApiMatchListResponse,
   ApiMessageListResponse,
   ApiMessageSendBody,
@@ -76,6 +77,7 @@ const API_PATHS = {
   revokeFollowRequest: '/api/profiles/access-requests/{requestId}/revoke',
   rate: '/api/profiles/{userId}/rate',
   like: '/api/likes',
+  likesList: '/api/likes',
   postCreate: '/api/posts',
   postUpdate: '/api/posts/{postId}',
   postDelete: '/api/posts/{postId}',
@@ -88,6 +90,7 @@ const API_PATHS = {
   messageRead: '/api/messages/{messageId}/read',
   quizActive: '/api/quizzes/active',
   quizSubmit: '/api/quizzes/{quizId}/submit',
+  quizById: '/api/quizzes/{quizId}',
   quizUpdate: '/api/quizzes/{quizId}',
   quizQuestionUpdate: '/api/quizzes/{quizId}/questions/{questionId}',
   quizOptionUpdate: '/api/quizzes/{quizId}/questions/{questionId}/options/{optionId}',
@@ -101,6 +104,9 @@ const API_PATHS = {
   interestsMy: '/api/interests/my',
   interestSelect: '/api/interests/{interestId}/select',
   interestSearch: '/api/interests/search',
+  profileAdvancedSearch: '/api/profiles/advanced-search',
+  profileRecommendations: '/api/profiles/recommendations',
+  profileSearchTraits: '/api/profiles/search/traits',
 } as const satisfies Record<string, keyof paths>
 
 function fillPath(template: string, params: Record<string, string | number>) {
@@ -187,6 +193,86 @@ export const api = {
     const path = fillPath(API_PATHS.following, { userId })
     return http<ApiFollowingResponse>(`${API_BASE_URL}${path}`, 'GET', { signal })
   },
+  advancedSearch: async (filters: {
+    q?: string
+    gender?: string[]
+    intent?: string[]
+    ageMin?: number
+    ageMax?: number
+    location?: string
+    interests?: string[]
+    interestSubjects?: string[]
+    traits?: Array<{ key: string; min?: number; max?: number; group?: string }>
+    top5Query?: string
+    top5Type?: 'title' | 'item'
+    sort?: 'newest' | 'age'
+    limit?: number
+    cursor?: string
+  }, signal?: AbortSignal) => {
+    const params = new URLSearchParams()
+    if (filters.q) params.set('q', filters.q)
+    if (filters.limit) params.set('limit', String(filters.limit))
+    if (filters.sort) params.set('sort', filters.sort)
+    filters.gender?.forEach(g => params.append('gender', g))
+    filters.intent?.forEach(i => params.append('intent', i))
+    filters.interests?.forEach(id => params.append('interests', id))
+    filters.interestSubjects?.forEach(key => params.append('interestSubjects', key))
+    if (filters.ageMin !== undefined) params.set('ageMin', String(filters.ageMin))
+    if (filters.ageMax !== undefined) params.set('ageMax', String(filters.ageMax))
+    if (filters.location) params.set('location', filters.location)
+    if (filters.top5Query) params.set('top5Query', filters.top5Query)
+    if (filters.top5Type) params.set('top5Type', filters.top5Type)
+    if (filters.traits && filters.traits.length > 0) {
+      params.set('traits', btoa(JSON.stringify(filters.traits)))
+    }
+    if (filters.cursor) params.set('cursor', filters.cursor)
+    const q = params.toString() ? `?${params.toString()}` : ''
+    return http<{
+      profiles: Array<{
+        userId: string
+        displayName: string | null
+        bio: string | null
+        avatarUrl: string | null
+        heroUrl: string | null
+        locationText: string | null
+        age: number | null
+        gender: string
+        intent: string
+        matchReasons?: string[]
+      }>
+      nextCursor: string | null
+      queryId?: string
+    }>(`${API_BASE_URL}${API_PATHS.profileAdvancedSearch}${q}`, 'GET', { signal })
+  },
+  getRecommendations: async (filters: {
+    limit?: number
+    cursor?: string
+  } = {}, signal?: AbortSignal) => {
+    const params = new URLSearchParams()
+    if (filters.limit) params.set('limit', String(filters.limit))
+    if (filters.cursor) params.set('cursor', filters.cursor)
+    const q = params.toString() ? `?${params.toString()}` : ''
+    return http<{
+      profiles: Array<{
+        userId: string
+        displayName: string | null
+        bio: string | null
+        avatarUrl: string | null
+        heroUrl: string | null
+        locationText: string | null
+        age: number | null
+        gender: string
+        intent: string
+        matchReasons?: string[]
+      }>
+      nextCursor: string | null
+    }>(`${API_BASE_URL}${API_PATHS.profileRecommendations}${q}`, 'GET', { signal })
+  },
+  getSearchTraits: async (signal?: AbortSignal) => {
+    return http<{
+      traits: Record<string, Array<{ key: string; count: number }>>
+    }>(`${API_BASE_URL}${API_PATHS.profileSearchTraits}`, 'GET', { signal })
+  },
   approveFollowRequest: (requestId: string | number, signal?: AbortSignal) => {
     const path = fillPath(API_PATHS.approveFollowRequest, { requestId })
     return http<ApiProfileAccessResponse>(`${API_BASE_URL}${path}`, 'POST', { signal })
@@ -205,6 +291,8 @@ export const api = {
   },
   like: (body: LikeBody, signal?: AbortSignal) =>
     http<ApiSwipeResponse>(`${API_BASE_URL}${API_PATHS.like}`, 'POST', { body, signal }),
+  likes: (signal?: AbortSignal) =>
+    http<ApiLikesResponse>(`${API_BASE_URL}${API_PATHS.likesList}`, 'GET', { signal }),
   rate: (userId: string | number, body: RateBody, signal?: AbortSignal) => {
     const path = fillPath(API_PATHS.rate, { userId })
     return http<ApiRateResponse>(`${API_BASE_URL}${path}`, 'POST', { body, signal })
@@ -287,9 +375,13 @@ export const api = {
       return http<ApiOkResponse>(`${API_BASE_URL}${path}`, 'DELETE', { signal })
     },
   },
-  quizzes: {
-    active: (signal?: AbortSignal) =>
-      http<ApiQuizResponse>(`${API_BASE_URL}${API_PATHS.quizActive}`, 'GET', { signal }),
+    quizzes: {
+      active: (signal?: AbortSignal) =>
+        http<ApiQuizResponse>(`${API_BASE_URL}${API_PATHS.quizActive}`, 'GET', { signal }),
+      byId: (quizId: string | number, signal?: AbortSignal) => {
+        const path = fillPath(API_PATHS.quizById, { quizId })
+        return http<ApiQuizResponse>(`${API_BASE_URL}${path}`, 'GET', { signal })
+      },
     submit: (quizId: string | number, body: ApiQuizSubmitBody, signal?: AbortSignal) => {
       const path = fillPath(API_PATHS.quizSubmit, { quizId })
       return http<ApiOkResponse>(`${API_BASE_URL}${path}`, 'POST', { body, signal })
@@ -324,7 +416,8 @@ export const api = {
       if (params?.sort) urlParams.set('sort', params.sort)
       if (params?.tag) urlParams.set('tag', params.tag)
       const q = urlParams.toString() ? `?${urlParams.toString()}` : ''
-      return http<{ items: any[] }>(`${API_BASE_URL}${API_PATHS.quizList}${q}`, 'GET', { signal })
+      type QuizListItem = { id: string; slug: string; title: string; description?: string; isActive: boolean; createdAt: string; updatedAt: string; questionCount: number; status?: 'new' | 'in_progress' | 'completed'; result?: string; completedAt?: string; progress?: number; tags?: Array<{ slug: string; label: string }> }
+      return http<{ items: QuizListItem[] }>(`${API_BASE_URL}${API_PATHS.quizList}${q}`, 'GET', { signal })
     },
     tags: (signal?: AbortSignal) => {
       return http<{ tags: { slug: string; label: string }[] }>(`${API_BASE_URL}${API_PATHS.quizTags}`, 'GET', { signal })

@@ -12,11 +12,18 @@ type RiverCardFrameProps = {
   position: number
   onOpenProfile?: (userId: string | number) => void
   children: ReactNode
+  commentWidgetOpen?: boolean // NEW: Track if comment widget is open
 }
 
 function isInteractiveTarget(target: EventTarget | null | undefined) {
   if (!target || !(target instanceof Element)) return false
   return Boolean(target.closest('button, a, input, select, textarea'))
+}
+
+function isCommentWidget(target: EventTarget | null | undefined) {
+  if (!target || !(target instanceof Element)) return false
+  // Check if click is inside comment widget (including its content)
+  return Boolean(target.closest('.commentWidget'))
 }
 
 export function RiverCardFrame({
@@ -25,6 +32,7 @@ export function RiverCardFrame({
   position,
   onOpenProfile,
   children,
+  commentWidgetOpen = false, // NEW: Default to false
 }: RiverCardFrameProps) {
   // Memoize expensive string computations
   const title = useMemo(() => {
@@ -61,21 +69,31 @@ export function RiverCardFrame({
 
   const handleClick = useCallback(
     (event: React.MouseEvent) => {
+      // Don't navigate if comment widget is open (user is interacting with comments)
+      if (commentWidgetOpen) return
+      // Don't navigate if clicking on interactive elements
       if (!canNavigate || isInteractiveTarget(event.target)) return
+      // Don't navigate if clicking inside comment widget
+      if (isCommentWidget(event.target)) return
       handleOpen()
     },
-    [canNavigate, handleOpen]
+    [canNavigate, handleOpen, commentWidgetOpen]
   )
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
+      // Don't navigate if comment widget is open
+      if (commentWidgetOpen) return
+      // Don't navigate if clicking on interactive elements
       if (!canNavigate || isInteractiveTarget(event.target)) return
+      // Don't navigate if inside comment widget
+      if (isCommentWidget(event.target)) return
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
         handleOpen()
       }
     },
-    [canNavigate, handleOpen]
+    [canNavigate, handleOpen, commentWidgetOpen]
   )
 
   return (

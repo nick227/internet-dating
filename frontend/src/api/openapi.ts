@@ -189,8 +189,49 @@ export interface paths {
     };
   };
   "/api/comments": {
+    /** List comments for a post */
+    get: {
+    };
     /** Create comment */
     post: {
+    };
+  };
+  "/api/comments/{commentId}/replies": {
+    /** Get replies for a comment */
+    get: {
+      parameters: {
+        path: {
+          commentId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/comments/{commentId}/like": {
+    /** Like or unlike a comment */
+    post: {
+      parameters: {
+        path: {
+          commentId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/comments/{commentId}": {
+    /** Delete a comment */
+    delete: {
+      parameters: {
+        path: {
+          commentId: components["schemas"]["Id"];
+        };
+      };
+    };
+    /** Edit a comment */
+    patch: {
+      parameters: {
+        path: {
+          commentId: components["schemas"]["Id"];
+        };
+      };
     };
   };
   "/api/profiles/{userId}": {
@@ -404,8 +445,24 @@ export interface paths {
       };
     };
   };
+  "/api/profiles/search": {
+    /** Search users for @mention autocomplete */
+    get: {
+    };
+  };
   "/api/likes": {
-    /** Like / dislike */
+    /** List likes (profiles you liked, not yet matched) */
+    get: {
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["LikesResponse"];
+          };
+        };
+      };
+    };
+    /** Like / dislike / unlike */
     post: {
       requestBody: {
         content: {
@@ -758,6 +815,44 @@ export interface paths {
       };
     };
   };
+  "/api/interests/subjects": {
+    /** List all interest subjects */
+    get: {
+    };
+  };
+  "/api/interests": {
+    /** List interests with pagination */
+    get: {
+    };
+  };
+  "/api/interests/my": {
+    /** Get user's selected interests */
+    get: {
+    };
+  };
+  "/api/interests/{interestId}/select": {
+    /** Add interest to user */
+    post: {
+      parameters: {
+        path: {
+          interestId: components["schemas"]["Id"];
+        };
+      };
+    };
+    /** Remove interest from user */
+    delete: {
+      parameters: {
+        path: {
+          interestId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/interests/search": {
+    /** Search interests from text */
+    post: {
+    };
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -812,7 +907,7 @@ export interface components {
     /** @enum {string} */
     CompatibilityStatus: "READY" | "INSUFFICIENT_DATA";
     /** @enum {string} */
-    SwipeAction: "LIKE" | "DISLIKE";
+    SwipeAction: "LIKE" | "DISLIKE" | "UNLIKE";
     /** @enum {string} */
     ReportReason: "SPAM" | "HARASSMENT" | "IMPERSONATION" | "NUDITY" | "HATE" | "OTHER";
     Media: {
@@ -962,6 +1057,7 @@ export interface components {
       text?: string | null;
       visibility?: components["schemas"]["Visibility"];
       mediaIds?: components["schemas"]["Id"][];
+      targetUserId?: components["schemas"]["Id"];
     };
     PostCreateResponse: {
       id: components["schemas"]["Id"];
@@ -1106,6 +1202,23 @@ export interface components {
       ok: boolean;
       matched?: boolean;
       matchId?: components["schemas"]["Id"] | null;
+    };
+    LikeProfile: ({
+      displayName?: string | null;
+      locationText?: string | null;
+      intent?: string | null;
+      avatarUrl?: string | null;
+    }) | null;
+    LikeItem: {
+      id: components["schemas"]["Id"];
+      userId: components["schemas"]["Id"];
+      /** Format: date-time */
+      likedAt: string;
+      profile: components["schemas"]["LikeProfile"];
+      compatibility: components["schemas"]["CompatibilitySummary"] | null;
+    };
+    LikesResponse: {
+      likes: components["schemas"]["LikeItem"][];
     };
     MatchUserProfile: {
       displayName?: string | null;

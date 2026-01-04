@@ -6,7 +6,25 @@ import { createComment } from '../../api/comments'
 
 type CommentEntry = { id: string; text: string; pending?: boolean }
 
-export function useRiverCardState(card: FeedCard) {
+/**
+ * Card-level comment adapter (READ-ONLY)
+ * 
+ * ⚠️ OWNERSHIP SEMANTICS (ENFORCED):
+ * - This hook is READ-ONLY for comment state
+ * - useCommentWidget is the SINGLE WRITER for comment mutations
+ * - This adapter only bridges authoritative count from widget to card
+ * - mergedStats.commentCount is IMMUTABLE from outside
+ * 
+ * Phase 1: Adapter pattern (current)
+ * - Card state: Read-only display
+ * - Widget: Owns all mutations
+ * - Adapter: Bridges count only via setAuthoritativeCommentCount()
+ * 
+ * Phase 2: Will be replaced by useCardCommentStore
+ * - Single owner of all comment state
+ * - Card and widget read from same source
+ */
+export function useRiverCardCommentAdapter(card: FeedCard) {
   const actorId = card.actor?.id
   const presentation =
     card.presentation ?? (card.kind === 'question' ? { mode: 'question' as const } : undefined)
@@ -47,9 +65,11 @@ export function useRiverCardState(card: FeedCard) {
       if (prev.length === 0) return prev
       return prev.filter(entry => !nextIds.has(entry.id))
     })
-    setCommentOpen(false)
-  }, [card.id, card.stats, card.comments?.preview, optimisticRating])
+    setCommentOpen(true)
+  }, [card.id, card.stats, card.comments?.preview])
 
+  // Merge comments: optimistic (newest first) + server (newest first)
+  // Both arrays are already in newest-first order, so just concatenate
   const commentEntries = useMemo(
     () => [...optimisticComments, ...serverComments],
     [optimisticComments, serverComments]
@@ -92,27 +112,71 @@ export function useRiverCardState(card: FeedCard) {
         text,
         pending: true,
       }
-      setOptimisticComments(prev => [entry, ...prev])
+      setOptimisticComments(prev => {
+        const updated = [entry, ...prev]
+        return updated
+      })
       try {
-        const result = await createComment({
-          cardId: card.id,
+        // Extract actual ID if card.id is prefixed (e.g., "post-123" -> "123")
+        const cardId = card.id.startsWith('post-') 
+          ? card.id.replace(/^post-/, '')
+          : card.id.startsWith('match-')
+          ? card.id.replace(/^match-/, '')
+          : card.id.startsWith('profile-')
+          ? card.id.replace(/^profile-/, '')
+          : card.id
+        
+        const requestBody = {
+          cardId,
           cardKind: card.kind,
-          actorId,
+          // actorId, // Removed: Backend infers from auth token
           text,
           clientRequestId: entry.id
-        })
-        setOptimisticComments(prev =>
-          prev.map(item =>
+        }
+        const result = await createComment(requestBody)
+        setOptimisticComments(prev => {
+          const updated = prev.map(item =>
             item.id === entry.id ? { ...item, id: String(result.id), pending: false } : item
           )
-        )
+          return updated
+        })
       } catch (err) {
-        setOptimisticComments(prev => prev.filter(item => item.id !== entry.id))
+        console.error('[useRiverCardState] createComment failed:', err)
+        console.error('[useRiverCardState] Error details:', {
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          name: err instanceof Error ? err.name : undefined,
+        })
+        setOptimisticComments(prev => {
+          const filtered = prev.filter(item => item.id !== entry.id)
+          return filtered
+        })
         throw err
       }
     },
-    [actorId, card.id, card.kind]
+    [card.id, card.kind]
   )
+
+  // ENFORCED SINGLE-WRITER: Only this method can update comment count
+  // Prevents direct mutation of mergedStats from outside
+  const setAuthoritativeCommentCount = useCallback((count: number) => {
+    setServerStats((prev: FeedCardStats | undefined) => {
+      if (!prev) {
+        return { commentCount: count } as FeedCardStats
+      }
+      // Enforce: count never animates backwards
+      const prevCount = prev.commentCount ?? 0
+      if (count < prevCount) {
+        console.warn('[useRiverCardCommentAdapter] Count decreased, updating without animation', {
+          prev: prevCount,
+          next: count
+        })
+        // Update immediately without animation
+        return { ...prev, commentCount: count }
+      }
+      return { ...prev, commentCount: count }
+    })
+  }, [])
 
   return {
     actorId,
@@ -122,11 +186,15 @@ export function useRiverCardState(card: FeedCard) {
     commentLabel,
     commentEntries,
     commentOpen,
-    mergedStats,
+    mergedStats, // READ-ONLY - cannot be mutated directly
+    setAuthoritativeCommentCount, // SINGLE-WRITER method
     questionAnswer,
     submitQuestionAnswer,
     toggleComment,
-    submitComment,
+    submitComment, // DEPRECATED: Use widget's submitComment instead
     handleRated,
   }
 }
+
+// Backward compatibility alias (will be removed in Phase 2)
+export const useRiverCardState = useRiverCardCommentAdapter

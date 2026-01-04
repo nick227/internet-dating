@@ -302,7 +302,7 @@ export const interestsDomain: DomainRegistry = {
         const where: any = {
           OR: [
             { key: { contains: searchText } },
-            { label: { contains: searchText, mode: 'insensitive' } }
+            { label: { contains: searchText } }
           ]
         };
 

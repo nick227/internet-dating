@@ -13,8 +13,6 @@ type ActionBarProps = {
   onToast?: ToastHandler
   initialRating?: RatingScores | null
   onRated?: (values: RatingScores) => void
-  onComment?: () => void
-  commentLabel?: string
 }
 
 const DEFAULT_RATING: RatingValues = {
@@ -32,8 +30,6 @@ export function ActionBar({
   onToast,
   initialRating,
   onRated,
-  onComment,
-  commentLabel,
 }: ActionBarProps) {
   const { send: sendLike } = useLike()
   const { submit: submitRate } = useRate(userId)
@@ -93,14 +89,12 @@ export function ActionBar({
   const likeActive = reaction === 'LIKE'
   const dislikeActive = reaction === 'DISLIKE'
   const rateActive = ratingOpen
-  const commentEnabled = Boolean(onComment)
 
   const actionClass = useMemo(
     () => ({
       like: 'actionBtn actionBtn--like' + (likeActive ? ' actionBtn--active' : ''),
       pass: 'actionBtn actionBtn--nope' + (dislikeActive ? ' actionBtn--active' : ''),
       rate: 'actionBtn actionBtn--rate' + (rateActive ? ' actionBtn--active' : ''),
-      comment: 'actionBtn actionBtn--comment',
     }),
     [likeActive, dislikeActive, rateActive]
   )
@@ -148,22 +142,6 @@ export function ActionBar({
           </svg>
           <span>Like</span>
         </button>
-      </div>
-      <div className='commentsBar'>
-        {commentEnabled && (
-          <button className={actionClass.comment} type="button" onClick={onComment}>
-            <svg className="actionBtn__icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M6 17l-2 4 4-2h10a4 4 0 0 0 4-4V8a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v5a4 4 0 0 0 4 4z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span>{commentLabel ?? 'Comment'}</span>
-          </button>
-        )} 
       </div>
 
       <RatingModal

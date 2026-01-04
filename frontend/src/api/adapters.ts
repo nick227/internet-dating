@@ -319,6 +319,17 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
       const stats =
         'stats' in p ? toFeedStats((p as typeof p & { stats?: ApiFeedStats }).stats) : undefined
 
+      // Extract comments if present (backend includes them but not in OpenAPI schema)
+      const apiComments = 'comments' in p ? (p as typeof p & { comments?: { preview?: Array<{ id: string | number; text: string }> } }).comments : undefined
+      const comments = apiComments?.preview
+        ? {
+            preview: apiComments.preview.map(c => ({
+              id: String(c.id),
+              text: c.text,
+            })),
+          }
+        : undefined
+
       items.push({
         id: `post-${p.id}`,
         kind: 'post',
@@ -336,7 +347,7 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
         media,
         presentation,
         stats,
-        // comments and question fields not yet supported by backend schema
+        comments,
       })
       position += 1
     } else if (item.type === 'suggestion' && item.suggestion) {

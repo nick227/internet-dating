@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Id, LikeAction } from '../../api/types'
 
-export type StoredReaction = LikeAction | null
+export type StoredReaction = Extract<LikeAction, 'LIKE' | 'DISLIKE'> | null
 
 const STORAGE_KEY = 'internet-date:reactions'
 const LEGACY_PASS = 'PASS'

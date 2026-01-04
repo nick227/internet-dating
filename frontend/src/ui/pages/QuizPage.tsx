@@ -11,7 +11,11 @@ function getDynamicFontSize(text: string): string {
   return '1.1rem'
 }
 
-export function QuizPage() {
+type QuizPageProps = {
+  quizId?: string
+}
+
+export function QuizPage({ quizId }: QuizPageProps) {
   const nav = useNavigate()
   const {
     loading,
@@ -24,7 +28,7 @@ export function QuizPage() {
     editorEnabled,
     dispatch,
     actions,
-  } = useQuizState()
+  } = useQuizState(quizId)
 
   const { editMode, submitting, message } = state
 

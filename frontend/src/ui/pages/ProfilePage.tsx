@@ -60,7 +60,8 @@ export function ProfilePage() {
   const allErrors = [profileError, accessError].filter(Boolean)
 
   // Delete operations handle refresh internally via useProfileDraft
-  const handlePostDelete = viewState.ownerId ? deletePost : undefined
+  // Allow users to delete their own posts even on other profiles
+  const handlePostDelete = deletePost
   const followButtonLabel = getFollowButtonLabel(viewState.accessStatus, accessBusy)
 
   return (
@@ -85,7 +86,7 @@ export function ProfilePage() {
         <div className="u-glass promptCard">
           <div className="u-stack">
             <div className="profile__sectionTitle">About</div>
-            <div className="u-subtitle u-clamp-3">{profile.bio}</div>
+            <div className="u-subtitle">{profile.bio}</div>
           </div>
         </div>
       ) : (
@@ -111,7 +112,7 @@ export function ProfilePage() {
       )}
 
       <div className='mb-48 post-composer'>
-        {viewState.ownerId && <PostComposer onPosted={refresh} />}
+        {viewState.shouldShowPosts && <PostComposer onPosted={refresh} targetProfileUserId={profile?.userId} />}
       </div>
 
       {viewState.shouldShowPosts && (

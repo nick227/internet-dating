@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, type InterestItem } from '../../../api/client'
 
-export function useInterestsDiscovery(subjectId: string | null, searchQuery: string) {
+export function useInterestsDiscovery(
+  subjectId: string | null,
+  searchQuery: string,
+  onReconcile?: (items: Array<{ id: string; selected: boolean }>) => void
+) {
   const [items, setItems] = useState<InterestItem[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -32,11 +36,13 @@ export function useInterestsDiscovery(subjectId: string | null, searchQuery: str
         take: 20,
       }, abortControllerRef.current.signal)
 
-      if (append) {
-        setItems(prev => [...prev, ...res.items])
-      } else {
-        setItems(res.items)
-      }
+      setItems(prev => {
+        const nextItems = append ? [...prev, ...res.items] : res.items
+        if (onReconcile) {
+          onReconcile(nextItems.map(item => ({ id: item.id, selected: item.selected })))
+        }
+        return nextItems
+      })
       setNextCursor(res.nextCursor)
       setHasMore(res.hasMore)
     } catch (e: unknown) {
@@ -67,12 +73,6 @@ export function useInterestsDiscovery(subjectId: string | null, searchQuery: str
     }
   }, [loadInterests, loadingMore, hasMore, nextCursor])
 
-  const updateItemSelection = useCallback((interestId: string, selected: boolean) => {
-    setItems(prev => prev.map(item => 
-      item.id === interestId ? { ...item, selected } : item
-    ))
-  }, [])
-
   return {
     items,
     loading,
@@ -81,6 +81,5 @@ export function useInterestsDiscovery(subjectId: string | null, searchQuery: str
     hasMore,
     loadMore,
     refresh: () => loadInterests(null, false),
-    updateItemSelection,
   }
 }

@@ -8,7 +8,10 @@ model User {
 
   profile      Profile?
   posts        Post[]
+  targetProfilePosts Post[] @relation("PostTargetProfile")
   comments     Comment[]
+  commentLikes CommentLike[]
+  commentMentions CommentMention[] @relation("MentionedUser")
   media        Media[]
   mediaOwned   Media[] @relation("MediaOwner")
 
@@ -49,6 +52,12 @@ model User {
   profileAccessReceived ProfileAccess[] @relation("ProfileAccessViewer")
   presortedFeedSegments PresortedFeedSegment[]
   traits                UserTrait[]
+  
+  // Search index relations
+  profileSearchIndex    ProfileSearchIndex?
+  interestUserSets      InterestUserSet[]
+  interestSubjectUserSets InterestSubjectUserSet[]
+  searchableUser        SearchableUser?
 
   @@index([createdAt])
   @@index([deletedAt])

@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../core/auth/useAuth'
+import { useCurrentUser } from '../../core/auth/useCurrentUser'
 import { prettyIntent } from '../../core/format/prettyIntent'
 import { useMatches } from '../../core/matches/useMatches'
 import { useConversation } from '../../core/messaging/useConversation'
-import { getRandomSuggestions } from '../../core/messaging/messageHelpers'
 import { IconButton } from '../ui/IconButton'
 import { Avatar } from '../ui/Avatar'
 import { SmartTextarea } from '../form/SmartTextarea'
@@ -16,6 +16,7 @@ export function ConversationPage() {
   const { conversationId } = useParams()
   const id = conversationId ? decodeURIComponent(conversationId) : undefined
   const { userId } = useAuth()
+  const { profile: currentUserProfile } = useCurrentUser()
   const { data: matchData } = useMatches()
   const {
     messages,
@@ -24,9 +25,6 @@ export function ConversationPage() {
     loadingMore,
     error,
     loadOlder,
-    appendMessage,
-    removeMessage,
-    replaceMessage,
   } = useConversation(id)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -34,7 +32,6 @@ export function ConversationPage() {
   const markedRef = useRef(new Set<string>())
   const listEndRef = useRef<HTMLDivElement | null>(null)
   const suppressScrollRef = useRef(false)
-  const [messageSuggestions, setMessageSuggestions] = useState<string[]>([])
 
   const match = id ? (matchData?.matches.find(m => idsEqual(m.conversation?.id, id)) ?? null) : null
   const otherUser =
@@ -78,37 +75,15 @@ export function ConversationPage() {
     })
   }, [loadingMore, messages.length])
 
-  useEffect(() => {
-    setMessageSuggestions(getRandomSuggestions(3, messages.length === 0))
-  }, [messages.length])
-
   async function sendMessage(body: string) {
     if (!body.trim() || !id || userId == null) return
     setSending(true)
     setSendError(null)
-    setMessageSuggestions([])
-    const tempId = `local-${Date.now()}`
-    const optimistic = {
-      id: tempId,
-      body: body.trim(),
-      senderId: userId,
-      createdAt: new Date().toISOString(),
-      isSystem: false,
-    }
-    appendMessage(optimistic)
     setDraft('')
     try {
-      const res = await api.messaging.sendMessage(id, { body: body.trim() })
-      replaceMessage(tempId, {
-        id: res.id,
-        body: body.trim(),
-        senderId: userId,
-        createdAt: res.createdAt,
-        isSystem: false,
-      })
+      await api.messaging.sendMessage(id, { body: body.trim() })
     } catch {
       setDraft(body.trim())
-      removeMessage(tempId)
       setSendError('Message failed to send. Try again.')
     } finally {
       setSending(false)
@@ -118,7 +93,7 @@ export function ConversationPage() {
   return (
     <div className="conversation u-hide-scroll">
       <div className="conversation__header">
-        <IconButton label="Back" onClick={() => nav('/inbox')}>
+        <IconButton label="Back" onClick={() => nav('/connections/inbox')}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path
               d="M15 6l-6 6 6 6"
@@ -174,13 +149,37 @@ export function ConversationPage() {
         <div className="conversation__list">
           {messages.map(msg => {
             const isMine = userId != null && idsEqual(msg.senderId, userId)
+            const senderAvatar = isMine
+              ? currentUserProfile?.avatarUrl ?? null
+              : otherUser?.profile?.avatarUrl ?? null
+            const senderName = isMine
+              ? currentUserProfile?.name ?? (userId ? `User ${userId}` : null)
+              : headerName
             return (
               <div
                 key={toIdString(msg.id)}
                 className={`message ${isMine ? 'message--mine' : ''}${msg.isSystem ? ' message--system' : ''}`}
               >
-                <div className="message__bubble">{msg.body}</div>
-                <div className="message__time">{formatTime(msg.createdAt)}</div>
+                {!isMine && (
+                  <Avatar
+                    name={senderName}
+                    size="sm"
+                    src={senderAvatar}
+                    profileId={otherUser ? String(otherUser.id) : null}
+                  />
+                )}
+                <div className="message__content">
+                  <div className="message__bubble">{msg.body}</div>
+                  <div className="message__time">{formatTime(msg.createdAt)}</div>
+                </div>
+                {isMine && (
+                  <Avatar
+                    name={senderName}
+                    size="sm"
+                    src={senderAvatar}
+                    profileId={userId ? String(userId) : null}
+                  />
+                )}
               </div>
             )
           })}
@@ -195,8 +194,6 @@ export function ConversationPage() {
             onChange={setDraft}
             placeholder="Write a message"
             disabled={sending}
-            messageSuggestions={messageSuggestions}
-            onSuggestionSelect={message => sendMessage(message)}
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()

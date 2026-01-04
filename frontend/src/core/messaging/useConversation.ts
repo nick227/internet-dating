@@ -4,7 +4,8 @@ import { api } from '../../api/client'
 import type { ApiMessageItem } from '../../api/contracts'
 import type { Id } from '../../api/types'
 import { getErrorMessage } from '../utils/errors'
-import { toIdString } from '../utils/ids'
+import { toIdString, idsEqual } from '../utils/ids'
+import { realtime } from '../../api/realtime'
 
 type ConversationState = {
   messages: ApiMessageItem[]
@@ -71,6 +72,33 @@ export function useConversation(conversationId: Id | undefined) {
     }
   }, [conversationId])
 
+  useEffect(() => {
+    if (!conversationId) return
+
+    realtime.subscribe([{ kind: 'conversation', id: String(conversationId) }])
+
+    const unsubscribe = realtime.on('server.messenger.message_new', data => {
+      if (!idsEqual(data.conversationId, conversationId)) return
+
+      const message: ApiMessageItem = {
+        id: data.messageId,
+        body: data.body,
+        senderId: data.senderId,
+        createdAt: data.createdAt,
+        isSystem: data.isSystem,
+      }
+
+      setState(s => {
+        const existingIndex = s.messages.findIndex(m => idsEqual(m.id, message.id))
+        if (existingIndex !== -1) return s
+
+        return { ...s, messages: [...s.messages, message] }
+      })
+    })
+
+    return unsubscribe
+  }, [conversationId])
+
   const loadOlder = useCallback(async () => {
     if (!conversationId || state.loadingMore || state.cursor === null) return
     setState(s => ({ ...s, loadingMore: true, error: null }))
@@ -98,29 +126,5 @@ export function useConversation(conversationId: Id | undefined) {
     }
   }, [conversationId, state.cursor, state.loadingMore])
 
-  const appendMessage = useCallback((message: ApiMessageItem) => {
-    setState(s => ({ ...s, messages: [...s.messages, message] })) // Append using spread
-  }, [])
-
-  const removeMessage = useCallback((tempId: Id) => {
-    const key = toIdString(tempId)
-    setState(s => {
-      const index = s.messages.findIndex(m => toIdString(m.id) === key)
-      if (index === -1) return s // Early return if not found
-
-      const updated = [...s.messages]
-      updated.splice(index, 1)
-      return { ...s, messages: updated }
-    })
-  }, [])
-
-  const replaceMessage = useCallback((tempId: Id, next: ApiMessageItem) => {
-    const key = toIdString(tempId)
-    setState(s => ({
-      ...s,
-      messages: s.messages.map(m => (toIdString(m.id) === key ? next : m)),
-    }))
-  }, [])
-
-  return { ...state, loadOlder, appendMessage, removeMessage, replaceMessage }
+  return { ...state, loadOlder }
 }

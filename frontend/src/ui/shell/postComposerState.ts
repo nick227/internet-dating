@@ -28,6 +28,8 @@ export type LinkPreviewState = {
   loading: boolean
 }
 
+// Legacy types kept for backward compatibility with old hooks
+// TODO: Remove when old hooks are deleted
 export type PostComposerState = {
   text: string
   files: FileWithPreview[]

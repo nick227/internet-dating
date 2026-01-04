@@ -75,13 +75,16 @@ export const matchesDomain: DomainRegistry = {
       method: 'POST',
       path: '/likes',
       auth: Auth.user(),
-      summary: 'Like / dislike',
+      summary: 'Like / dislike / unlike',
       tags: ['matches'],
       handler: async (req, res) => {
         const fromUserId = req.ctx.userId!;
-        const { toUserId, action } = (req.body ?? {}) as { toUserId?: string|number; action?: 'LIKE'|'DISLIKE'|'PASS' };
+        const { toUserId, action } = (req.body ?? {}) as {
+          toUserId?: string | number;
+          action?: 'LIKE' | 'DISLIKE' | 'UNLIKE' | 'PASS';
+        };
         const normalizedAction = action === 'PASS' ? 'DISLIKE' : action;
-        if (!toUserId || (normalizedAction !== 'LIKE' && normalizedAction !== 'DISLIKE')) {
+        if (!toUserId || (normalizedAction !== 'LIKE' && normalizedAction !== 'DISLIKE' && normalizedAction !== 'UNLIKE')) {
           return json(res, { error: 'toUserId and action required' }, 400);
         }
 
@@ -95,6 +98,41 @@ export const matchesDomain: DomainRegistry = {
             where: { fromUserId_toUserId: { fromUserId, toUserId: toId } },
             select: { action: true }
           });
+
+          if (normalizedAction === 'UNLIKE') {
+            if (existing) {
+              await tx.like.delete({
+                where: { fromUserId_toUserId: { fromUserId, toUserId: toId } }
+              });
+            }
+
+            if (existing) {
+              const targetProfile = await tx.profile.findFirst({
+                where: { userId: toId, deletedAt: null },
+                select: { id: true }
+              });
+              if (targetProfile) {
+                const likeDelta = existing.action === 'LIKE' ? -1 : 0;
+                const dislikeDelta = existing.action === 'DISLIKE' ? -1 : 0;
+                if (likeDelta !== 0 || dislikeDelta !== 0) {
+                  const stats = await tx.profileStats.findUnique({
+                    where: { profileId: targetProfile.id },
+                    select: { profileId: true }
+                  });
+                  if (stats) {
+                    await tx.profileStats.update({
+                      where: { profileId: targetProfile.id },
+                      data: {
+                        ...(likeDelta ? { likeCount: { increment: likeDelta } } : {}),
+                        ...(dislikeDelta ? { dislikeCount: { increment: dislikeDelta } } : {})
+                      }
+                    });
+                  }
+                }
+              }
+            }
+            return;
+          }
 
           await tx.like.upsert({
             where: { fromUserId_toUserId: { fromUserId, toUserId: toId } },
@@ -168,6 +206,90 @@ export const matchesDomain: DomainRegistry = {
         }
 
         return json(res, { ok: true, matched, matchId });
+      }
+    },
+    {
+      id: 'matches.GET./likes',
+      method: 'GET',
+      path: '/likes',
+      auth: Auth.user(),
+      summary: 'List likes (profiles you liked, not yet matched)',
+      tags: ['matches'],
+      handler: async (req, res) => {
+        const me = req.ctx.userId!;
+        const mediaSelect = {
+          id: true,
+          type: true,
+          url: true,
+          thumbUrl: true,
+          width: true,
+          height: true,
+          durationSec: true,
+          storageKey: true,
+          variants: true
+        };
+
+        const likes = await prisma.like.findMany({
+          where: { fromUserId: me, action: 'LIKE' },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+          select: {
+            id: true,
+            toUserId: true,
+            createdAt: true,
+            toUser: {
+              select: {
+                id: true,
+                profile: {
+                  select: {
+                    displayName: true,
+                    locationText: true,
+                    intent: true,
+                    avatarMedia: { select: mediaSelect }
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        const likedUserIds = likes.map((like) => like.toUserId);
+        const matches = likedUserIds.length
+          ? await prisma.match.findMany({
+              where: {
+                OR: [
+                  { userAId: me, userBId: { in: likedUserIds } },
+                  { userBId: me, userAId: { in: likedUserIds } }
+                ]
+              },
+              select: { userAId: true, userBId: true }
+            })
+          : [];
+        const matchedIds = new Set(
+          matches.map((match) => (match.userAId === me ? match.userBId : match.userAId))
+        );
+
+        const filteredLikes = likes.filter((like) => !matchedIds.has(like.toUserId));
+        const compatibilityMap = await getCompatibilityMap(me, filteredLikes.map((like) => like.toUserId));
+
+        return json(res, {
+          likes: filteredLikes.map((like) => {
+            const profile = like.toUser.profile
+              ? (() => {
+                  const { avatarMedia, ...profileData } = like.toUser.profile!;
+                  return { ...profileData, avatarUrl: toAvatarUrl(avatarMedia) };
+                })()
+              : null;
+
+            return {
+              id: like.id,
+              userId: like.toUserId,
+              likedAt: like.createdAt.toISOString(),
+              profile,
+              compatibility: resolveCompatibility(me, compatibilityMap, like.toUserId)
+            };
+          })
+        });
       }
     },
     {

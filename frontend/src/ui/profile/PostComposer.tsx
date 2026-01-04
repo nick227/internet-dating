@@ -6,9 +6,10 @@ import { ACCEPTED_MEDIA_TYPES } from '../../core/media/mediaConstants'
 
 type Props = {
   onPosted?: () => void
+  targetProfileUserId?: string | number | null
 }
 
-export function PostComposer({ onPosted }: Props) {
+export function PostComposer({ onPosted, targetProfileUserId }: Props) {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
@@ -66,6 +67,7 @@ export function PostComposer({ onPosted }: Props) {
         text: body ? body : null,
         visibility: 'PUBLIC',
         mediaIds: mediaIds.length ? mediaIds : undefined,
+        targetUserId: targetProfileUserId ? String(targetProfileUserId) : undefined,
       })
       setText('')
       setFiles([])

@@ -123,7 +123,7 @@ export function ProfileInlineEditor({ userId, profile, onSaveReady }: Props) {
             value={formData.bio}
             onChange={e => setFormData({ ...formData, bio: e.target.value })}
             placeholder="Share a few lines about you"
-            maxLength={240}
+            maxLength={222240}
             rows={3}
             style={{ resize: 'vertical' }}
           />

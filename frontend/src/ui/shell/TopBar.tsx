@@ -17,8 +17,6 @@ type TopBarProps = {
   onSignup: () => void
   onLogout: () => void
   onUserClick?: () => void
-  onQuizClick?: () => void
-  onInterestsClick?: () => void
 }
 
 export function TopBar({
@@ -28,8 +26,6 @@ export function TopBar({
   onLogin,
   onSignup,
   onLogout,
-  onQuizClick,
-  onInterestsClick,
   onUserClick,
 }: TopBarProps) {
   let actions: ReactNode
@@ -75,12 +71,6 @@ export function TopBar({
       <div className="topBar__inner">
         <button type="button" className="topBar__title" onClick={onHome}>
           {title}
-        </button>
-        <button type="button" className="topBar__title" onClick={onInterestsClick}>
-          Interests
-        </button>
-        <button type="button" className="topBar__title" onClick={onQuizClick}>
-          Quizzes
         </button>
         <div className="topBar__actions">{actions}</div>
       </div>

@@ -44,7 +44,7 @@ export function useQuizDiscovery(
         if (tags.length === 0) {
              try {
                 const tagRes = await api.quizzes.tags()
-                setTags(tagRes.tags.map((t: any) => ({ label: t.label, value: t.slug })))
+                setTags(tagRes.tags.map((t: { slug: string; label: string }) => ({ label: t.label, value: t.slug })))
              } catch (err) {
                  console.warn('Failed to assign tags', err)
              }
@@ -76,7 +76,7 @@ export function useQuizDiscovery(
       mounted = false
       clearTimeout(timer)
     }
-  }, [searchQuery, filter, sort, tag])
+  }, [searchQuery, filter, sort, tag, tags.length])
 
   return { items, loading, error, tags } // Return tags
 }

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route } from 'react-router-dom'
+import { Navigate, Route, useParams } from 'react-router-dom'
 import { AppShell } from './ui/shell/AppShell'
 import { ModalStateProvider } from './ui/shell/useModalState'
 import { ProtectedRoute } from './core/routing/ProtectedRoute'
@@ -15,18 +15,27 @@ const DEBUG = Boolean(import.meta.env?.DEV)
 
 // Lazy load all other routes - major bundle size reduction
 const ProfilePage = lazy(() => import('./ui/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
-const InboxPage = lazy(() => import('./ui/pages/InboxPage').then(m => ({ default: m.InboxPage })))
 const ConversationPage = lazy(() => import('./ui/pages/ConversationPage').then(m => ({ default: m.ConversationPage })))
 const QuizPage = lazy(() => import('./ui/pages/QuizPage').then(m => ({ default: m.QuizPage })))
+const QuizDetailPage = lazy(() => import('./ui/pages/QuizDetailPage').then(m => ({ default: m.QuizDetailPage })))
 const QuizPortalPage = lazy(() => import('./ui/pages/QuizPortalPage').then(m => ({ default: m.QuizPortalPage })))
 const InterestsPortalPage = lazy(() => import('./ui/pages/InterestsPortalPage').then(m => ({ default: m.InterestsPortalPage })))
+const PersonalityPortalPage = lazy(() => import('./ui/pages/PersonalityPortalPage').then(m => ({ default: m.PersonalityPortalPage })))
+const ProfileSearchPage = lazy(() => import('./ui/pages/ProfileSearchPage').then(m => ({ default: m.ProfileSearchPage })))
 const AuthPage = lazy(() => import('./ui/pages/AuthPage').then(m => ({ default: m.AuthPage })))
-const MatchesPage = lazy(() => import('./ui/pages/MatchesPage').then(m => ({ default: m.MatchesPage })))
-const FollowersPage = lazy(() => import('./ui/pages/FollowersPage').then(m => ({ default: m.FollowersPage })))
+const ConnectionsPage = lazy(() => import('./ui/pages/ConnectionsPage').then(m => ({ default: m.ConnectionsPage })))
 
 // Minimal loading fallback for route transitions
 function RouteLoader() {
   return null // Routes handle their own loading states
+}
+
+function LegacyConversationRedirect() {
+  const { conversationId } = useParams()
+  const target = conversationId
+    ? `/connections/inbox/${encodeURIComponent(conversationId)}`
+    : '/connections/inbox'
+  return <Navigate to={target} replace />
 }
 
 export default function App() {
@@ -72,37 +81,33 @@ export default function App() {
             }
           />
           <Route
-            path="/matches"
+            path="/connections"
+            element={<Navigate to="/connections/inbox" replace />}
+          />
+          <Route
+            path="/connections/:section"
             element={
               <ProtectedRoute>
                 <Suspense fallback={<RouteLoader />}>
-                  <MatchesPage />
+                  <ConnectionsPage />
                 </Suspense>
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/matches"
+            element={<Navigate to="/connections/matches" replace />}
           />
           <Route
             path="/followers"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteLoader />}>
-                  <FollowersPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/connections/followers" replace />}
           />
           <Route
             path="/inbox"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteLoader />}>
-                  <InboxPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/connections/inbox" replace />}
           />
           <Route
-            path="/inbox/:conversationId"
+            path="/connections/inbox/:conversationId"
             element={
               <ProtectedRoute>
                 <Suspense fallback={<RouteLoader />}>
@@ -110,6 +115,10 @@ export default function App() {
                 </Suspense>
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/inbox/:conversationId"
+            element={<LegacyConversationRedirect />}
           />
           <Route
             path="/quiz"
@@ -123,20 +132,54 @@ export default function App() {
           />
           <Route
             path="/quizzes"
+            element={<Navigate to="/personality/quizzes" replace />}
+          />
+          <Route
+            path="/personality"
             element={
               <ProtectedRoute>
                 <Suspense fallback={<RouteLoader />}>
-                   <QuizPortalPage />
+                  <PersonalityPortalPage />
                 </Suspense>
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<Navigate to="quizzes" replace />} />
+            <Route
+              path="quizzes"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <QuizPortalPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="quizzes/:quizId"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <QuizDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="interests"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <InterestsPortalPage />
+                </Suspense>
+              }
+            />
+          </Route>
           <Route
             path="/interests"
+            element={<Navigate to="/personality/interests" replace />}
+          />
+          <Route
+            path="/profiles/search"
             element={
               <ProtectedRoute>
                 <Suspense fallback={<RouteLoader />}>
-                  <InterestsPortalPage />
+                  <ProfileSearchPage />
                 </Suspense>
               </ProtectedRoute>
             }
