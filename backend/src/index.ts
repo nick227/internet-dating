@@ -1,4 +1,6 @@
-console.log('[server] Starting application...');
+// Immediate logging to verify process starts
+process.stdout.write('[server] Starting application...\n');
+process.stderr.write('[server] Starting application (stderr)...\n');
 
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -24,12 +26,13 @@ function loadEnv() {
 }
 
 try {
-  console.log('[server] Loading environment variables...');
+  process.stdout.write('[server] Loading environment variables...\n');
   loadEnv();
+  process.stdout.write('[server] Environment variables loaded\n');
 
-  console.log('[server] Creating Express app...');
+  process.stdout.write('[server] Creating Express app...\n');
   const app = createApp();
-  console.log('[server] Express app created successfully');
+  process.stdout.write('[server] Express app created successfully\n');
 
   const portEnv = process.env.PORT ?? process.env.RAILWAY_PORT ?? '4000';
   const port = Number(portEnv);
@@ -37,41 +40,75 @@ try {
     console.error(`[server] Invalid port: ${portEnv} (parsed as ${port})`);
     process.exit(1);
   }
-  console.log(`[server] Starting server on port ${port} (from PORT=${process.env.PORT}, RAILWAY_PORT=${process.env.RAILWAY_PORT})`);
+  process.stdout.write(`[server] Starting server on port ${port} (from PORT=${process.env.PORT}, RAILWAY_PORT=${process.env.RAILWAY_PORT})\n`);
 
-  console.log('[server] Creating HTTP server...');
+  process.stdout.write('[server] Creating HTTP server...\n');
   const server = createServer(app);
+  process.stdout.write('[server] HTTP server created\n');
   
-  console.log('[server] Creating WebSocket server...');
+  process.stdout.write('[server] Creating WebSocket server...\n');
   createWsServer(server);
-  console.log('[server] WebSocket server created');
+  process.stdout.write('[server] WebSocket server created\n');
 
   process.on('unhandledRejection', (reason) => {
-    console.error('[server] Unhandled rejection', reason);
+    process.stderr.write(`[server] Unhandled rejection: ${String(reason)}\n`);
+    if (reason instanceof Error && reason.stack) {
+      process.stderr.write(`[server] Stack: ${reason.stack}\n`);
+    }
   });
 
   process.on('uncaughtException', (err) => {
-    console.error('[server] Uncaught exception', err);
+    process.stderr.write(`[server] Uncaught exception: ${err.message}\n`);
+    if (err.stack) {
+      process.stderr.write(`[server] Stack: ${err.stack}\n`);
+    }
     process.exit(1);
   });
 
   server.on('error', (err) => {
-    console.error('[server] HTTP server error', err);
+    process.stderr.write(`[server] HTTP server error: ${err.message}\n`);
+    if (err.stack) {
+      process.stderr.write(`[server] Stack: ${err.stack}\n`);
+    }
     process.exit(1);
   });
 
-  console.log('[server] Attempting to listen on port', port);
+  // Handle graceful shutdown
+  const shutdown = (signal: string) => {
+    process.stdout.write(`[server] Received ${signal}, shutting down gracefully...\n`);
+    server.close(() => {
+      process.stdout.write('[server] Server closed\n');
+      process.exit(0);
+    });
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+      process.stderr.write('[server] Forced shutdown after timeout\n');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  process.stdout.write(`[server] Attempting to listen on port ${port}\n`);
   server.listen(port, '0.0.0.0', () => {
-    console.log(`[server] ✓ API listening on 0.0.0.0:${port}`);
-    console.log(`[server] ✓ Health endpoint available at http://0.0.0.0:${port}/health`);
+    process.stdout.write(`[server] ✓ API listening on 0.0.0.0:${port}\n`);
+    process.stdout.write(`[server] ✓ Health endpoint available at http://0.0.0.0:${port}/health\n`);
+    // Keep process alive
+    process.stdout.write('[server] Server is ready and waiting for requests\n');
   }).on('error', (err) => {
-    console.error('[server] ✗ Failed to start server', err);
+    process.stderr.write(`[server] ✗ Failed to start server: ${err.message}\n`);
+    if (err.stack) {
+      process.stderr.write(`[server] Stack: ${err.stack}\n`);
+    }
     process.exit(1);
   });
 } catch (err) {
-  console.error('[server] ✗ Fatal error during startup:', err);
+  process.stderr.write(`[server] ✗ Fatal error during startup: ${String(err)}\n`);
   if (err instanceof Error) {
-    console.error('[server] Error stack:', err.stack);
+    if (err.stack) {
+      process.stderr.write(`[server] Error stack: ${err.stack}\n`);
+    }
   }
   process.exit(1);
 }
