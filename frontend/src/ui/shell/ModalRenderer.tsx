@@ -1,4 +1,4 @@
-import { Suspense, ReactNode, LazyExoticComponent, ComponentType } from 'react'
+import { Suspense, ReactNode, LazyExoticComponent, ComponentType, createElement } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { ModalLoader } from './ModalLoader'
 
@@ -59,7 +59,7 @@ export function ModalRenderer<TProps extends { open: boolean }>({
       }
     >
       <Suspense fallback={fallback ?? <ModalLoader />}>
-        <Component {...componentProps} />
+        {createElement(Component as unknown as ComponentType<TProps>, componentProps)}
       </Suspense>
     </ErrorBoundary>
   )
