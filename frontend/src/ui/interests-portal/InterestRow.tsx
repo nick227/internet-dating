@@ -26,7 +26,7 @@ export function InterestRow({ interest, onToggle, processing = false }: Interest
     >
       <div className="interest-card__content">
         <div className="interest-card__header">
-          <div className="interest-card__label portal-item__title">{interest.label}</div>
+          <div title={interest.label} className="interest-card__label portal-item__title u-clamp-1">{interest.label}</div>
           <div className="portal-item__meta interest-card__checkbox">
             <div className={`interest-card__checkbox-inner${interest.selected ? ' interest-card__checkbox-inner--checked' : ''}`}>
               {interest.selected && (
@@ -43,13 +43,6 @@ export function InterestRow({ interest, onToggle, processing = false }: Interest
           </span>
           {interest.selected && (
             <span className="portal-item__meta-pill portal-item__meta-pill--accent">Selected</span>
-          )}
-        </div>
-        <div className="portal-item__footer">
-          {interest.selected ? (
-            <span className="portal-item__footer-text portal-item__footer-text--accent">Added</span>
-          ) : (
-            <span className="portal-item__footer-spacer" />
           )}
         </div>
       </div>

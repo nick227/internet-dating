@@ -98,7 +98,7 @@
   height: var(--component-size-icon-btn);
   border-radius: 999px;
   border: 1px solid var(--component-border-faint);
-  background: var(--component-surface);
+  color: white;
   color: var(--text);
   display: grid;
   place-items: center;

@@ -40,7 +40,8 @@ import type {
   ApiSwipeResponse,
 } from './contracts'
 import type { paths } from './openapi'
-import { http } from './http'
+import { HttpError, http } from './http'
+import { refreshToken } from './authRefresh'
 import type { FeedResponse, ProfileResponse, LikeBody, RateBody } from './types'
 
 export type InterestItem = {
@@ -334,12 +335,18 @@ export const api = {
     },
     matches: (signal?: AbortSignal) =>
       http<ApiMatchListResponse>(`${API_BASE_URL}${API_PATHS.matches}`, 'GET', { signal }),
-    getOrCreateConversation: (userId: string | number, signal?: AbortSignal) =>
-      http<{ conversationId: string | number }>(
-        `${API_BASE_URL}/api/conversations/with/${encodeURIComponent(String(userId))}`,
-        'POST',
-        { signal }
-      ),
+    getOrCreateConversation: async (userId: string | number, signal?: AbortSignal) => {
+      const url = `${API_BASE_URL}/api/conversations/with/${encodeURIComponent(String(userId))}`
+      try {
+        return await http<{ conversationId: string | number }>(url, 'POST', { signal })
+      } catch (err) {
+        if (err instanceof HttpError && err.status === 401) {
+          await refreshToken(s => api.auth.refresh(s), signal)
+          return await http<{ conversationId: string | number }>(url, 'POST', { signal })
+        }
+        throw err
+      }
+    },
     conversation: (
       conversationId: string | number,
       cursorId?: string | number | null,

@@ -265,7 +265,9 @@ export function HeroSection({ profile, isOwner = false, onMediaUpdate, onMessage
     if (!profile?.userId || isOwner) return
     try {
       const res = await api.messaging.getOrCreateConversation(profile.userId)
-      nav(`/connections/conversation/${encodeURIComponent(String(res.conversationId))}`)
+      nav(`/connections/conversation/${encodeURIComponent(String(res.conversationId))}`, {
+        state: { returnToProfileUserId: String(profile.userId) },
+      })
     } catch (error) {
       console.error('[HeroSection] Failed to start conversation', error)
       alert('Unable to start conversation right now.')

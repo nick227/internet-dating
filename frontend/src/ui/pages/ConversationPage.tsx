@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../core/auth/useAuth'
 import { useCurrentUser } from '../../core/auth/useCurrentUser'
@@ -13,6 +13,7 @@ import { toIdString, idsEqual } from '../../core/utils/ids'
 
 export function ConversationPage() {
   const nav = useNavigate()
+  const location = useLocation()
   const { conversationId } = useParams()
   const id = conversationId ? decodeURIComponent(conversationId) : undefined
   const { userId } = useAuth()
@@ -90,10 +91,24 @@ export function ConversationPage() {
     }
   }
 
+  const returnToProfileUserId =
+    location.state &&
+    typeof (location.state as { returnToProfileUserId?: unknown }).returnToProfileUserId === 'string'
+      ? (location.state as { returnToProfileUserId: string }).returnToProfileUserId
+      : null
+
+  const handleBack = () => {
+    if (returnToProfileUserId) {
+      nav(`/profiles/${encodeURIComponent(returnToProfileUserId)}`)
+      return
+    }
+    nav('/connections/inbox')
+  }
+
   return (
     <div className="conversation u-hide-scroll">
       <div className="conversation__header">
-        <IconButton label="Back" onClick={() => nav('/connections/inbox')}>
+        <IconButton label="Back" onClick={handleBack}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path
               d="M15 6l-6 6 6 6"

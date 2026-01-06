@@ -126,10 +126,11 @@
   background: var(--panel);
   border: 1px solid var(--stroke);
   border-radius: 20px;
-  padding: 24px;
+  padding: var(--s-4);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  height: 80px;
 }
 
 .portal-item:hover {
@@ -201,7 +202,6 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--s-2);
 }
 
 .portal-item__meta-pill {
@@ -268,23 +268,12 @@
 
 .portal-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
   padding: 0;
-}
-
-@media (min-width: 640px) {
-  .portal-grid {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .portal-grid {
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 28px;
-  }
+  overflow-y: auto;
+  max-height: 62vh;
+  padding-bottom: var(--s-8);
 }
 
 .portal-list-empty {
