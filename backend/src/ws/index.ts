@@ -65,7 +65,7 @@ export function createWsServer(server: HttpServer) {
 
   wss.on('close', () => clearInterval(heartbeatTimer))
 
-  wss.on('connection', (socket, req) => {
+  wss.on('connection', (socket: WebSocket, req: IncomingMessage) => {
     const userId = getUserId(req)
     if (!userId) {
       socket.close(4401, 'unauthorized')
@@ -97,7 +97,7 @@ export function createWsServer(server: HttpServer) {
       recordActivity(userId)
     })
 
-    socket.on('message', (data) => {
+    socket.on('message', (data: RawData) => {
       const msg = parseClientMessage(data)
       if (!msg) return
 
@@ -112,7 +112,7 @@ export function createWsServer(server: HttpServer) {
       router.handle(ctx, msg)
     })
 
-    socket.on('close', (_code, reason) => {
+    socket.on('close', (_code: number, reason: Buffer) => {
       missedPongs.delete(socket)
       contexts.delete(socketId)
       const entry = presenceOnDisconnect(userId, socket)

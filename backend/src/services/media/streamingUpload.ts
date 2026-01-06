@@ -9,6 +9,19 @@ import { randomUUID } from 'crypto'
 import busboy from 'busboy'
 import type { Request, Response } from 'express'
 
+type BusboyFieldInfo = {
+  nameTruncated: boolean
+  valueTruncated: boolean
+  encoding: string
+  mimeType?: string
+}
+
+type BusboyFileInfo = {
+  filename: string
+  encoding: string
+  mimeType: string
+}
+
 // Conservative limits for Railway free tier
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024 // 200MB (for videos)
 const MAX_UPLOAD_TIME_MS = 5 * 60 * 1000 // 5 minutes (fail fast)
@@ -136,11 +149,11 @@ export async function streamUploadToDisk(
     })
 
     // Drain extra fields (ignore them, but prevent memory issues)
-    bb.on('field', (_name, _value, _info) => {
+    bb.on('field', (_name: string, _value: string, _info: BusboyFieldInfo) => {
       // Ignore form fields (we only care about the file)
     })
 
-    bb.on('file', async (_name, file, info) => {
+    bb.on('file', async (_name: string, file: NodeJS.ReadableStream, info: BusboyFileInfo) => {
       // Enforce single file
       if (fileSeen) {
         file.resume() // Drain the stream to prevent hanging
@@ -196,7 +209,7 @@ export async function streamUploadToDisk(
       // Pipe file stream to disk with backpressure handling
       file.pipe(writeStream)
 
-      writeStream.on('error', (err) => {
+      writeStream.on('error', (err: Error) => {
         safeReject(new Error(`Write error: ${err.message}`))
       })
 
@@ -231,8 +244,8 @@ export async function streamUploadToDisk(
       tryResolve()
     })
 
-    bb.on('error', (err) => {
-      safeReject(err instanceof Error ? err : new Error(String(err)))
+    bb.on('error', (err: Error) => {
+      safeReject(err)
     })
 
     // Handle request errors

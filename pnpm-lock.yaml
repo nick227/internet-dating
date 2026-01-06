@@ -47,6 +47,9 @@ importers:
       '@types/bcryptjs':
         specifier: ^2.4.6
         version: 2.4.6
+      '@types/busboy':
+        specifier: ^1.5.4
+        version: 1.5.4
       '@types/cookie-parser':
         specifier: ^1.4.7
         version: 1.4.10(@types/express@4.17.25)
@@ -62,6 +65,9 @@ importers:
       '@types/multer':
         specifier: ^1.4.11
         version: 1.4.13
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.50.1
         version: 8.52.0(@typescript-eslint/parser@8.52.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
@@ -1247,6 +1253,9 @@ packages:
 
   '@types/serve-static@1.15.10':
     resolution: {integrity: sha512-tRs1dB+g8Itk72rlSI2ZrW6vZg0YrLI81iQSTkMmOqnqCaNr/8Ek4VwWcN5vZgCYWbg/JJSGBlUaYGAOP73qBw==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@typescript-eslint/eslint-plugin@8.52.0':
     resolution: {integrity: sha512-okqtOgqu2qmZJ5iN4TWlgfF171dZmx2FzdOv2K/ixL2LZWDStL8+JgQerI2sa8eAEfoydG9+0V96m7V+P8yE1Q==}
@@ -4692,6 +4701,10 @@ snapshots:
       '@types/http-errors': 2.0.5
       '@types/node': 22.19.3
       '@types/send': 0.17.6
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.19.3
 
   '@typescript-eslint/eslint-plugin@8.52.0(@typescript-eslint/parser@8.52.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
