@@ -2,68 +2,92 @@
 
 Production-minded dating app POC with a sequence-first feed, match system, and job-driven personalization.
 
-## Railway Single-Service Launch (MySQL + One Volume)
-This setup assumes one Railway service for the Node app, one Railway MySQL database, and one attached volume for uploads.
+## App Functionality & Features
 
-### Railway Environment Variables
-Backend required:
-- `DATABASE_URL` (Railway MySQL connection string)
-- `JWT_ACCESS_SECRET` (random 32+ chars)
-- `JWT_REFRESH_SECRET` (random 32+ chars)
-- `NODE_ENV=production`
+### Core Pages
 
-Backend recommended:
-- `SERVE_FRONTEND=true` (serve `frontend/dist` from the backend)
-- `MEDIA_BASE_URL` (public base URL for media, e.g. `https://your-app.up.railway.app`)
-- `MEDIA_UPLOAD_DIR` (volume path, e.g. `/data/uploads/media`)
-- `JWT_ACCESS_TTL` (optional, default `15m`)
-- `JWT_REFRESH_TTL` (optional, default `30d`)
+**Feed (`/feed`)**
+- Personalized sequence-driven feed mixing posts, profile suggestions, and quiz questions
+- Posts from other users with images, text, and engagement metrics
+- Profile suggestions based on match scores, compatibility, and preferences
+- Interactive quiz questions embedded in feed flow
+- Infinite scroll with cursor-based pagination
+- Real-time updates via WebSocket connections
 
-Frontend build:
-- `VITE_API_BASE_URL` (public API base URL, e.g. `https://your-app.up.railway.app`)
+**Profile Pages (`/profiles/:userId`)**
+- Hero section with customizable media mosaic (up to 7 slots for images/videos)
+- User information: display name, bio, location, dating intent
+- Public posts gallery with media and text content
+- Profile actions: like/dislike, follow/unfollow, rate (attractive, smart, funny, interesting, fit)
+- Profile access system: request/grant/deny private profile access
+- Inline editing for profile owners (name, bio, media management)
+- Post composer for creating new content
+- View followers and following lists
 
-### Railway Commands (root of repo)
-Build command:
-```
-npm install
-npm run build
-npm run -w backend prisma:generate
-```
+**Connections (`/connections`)**
+- **Matches** (`/connections/matches`): View all mutual matches with compatibility scores
+- **Inbox** (`/connections/inbox`): Conversation list with unread indicators
+- **Followers** (`/connections/followers`): Users following you
+- **Following** (`/connections/following`): Users you follow
+- Individual conversation view with real-time messaging
+- Message receipts and read status indicators
 
-Release command (runs migrations):
-```
-npm run -w backend prisma:migrate -- --schema prisma/schema
-```
+**Personality Portal (`/personality`)**
+- **Quizzes** (`/personality/quizzes`): Browse and take personality quizzes
+- **Quiz Detail** (`/personality/quizzes/:quizId`): View quiz details and questions
+- **Quiz Results** (`/quiz/:quizId/results`): View personalized quiz results and trait analysis
+- **Interests** (`/personality/interests`): Manage user interests and preferences
+- Quiz system builds user traits for matching and compatibility
 
-Start command:
-```
-npm run start
-```
+**Profile Search (`/profiles/search`)**
+- Advanced search with filters: location, age, gender, dating intent, interests
+- Sort by match score, ratings, proximity, or recency
+- Proximity-based search with distance calculations
+- Search results with compatibility previews
 
-### Railway UI Setup (DB + Volume)
-MySQL:
-- Create a Railway MySQL service and link it to the app.
-- Set `DATABASE_URL` in the app service to the Railway MySQL connection string.
+**Authentication (`/login`)**
+- Email/password authentication
+- Session management with protected routes
+- Automatic redirect for authenticated users
 
-Volume:
-- Attach a volume to the app service (e.g. mount at `/data`).
-- Set `MEDIA_UPLOAD_DIR=/data/uploads/media`.
+### Key Features
 
-### Railway One-Off Commands (Migrations, Seeds, Jobs)
-Use Railway "Release Command" for migrations so you do not need SSH:
-- Release command: `npm run -w backend prisma:migrate -- --schema prisma/schema`
+**Matching System**
+- Like/dislike profiles to express interest
+- Mutual likes automatically create matches and conversations
+- Match scores computed via background jobs for personalized suggestions
+- Compatibility scores calculated from quiz results, interests, and ratings
 
-If you need to run one-off tasks manually (Railway "Run Command" or SSH):
-```
-npm run -w backend prisma:generate
-npm run -w backend prisma:migrate -- --schema prisma/schema
-npm run -w backend seed:all
-node --import tsx backend/scripts/runJobs.ts match-scores --userId=8
-node --import tsx backend/scripts/runJobs.ts feed-presort --userId=8
-```
+**Content Creation**
+- Create posts with text and multiple media attachments (images, videos)
+- Public or private post visibility
+- Media upload with processing pipeline (validation, variants, thumbnails)
+- Optimistic UI updates for instant feedback
 
-Jobs are not scheduled by default in this repo. To automate them, use Railway cron
-or a separate worker service that runs `scripts/runJobs.ts` on an interval.
+**Real-time Communication**
+- WebSocket-based messaging system
+- Presence indicators (online/offline status)
+- Real-time message delivery and read receipts
+- Conversation state synchronization
+
+**Personalization**
+- Background jobs precompute match scores, compatibility, trending content, and affinity profiles
+- Feed sequence configurable (e.g., 3 posts → 1 suggestion → 1 quiz)
+- Presorted feed segments for faster load times
+- User traits derived from quiz answers for better matching
+
+**Social Features**
+- Follow/unfollow system
+- Profile ratings across multiple dimensions
+- Comment system on posts
+- Like posts and comments
+- User blocking and reporting
+
+**Media Management**
+- Upload and manage images, videos, and audio
+- Media processing with status tracking (uploading, validating, ready, etc.)
+- Profile hero mosaic with drag-and-drop media arrangement
+- Media viewer with full-screen support
 
 ## Repository Structure
 - `backend/` Express + Prisma API, jobs, and seeds.
@@ -103,6 +127,15 @@ Implemented:
 - `affinity`
 - `feed-presort`
 - `feed-presort-cleanup`
+- `stats-reconcile` (reconcile statistics counters)
+- `media-orphan-cleanup` (cleanup orphaned media files)
+- `media-metadata` (extract metadata for a single media file)
+- `media-metadata-batch` (extract metadata for multiple media files)
+- `build-user-traits` (build user traits from quiz results)
+- `profile-search-index` (build profile search index)
+- `user-interest-sets` (build user interest sets for search)
+- `searchable-user` (build searchable user snapshot)
+- `quiz-answer-stats` (aggregate quiz answer statistics by demographics)
 
 Unified CLI:
 ```
@@ -112,6 +145,12 @@ npx tsx scripts/runJobs.ts content-features --batchSize=50
 npx tsx scripts/runJobs.ts trending --windowHours=48 --minEngagements=5
 npx tsx scripts/runJobs.ts affinity --userId=8
 npx tsx scripts/runJobs.ts feed-presort --userId=8
+npx tsx scripts/runJobs.ts stats-reconcile --lookbackHours=24 --batchSize=200
+npx tsx scripts/runJobs.ts build-user-traits --userId=8 --batchSize=100
+npx tsx scripts/runJobs.ts profile-search-index --userBatchSize=100
+npx tsx scripts/runJobs.ts user-interest-sets --batchSize=1000
+npx tsx scripts/runJobs.ts searchable-user --userBatchSize=100
+npx tsx scripts/runJobs.ts quiz-answer-stats
 ```
 
 ## Matching System (High Level)

@@ -25,9 +25,9 @@ loadEnv();
 
 const app = createApp();
 
-const port = Number(process.env.PORT ?? 4000);
+const port = Number(process.env.PORT ?? process.env.RAILWAY_PORT ?? 4000);
 const server = createServer(app);
 createWsServer(server);
-server.listen(port, () => {
-  console.log(`API: http://localhost:${port}`);
+server.listen(port, '0.0.0.0', () => {
+  console.log(`API listening on 0.0.0.0:${port}`);
 });
