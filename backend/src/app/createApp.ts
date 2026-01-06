@@ -70,10 +70,15 @@ function resolveFrontendDist() {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const root = path.resolve(__dirname, '../../..');
-  const dist = path.join(root, 'frontend', 'dist');
-  if (!existsSync(dist)) {
-    console.warn(`[server] frontend dist not found at ${dist}`);
-    return null;
+  const candidates = [
+    path.join(process.cwd(), 'frontend', 'dist'),
+    path.join(root, 'frontend', 'dist'),
+  ];
+  for (const dist of candidates) {
+    if (existsSync(dist)) {
+      return dist;
+    }
   }
-  return dist;
+  console.warn(`[server] frontend dist not found at ${candidates.join(', ')}`);
+  return null;
 }

@@ -28,6 +28,19 @@ const app = createApp();
 const port = Number(process.env.PORT ?? process.env.RAILWAY_PORT ?? 4000);
 const server = createServer(app);
 createWsServer(server);
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] Unhandled rejection', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[server] Uncaught exception', err);
+});
+
+server.on('error', (err) => {
+  console.error('[server] HTTP server error', err);
+});
+
 server.listen(port, '0.0.0.0', () => {
   console.log(`API listening on 0.0.0.0:${port}`);
 });
