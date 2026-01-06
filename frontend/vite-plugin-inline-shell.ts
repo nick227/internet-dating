@@ -1,6 +1,4 @@
 import type { Plugin } from 'vite'
-import { readFileSync } from 'fs'
-import { join } from 'path'
 
 /**
  * Vite plugin to inline minimal JS for shell mounting
@@ -13,7 +11,7 @@ export function inlineShellPlugin(): Plugin {
     enforce: 'pre',
     transformIndexHtml: {
       enforce: 'pre',
-      transform(html, ctx) {
+      transform(html, _ctx) {
         try {
           // Minimal inline script to mount shell before React
           // This renders the optimistic first card frame immediately

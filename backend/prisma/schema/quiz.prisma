@@ -9,6 +9,7 @@ model Quiz {
   results   QuizResult[]
   feedQuestions FeedQuestion[]
   tags      QuizTag[]
+  answerStats QuizAnswerStats[]
 }
 
 model QuizTag {
@@ -26,6 +27,7 @@ model QuizQuestion {
   quiz      Quiz @relation(fields: [quizId], references: [id])
   feedQuestions FeedQuestion[]
   options   QuizOption[]
+  answerStats QuizAnswerStats[]
   @@unique([quizId, order])
 }
 
@@ -51,4 +53,23 @@ model QuizResult {
   user      User @relation(fields: [userId], references: [id])
   quiz      Quiz @relation(fields: [quizId], references: [id])
   @@unique([userId, quizId])
+}
+
+model QuizAnswerStats {
+  id          BigInt   @id @default(autoincrement())
+  quizId      BigInt
+  questionId  BigInt
+  optionValue String
+  dimension   String   // 'site' | 'gender' | 'age' | 'city'
+  bucket      String   // 'ALL', 'MALE', '25-34', 'NYC', etc.
+  count       Int      // Number of users in this bucket who chose this option
+  total       Int      // Total users in this bucket who answered this question (any option)
+  updatedAt   DateTime @updatedAt
+  
+  quiz        Quiz     @relation(fields: [quizId], references: [id])
+  question    QuizQuestion @relation(fields: [questionId], references: [id])
+  
+  @@unique([quizId, questionId, optionValue, dimension, bucket])
+  @@index([quizId, questionId, optionValue, dimension])
+  @@index([dimension, bucket])
 }

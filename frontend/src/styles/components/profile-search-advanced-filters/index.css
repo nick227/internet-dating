@@ -1,5 +1,4 @@
 .profile-search-advanced-filters {
-  position: fixed;
   inset: 0;
   z-index: var(--z-modal);
   display: flex;
@@ -29,7 +28,7 @@
 }
 
 .profile-search-advanced-filters__backdrop {
-  position: absolute;
+  display: none;
   inset: 0;
   background: rgba(3, 3, 8, 0.72);
   backdrop-filter: blur(6px);

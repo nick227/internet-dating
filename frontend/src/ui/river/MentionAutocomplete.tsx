@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { searchUsers } from '../../api/comments'
 import { useDebounce } from '../../core/hooks/useDebounce'
 
@@ -13,7 +13,7 @@ type MentionAutocompleteProps = {
  * Component for @mention autocomplete dropdown
  * SRP: Shows user suggestions when typing @
  */
-export function MentionAutocomplete({ query, containerRef, onSelect, onClose }: MentionAutocompleteProps) {
+export function MentionAutocomplete({ query, containerRef: _containerRef, onSelect, onClose }: MentionAutocompleteProps) {
   const [users, setUsers] = useState<Array<{ id: string; name: string; displayName: string; avatarUrl?: string }>>([])
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)

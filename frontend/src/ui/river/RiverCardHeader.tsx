@@ -7,6 +7,7 @@ import type {
 } from '../../api/types'
 import { prettyIntent } from '../../core/format/prettyIntent'
 import { Pill } from '../ui/Pill'
+import { Avatar } from '../ui/Avatar'
 
 type RiverCardHeaderProps = {
   actor?: FeedCardActor
@@ -58,6 +59,13 @@ export function RiverCardHeader({
   return (
     <div className="u-stack">
       <div className="riverCard__name">
+        <Avatar
+          name={name}
+          size="sm"
+          src={actor?.avatarUrl ?? null}
+          profileId={actor?.id != null ? String(actor.id) : null}
+          className="riverCard__avatar"
+        />
         <h2 className="u-clamp-1">{name}</h2>
         {age != null && <span>{age}</span>}
       </div>

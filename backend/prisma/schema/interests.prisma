@@ -58,6 +58,7 @@ model MatchScore {
   ratingInteresting Float?
   distanceKm      Float?
   reasons         Json?
+  tier            String?  // 'A' (within preferences) or 'B' (outside preferences)
   scoredAt        DateTime @default(now())  // When score was computed (for freshness contract)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -66,6 +67,7 @@ model MatchScore {
   @@id([userId, candidateUserId])
   @@index([userId, score])
   @@index([userId, scoredAt])
+  @@index([userId, tier])
 }
 
 model InterestRelationship {

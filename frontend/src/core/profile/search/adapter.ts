@@ -62,7 +62,7 @@ export function dimensionsToAPIParams(
 
 export function apiParamsToDimensions(
   params: SearchParams,
-  dimensions: SearchDimension[]
+  _dimensions: SearchDimension[]
 ): Map<string, unknown> {
   const values = new Map<string, unknown>()
   

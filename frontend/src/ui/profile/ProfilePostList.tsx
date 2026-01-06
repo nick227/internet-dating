@@ -126,7 +126,7 @@ function PostItem({ post }: { post: ProfilePost }) {
     // Comment count will update via feed refresh
   }, [])
   
-  const handleMentionClick = useCallback((userId: string) => {
+  const handleMentionClick = useCallback((_userId: string) => {
     // Navigate to profile - can be enhanced later if needed
   }, [])
 

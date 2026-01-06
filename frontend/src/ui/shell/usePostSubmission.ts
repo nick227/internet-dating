@@ -210,7 +210,7 @@ export function usePostSubmission() {
         abortControllerRef.current = null
       }
     },
-    [createOptimisticPost, uploadMediaFiles]
+    [createOptimisticPost, uploadMediaFiles, currentUserId]
   )
 
   const abort = useCallback(() => {

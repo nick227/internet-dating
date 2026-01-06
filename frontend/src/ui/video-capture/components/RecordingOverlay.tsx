@@ -19,13 +19,17 @@ export function RecordingOverlay(props: {
         <div className="counter">{fmt(remaining)}</div>
         <div className="row" style={{ gap: 8, pointerEvents: 'auto' }}>
           <span className="pill">REC</span>
-          <button className="btn" onClick={props.onFlip} type="button" disabled={!props.canFlip}>
-            Flip
-          </button>
         </div>
       </div>
       <div className="overlayBottom" style={{ pointerEvents: 'auto' }}>
-        <button className="btn danger" onClick={props.onStop} type="button">
+        <button
+          className="btn danger"
+          onClick={() => {
+            console.log('[capture] ui:stop-click')
+            props.onStop()
+          }}
+          type="button"
+        >
           Stop
         </button>
       </div>

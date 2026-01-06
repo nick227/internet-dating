@@ -80,8 +80,6 @@ export function ProfilePage() {
         />
       )}
 
-      <ProfileRatings ratings={profile?.ratings} />
-
       {profile?.bio ? (
         <div className="u-glass promptCard">
           <div className="u-stack">

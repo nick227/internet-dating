@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio Overlay Mix Test</title>
+  </head>
+  <body>
+    <main id="status">Preparing...</main>
+    <script type="module">
+      import { renderMixedWebm } from '/src/ui/video-capture/lib/renderMixedWebm.ts'
+
+      const statusEl = document.getElementById('status')
+      const setStatus = (msg) => {
+        if (statusEl) statusEl.textContent = msg
+      }
+
+      const waitMetadata = (el) =>
+        new Promise((resolve, reject) => {
+          if (el.readyState >= 1) return resolve()
+          const onLoaded = () => {
+            el.removeEventListener('loadedmetadata', onLoaded)
+            el.removeEventListener('error', onError)
+            resolve()
+          }
+          const onError = () => {
+            el.removeEventListener('loadedmetadata', onLoaded)
+            el.removeEventListener('error', onError)
+            reject(new Error('Failed to load media metadata'))
+          }
+          el.addEventListener('loadedmetadata', onLoaded)
+          el.addEventListener('error', onError)
+        })
+
+      const loadBlob = async (url) => {
+        const res = await fetch(url)
+        if (!res.ok) {
+          throw new Error(`Failed to load ${url}: ${res.status}`)
+        }
+        return res.blob()
+      }
+
+      const probeVideo = async (blob) => {
+        const url = URL.createObjectURL(blob)
+        const video = document.createElement('video')
+        video.preload = 'metadata'
+        video.muted = true
+        video.src = url
+        try {
+          await waitMetadata(video)
+          return {
+            duration: video.duration,
+            width: video.videoWidth,
+            height: video.videoHeight,
+            size: blob.size,
+            type: blob.type,
+          }
+        } finally {
+          URL.revokeObjectURL(url)
+        }
+      }
+
+      ;(async () => {
+        let videoEl = null
+        let videoUrl = ''
+        try {
+          setStatus('Loading fixtures...')
+          const [videoBlob, audioBlob] = await Promise.all([
+            loadBlob('/test/video.mp4'),
+            loadBlob('/test/audio.mp3'),
+          ])
+
+          videoEl = document.createElement('video')
+          videoUrl = URL.createObjectURL(videoBlob)
+          videoEl.src = videoUrl
+          videoEl.playsInline = true
+          videoEl.muted = true
+          videoEl.preload = 'metadata'
+          document.body.appendChild(videoEl)
+          await waitMetadata(videoEl)
+
+          setStatus('Mixing...')
+          const mixedBlob = await renderMixedWebm({
+            videoEl,
+            audioBlob,
+            audioVolume: 1,
+            audioOffsetMs: 0,
+          })
+
+          const mixedMeta = await probeVideo(mixedBlob)
+          const inputMeta = {
+            duration: videoEl.duration,
+            width: videoEl.videoWidth,
+            height: videoEl.videoHeight,
+          }
+
+          window.__mixResult = {
+            ok: mixedBlob.size > 0 && !Number.isNaN(mixedMeta.duration),
+            size: mixedBlob.size,
+            type: mixedBlob.type,
+            duration: mixedMeta.duration,
+            width: mixedMeta.width,
+            height: mixedMeta.height,
+            inputDuration: inputMeta.duration,
+          }
+          window.__mixBlob = mixedBlob
+
+          setStatus(`OK ${mixedBlob.size}`)
+        } catch (err) {
+          window.__mixError = err instanceof Error ? err.message : String(err)
+          setStatus(`ERROR ${window.__mixError}`)
+        } finally {
+          if (videoEl) videoEl.remove()
+          if (videoUrl) URL.revokeObjectURL(videoUrl)
+        }
+      })()
+    </script>
+  </body>
+</html>

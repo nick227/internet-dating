@@ -91,6 +91,7 @@ const API_PATHS = {
   quizActive: '/api/quizzes/active',
   quizSubmit: '/api/quizzes/{quizId}/submit',
   quizById: '/api/quizzes/{quizId}',
+  quizResults: '/api/quizzes/{quizId}/results',
   quizUpdate: '/api/quizzes/{quizId}',
   quizQuestionUpdate: '/api/quizzes/{quizId}/questions/{questionId}',
   quizOptionUpdate: '/api/quizzes/{quizId}/questions/{questionId}/options/{optionId}',
@@ -238,6 +239,7 @@ export const api = {
         age: number | null
         gender: string
         intent: string
+        liked?: boolean
         matchReasons?: string[]
       }>
       nextCursor: string | null
@@ -263,6 +265,7 @@ export const api = {
         age: number | null
         gender: string
         intent: string
+        liked?: boolean
         matchReasons?: string[]
       }>
       nextCursor: string | null
@@ -331,6 +334,12 @@ export const api = {
     },
     matches: (signal?: AbortSignal) =>
       http<ApiMatchListResponse>(`${API_BASE_URL}${API_PATHS.matches}`, 'GET', { signal }),
+    getOrCreateConversation: (userId: string | number, signal?: AbortSignal) =>
+      http<{ conversationId: string | number }>(
+        `${API_BASE_URL}/api/conversations/with/${encodeURIComponent(String(userId))}`,
+        'POST',
+        { signal }
+      ),
     conversation: (
       conversationId: string | number,
       cursorId?: string | number | null,
@@ -385,6 +394,10 @@ export const api = {
     submit: (quizId: string | number, body: ApiQuizSubmitBody, signal?: AbortSignal) => {
       const path = fillPath(API_PATHS.quizSubmit, { quizId })
       return http<ApiOkResponse>(`${API_BASE_URL}${path}`, 'POST', { body, signal })
+    },
+    results: (quizId: string | number, signal?: AbortSignal) => {
+      const path = fillPath(API_PATHS.quizResults, { quizId })
+      return http<import('../ui/quiz/results/types.js').QuizResults>(`${API_BASE_URL}${path}`, 'GET', { signal })
     },
     update: (quizId: string | number, body: ApiQuizUpdateBody, signal?: AbortSignal) => {
       const path = fillPath(API_PATHS.quizUpdate, { quizId })

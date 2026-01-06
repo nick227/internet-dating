@@ -43,6 +43,16 @@ export function createApp() {
   // Registry-driven REST API
   app.use('/api', buildApiRouter());
 
+  // Error handler - must be after all routes
+  app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[Express] Unhandled error:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    // Default to 500 for unexpected errors
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
   const shouldServeFrontend =
     process.env.NODE_ENV === 'production' || process.env.SERVE_FRONTEND === 'true';
   if (shouldServeFrontend) {

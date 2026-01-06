@@ -1,4 +1,4 @@
-import type { Gender, DatingIntent, Id } from '../../api/types'
+import type { Gender, DatingIntent } from '../../api/types'
 
 export type SearchDimensionType = 
   | 'text'
@@ -99,6 +99,7 @@ export interface ProfileSearchResult {
   age: number | null
   gender: Gender
   intent: DatingIntent
+  liked?: boolean
   matchReasons?: string[]
 }
 

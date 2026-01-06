@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export function useObjectUrl(blob: Blob | null | undefined) {
   const [url, setUrl] = useState<string | null>(null)

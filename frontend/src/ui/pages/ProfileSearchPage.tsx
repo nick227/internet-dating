@@ -7,7 +7,7 @@ import { getErrorMessage } from '../../core/utils/errors'
 import type { SearchFilters } from '../../core/profile/search/types'
 
 export function ProfileSearchPage() {
-  const { filters, setFilters, results, loading, error, hasMore, loadMore } = useProfileSearch()
+  const { filters, setFilters, results, loading, error, hasMore, loadMore, isShowingRecommendations } = useProfileSearch()
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
   const hasActiveFilters = useMemo(() => {
     return !!(
@@ -59,6 +59,13 @@ export function ProfileSearchPage() {
           </button>
         </div>
 
+      <ProfileSearchFilters
+        open={advancedFiltersOpen}
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        onClose={() => setAdvancedFiltersOpen(false)}
+      />
+
         <div className="profiles-portal__quick-filters">
           <ProfileSearchQuickFilters filters={filters} onFiltersChange={handleFiltersChange} />
         </div>
@@ -81,16 +88,10 @@ export function ProfileSearchPage() {
             loading={loading}
             hasMore={hasMore}
             onLoadMore={loadMore}
+            isShowingRecommendations={isShowingRecommendations}
           />
         </div>
       </div>
-
-      <ProfileSearchFilters
-        open={advancedFiltersOpen}
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        onClose={() => setAdvancedFiltersOpen(false)}
-      />
     </div>
   )
 }

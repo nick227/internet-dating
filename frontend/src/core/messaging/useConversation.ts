@@ -4,7 +4,7 @@ import { api } from '../../api/client'
 import type { ApiMessageItem } from '../../api/contracts'
 import type { Id } from '../../api/types'
 import { getErrorMessage } from '../utils/errors'
-import { toIdString, idsEqual } from '../utils/ids'
+import { idsEqual } from '../utils/ids'
 import { realtime } from '../../api/realtime'
 
 type ConversationState = {

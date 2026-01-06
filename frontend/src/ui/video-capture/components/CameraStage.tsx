@@ -1,8 +1,6 @@
-import { useCallback } from 'react'
 import { CameraPreview } from './CameraPreview'
 import { CanvasPreview } from './CanvasPreview'
 import { RecordingOverlay } from './RecordingOverlay'
-import { useRecordingTimer } from '../hooks/useRecordingTimer'
 
 export function CameraStage(props: {
   stream: MediaStream
@@ -11,22 +9,27 @@ export function CameraStage(props: {
   onStop: () => void
   isRecording: boolean
   toggleFacing: () => void
+  elapsedMs: number
+  onResetTimer: () => void
   previewCanvas?: HTMLCanvasElement | null
+  onSampleKeyColor?: (normX: number, normY: number) => void
+  sampleEnabled?: boolean
+  mirrored?: boolean
 }) {
-  const onMaxReached = useCallback(() => props.onStop(), [props])
-
-  const timer = useRecordingTimer(props.maxMs, props.isRecording, onMaxReached)
-
   return (
     <>
       {props.previewCanvas ? (
-        <CanvasPreview canvas={props.previewCanvas} />
+        <CanvasPreview
+          canvas={props.previewCanvas}
+          onSample={props.onSampleKeyColor}
+          sampleEnabled={props.sampleEnabled}
+        />
       ) : (
-        <CameraPreview stream={props.stream} mirrored={true} />
+        <CameraPreview stream={props.stream} mirrored={props.mirrored} />
       )}
       {props.isRecording ? (
         <RecordingOverlay
-          elapsedMs={timer.elapsedMs}
+          elapsedMs={props.elapsedMs}
           maxMs={props.maxMs}
           onStop={props.onStop}
           onFlip={props.toggleFacing}
@@ -34,11 +37,15 @@ export function CameraStage(props: {
         />
       ) : (
         <div className="overlayBottom" style={{ pointerEvents: 'auto' }}>
-          <button className="btn primary" onClick={() => { timer.reset(); props.onStart() }} type="button">
+          <button
+            className="btn primary"
+            onClick={() => {
+              props.onResetTimer()
+              props.onStart()
+            }}
+            type="button"
+          >
             Start
-          </button>
-          <button className="btn" onClick={props.toggleFacing} type="button">
-            Flip
           </button>
         </div>
       )}

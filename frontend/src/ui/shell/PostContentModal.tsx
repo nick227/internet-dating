@@ -163,6 +163,21 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
   )
 
   // Single cleanup path - only called when modal closes
+  const resetSheetDrag = useCallback(() => {
+    setSheetTranslateY(0)
+    dragTranslateYRef.current = 0
+    isDraggingRef.current = false
+  }, [])
+
+  const handleCancelPost = useCallback(() => {
+    clearDraft()
+    executeCleanup()
+    setShowCameraCapture(false)
+    setCapturing(null)
+    resetSheetDrag()
+    onClose()
+  }, [clearDraft, executeCleanup, onClose, resetSheetDrag, setCapturing, setShowCameraCapture])
+
   const handleRequestClose = useCallback(async () => {
     if (busy) return
 
@@ -178,12 +193,6 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
     executeCleanup()
     onClose()
   }, [busy, text, files.length, tags.length, executeCleanup, onClose])
-
-  const resetSheetDrag = useCallback(() => {
-    setSheetTranslateY(0)
-    dragTranslateYRef.current = 0
-    isDraggingRef.current = false
-  }, [])
 
   // Simplified submit handler - orchestrator handles all coordination
   const handleSubmit = useCallback(async () => {
@@ -289,8 +298,8 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
   }, [setCapturing])
 
   const handleVideoPost = useCallback(
-    (file: File, note: string) => {
-      addFiles([file])
+    (files: File[], note: string) => {
+      addFiles(files)
       if (note && !text.trim()) {
         setText(note)
       }
@@ -418,7 +427,7 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
         data-testid="post-content-panel"
       >
         <div className="sheet__content">
-          <PostContentModalHeader />
+          <PostContentModalHeader onCancel={handleCancelPost} />
 
           <PostContentModalSheet
             text={text}

@@ -1,12 +1,11 @@
 import { createContext, createElement, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 
-export type ModalType = 'controlPanel' | 'post' | 'heroMosaicViewer' | 'mediaViewer' | null
+export type ModalType = 'controlPanel' | 'post' | 'mediaViewer' | null
 
 type ModalStateValue = {
   openModal: ModalType
   openControlPanel: () => void
   openPost: () => void
-  openHeroMosaicViewer: () => void
   openMediaViewer: () => void
   closeModal: () => void
 }
@@ -24,10 +23,6 @@ export function ModalStateProvider({ children }: { children: ReactNode }) {
     setOpenModal('post')
   }, [])
 
-  const openHeroMosaicViewer = useCallback(() => {
-    setOpenModal('heroMosaicViewer')
-  }, [])
-
   const openMediaViewer = useCallback(() => {
     setOpenModal('mediaViewer')
   }, [])
@@ -41,11 +36,10 @@ export function ModalStateProvider({ children }: { children: ReactNode }) {
       openModal,
       openControlPanel,
       openPost,
-      openHeroMosaicViewer,
       openMediaViewer,
       closeModal,
     }),
-    [openModal, openControlPanel, openPost, openHeroMosaicViewer, openMediaViewer, closeModal]
+    [openModal, openControlPanel, openPost, openMediaViewer, closeModal]
   )
 
   return createElement(ModalStateContext.Provider, { value }, children)

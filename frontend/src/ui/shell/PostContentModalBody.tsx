@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { RefObject } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { SmartTextarea, type DetectedMedia } from '../form/SmartTextarea'
+import { Media } from '../ui/Media'
 import { TagInput } from '../form/TagInput'
 import type { FileWithPreview, LinkPreviewState, UploadProgress } from './postComposerState'
 import type { FeedTarget } from './usePostFormState'
@@ -88,6 +88,19 @@ export function PostContentModalBody({
 
   return (
     <div className="modal__body">
+      <MediaPreview
+        files={files}
+        uploadProgress={uploadProgress}
+        progressMeta={progressMeta}
+        busy={busy}
+        onRemoveFile={onRemoveFile}
+        onReorderFile={onReorderFile}
+      />
+
+      <TagSection tags={tags} onTagsChange={onTagsChange} tagSuggestions={tagSuggestions} />
+
+      <LinkPreviewList linkPreviews={linkPreviews} linkPreviewStatus={linkPreviewStatus} />
+
       <SmartTextarea
         value={text}
         onChange={onTextChange}
@@ -113,19 +126,6 @@ export function PostContentModalBody({
         onVisibilityChange={onVisibilityChange}
       />
 
-      <MediaPreview
-        files={files}
-        uploadProgress={uploadProgress}
-        progressMeta={progressMeta}
-        busy={busy}
-        onRemoveFile={onRemoveFile}
-        onReorderFile={onReorderFile}
-      />
-
-      <TagSection tags={tags} onTagsChange={onTagsChange} tagSuggestions={tagSuggestions} />
-
-      <LinkPreviewList linkPreviews={linkPreviews} linkPreviewStatus={linkPreviewStatus} />
-
       <UploadControls
         busy={busy}
         capturing={capturing}
@@ -144,9 +144,6 @@ export function PostContentModalBody({
           Detected {detectedCount} link{detectedCount > 1 ? 's' : ''}. Embeds coming soon.
         </div>
       )}
-      <div className="profile__meta" style={{ fontSize: 'var(--fs-2)' }}>
-        Tip: Press Cmd/Ctrl+Enter to post.
-      </div>
 
       <input
         ref={fileRef}
@@ -182,7 +179,7 @@ type FeedSelectorProps = {
   onTargetUserIdChange: (targetUserId: string | null) => void
 }
 
-function FeedSelector({ feedTarget, targetUserId, busy, onFeedTargetChange, onTargetUserIdChange }: FeedSelectorProps) {
+function FeedSelector({ feedTarget, targetUserId: _targetUserId, busy, onFeedTargetChange, onTargetUserIdChange }: FeedSelectorProps) {
   return (
     <div className="u-row u-gap-3" style={{ alignItems: 'center' }}>
       <label style={{ fontSize: 'var(--fs-2)', color: 'var(--muted)' }}>Post to:</label>
@@ -273,125 +270,149 @@ type MediaPreviewProps = {
   onReorderFile: (fromIndex: number, toIndex: number) => void
 }
 
-function MediaPreview({
-  files,
-  uploadProgress,
-  progressMeta,
-  busy,
-  onRemoveFile,
-  onReorderFile,
-}: MediaPreviewProps) {
-  if (files.length === 0) return null
+type MediaKind = 'image' | 'video' | 'audio' | 'unknown'
+
+const mediaExtensionMap: Record<string, MediaKind> = {
+  jpg: 'image',
+  jpeg: 'image',
+  png: 'image',
+  gif: 'image',
+  webp: 'image',
+  heic: 'image',
+  heif: 'image',
+  mp4: 'video',
+  mov: 'video',
+  webm: 'video',
+  ogg: 'video',
+  mp3: 'audio',
+  wav: 'audio',
+  m4a: 'audio',
+  aac: 'audio',
+  oga: 'audio',
+}
+
+const getFileKind = (file: File): MediaKind => {
+  const mime = file.type?.toLowerCase()
+  if (mime?.startsWith('image/')) return 'image'
+  if (mime?.startsWith('video/')) return 'video'
+  if (mime?.startsWith('audio/')) return 'audio'
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  if (ext && mediaExtensionMap[ext]) return mediaExtensionMap[ext]
+  return 'unknown'
+}
+
+type MediaPreviewItemProps = {
+  item: FileWithPreview
+  label: string
+  isThumbnail?: boolean
+}
+
+function MediaPreviewItem({ item, label, isThumbnail = false }: MediaPreviewItemProps) {
+  const kind = getFileKind(item.file)
+
+  if (kind === 'image') {
+    return (
+      <Media
+        src={item.preview}
+        alt={label}
+        type="image"
+        enableViewer={false}
+        overlay="light"
+        className="profile__postMediaMedia"
+      />
+    )
+  }
+
+  if (kind === 'video') {
+    return (
+      <Media
+        src={item.preview}
+        type="video"
+        enableViewer={false}
+        controls
+        muted={false}
+        className="profile__postMediaMedia"
+      />
+    )
+  }
+
+  if (kind === 'audio') {
+    if (isThumbnail) {
+      return (
+        <div className="profile__postMediaAudioThumb" aria-label={label}>
+          <span className="profile__postMediaAudioIcon" aria-hidden="true">
+            ♪
+          </span>
+          <span className="profile__postMediaAudioLabel">{item.file.name}</span>
+        </div>
+      )
+    }
+    return (
+      <Media
+        src={item.preview}
+        alt={label}
+        type="audio"
+        enableViewer={false}
+        controls
+        className="profile__postMediaMedia"
+      />
+    )
+  }
 
   return (
-    <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
+    <div className="profile__postMediaUnknown" aria-label={label}>
+      Unsupported file
+    </div>
+  )
+}
+
+function MediaPreview({
+  files,
+  uploadProgress: _uploadProgress,
+  progressMeta,
+  busy: _busy,
+  onRemoveFile: _onRemoveFile,
+  onReorderFile: _onReorderFile,
+}: MediaPreviewProps) {
+  if (files.length === 0) return null
+  const mainFiles = files.length > 3 ? files.slice(0, 3) : files
+  const extraFiles = files.length > 3 ? files.slice(3) : []
+  const layoutCount = Math.min(files.length, 3)
+  return (
+    <div className="u-stack upload-container" style={{ gap: 'var(--s-2)' }}>
       <div className="srOnly" role="status" aria-live="polite" aria-atomic="true">
         Uploading {progressMeta.completed} of {files.length} files. Overall{' '}
         {progressMeta.totalProgress}% complete.
       </div>
-      <div className="profile__postMedia u-hide-scroll" style={{ display: 'flex', gap: 'var(--s-2)' }}>
-        {files.map((fileWithPreview, index) => {
-          const progress = uploadProgress[fileWithPreview.id]
-          const isUploading = progress?.status === 'uploading'
-          const isError = progress?.status === 'error'
+      <div
+        className={`profile__postMedia profile__postMedia--count-${layoutCount}${
+          extraFiles.length ? ' profile__postMedia--with-thumbs' : ''
+        }`}
+      >
+        {mainFiles.map((fileWithPreview, index) => {
           return (
             <div
               key={fileWithPreview.id}
-              className="profile__postMediaThumb u-relative"
-              style={{ position: 'relative' }}
+              className={`profile__postMediaTile profile__postMediaTile--${index + 1}`}
             >
-              <img
-                src={fileWithPreview.preview}
-                alt={`Preview ${index + 1}`}
-                loading="lazy"
-                style={{
-                  width: '120px',
-                  height: '160px',
-                  objectFit: 'cover',
-                  borderRadius: 'var(--r-3)',
-                }}
-              />
-              {!busy && (
-                <button
-                  className="mediaDeleteBtn"
-                  type="button"
-                  onClick={() => onRemoveFile(fileWithPreview.id)}
-                  aria-label="Remove media"
-                >
-                  X
-                </button>
-              )}
-              {index > 0 && !busy && (
-                <button
-                  className="topBar__btn"
-                  type="button"
-                  onClick={() => onReorderFile(index, index - 1)}
-                  style={{
-                    position: 'absolute',
-                    left: '4px',
-                    top: '4px',
-                    padding: '4px 8px',
-                    fontSize: 'var(--fs-1)',
-                  }}
-                  aria-label="Move left"
-                  onKeyDown={event => onReorderKey(event, 'ArrowLeft', () => onReorderFile(index, index - 1))}
-                >
-                  &lt;
-                </button>
-              )}
-              {index < files.length - 1 && !busy && (
-                <button
-                  className="topBar__btn"
-                  type="button"
-                  onClick={() => onReorderFile(index, index + 1)}
-                  style={{
-                    position: 'absolute',
-                    right: '4px',
-                    top: '4px',
-                    padding: '4px 8px',
-                    fontSize: 'var(--fs-1)',
-                  }}
-                  aria-label="Move right"
-                  onKeyDown={event => onReorderKey(event, 'ArrowRight', () => onReorderFile(index, index + 1))}
-                >
-                  &gt;
-                </button>
-              )}
-              {isUploading && progress && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: 'rgba(0,0,0,0.7)',
-                    padding: '4px',
-                    fontSize: 'var(--fs-1)',
-                  }}
-                >
-                  Uploading... {Math.round(progress.progress)}%
-                </div>
-              )}
-              {isError && progress?.error && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: 'rgba(251,113,133,0.9)',
-                    padding: '4px',
-                    fontSize: 'var(--fs-1)',
-                    color: 'white',
-                  }}
-                >
-                  Error: {progress.error}
-                </div>
-              )}
+              <MediaPreviewItem item={fileWithPreview} label={fileWithPreview.file.name} />
             </div>
           )
         })}
       </div>
+      {extraFiles.length > 0 && (
+        <div className="profile__postMediaThumbRow">
+          {extraFiles.map(fileWithPreview => (
+            <div key={fileWithPreview.id} className="profile__postMediaThumb">
+              <MediaPreviewItem
+                item={fileWithPreview}
+                label={fileWithPreview.file.name}
+                isThumbnail
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -404,7 +425,7 @@ type TagSectionProps = {
 
 function TagSection({ tags, onTagsChange, tagSuggestions }: TagSectionProps) {
   return (
-    <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
+    <div className="u-stack tags-container" style={{ gap: 'var(--s-2)' }}>
       <label style={{ fontSize: 'var(--fs-2)', color: 'var(--muted)' }}>Tags (optional):</label>
       <TagInput
         value={tags}
@@ -441,7 +462,7 @@ function LinkPreviewList({ linkPreviews, linkPreviewStatus }: LinkPreviewListPro
             style={{ padding: 'var(--s-3)', borderRadius: 'var(--r-3)' }}
           >
             {state.preview.type === 'youtube' && state.preview.image && (
-              <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
+              <div className="u-stack youtube" style={{ gap: 'var(--s-2)' }}>
                 <img
                   src={state.preview.image}
                   alt="YouTube thumbnail"
@@ -580,13 +601,3 @@ function UploadControls({
   )
 }
 
-function onReorderKey(
-  event: ReactKeyboardEvent<HTMLButtonElement>,
-  key: 'ArrowLeft' | 'ArrowRight',
-  action: () => void
-) {
-  if (event.key === key) {
-    event.preventDefault()
-    action()
-  }
-}

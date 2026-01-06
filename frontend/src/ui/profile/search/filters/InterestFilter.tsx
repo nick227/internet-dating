@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useInterestsDiscovery } from '../../../interests-portal/hooks/useInterestsDiscovery'
 import { useInterestsSubjects } from '../../../interests-portal/hooks/useInterestsSubjects'
 import { InterestList } from '../../../interests-portal/InterestList'
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function InterestFilter({ dimension, value, onChange }: Props) {
-  const selectedInterestIds = Array.isArray(value) ? (value as string[]) : []
+  const selectedInterestIds = useMemo(() => Array.isArray(value) ? (value as string[]) : [], [value])
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const { subjects } = useInterestsSubjects()
 
@@ -48,7 +48,7 @@ export function InterestFilter({ dimension, value, onChange }: Props) {
     return selectedInterestIds.includes(id)
   }, [selectedInterestIds])
 
-  const isProcessing = useCallback((id: string) => {
+  const isProcessing = useCallback((_id: string) => {
     return false
   }, [])
 

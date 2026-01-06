@@ -66,7 +66,7 @@ export function useRiverCardCommentAdapter(card: FeedCard) {
       return prev.filter(entry => !nextIds.has(entry.id))
     })
     setCommentOpen(true)
-  }, [card.id, card.stats, card.comments?.preview])
+  }, [card.id, card.stats, card.comments?.preview, optimisticRating])
 
   // Merge comments: optimistic (newest first) + server (newest first)
   // Both arrays are already in newest-first order, so just concatenate

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, useParams } from 'react-router-dom'
 import { AppShell } from './ui/shell/AppShell'
 import { ModalStateProvider } from './ui/shell/useModalState'
+import { SessionProvider } from './core/auth/SessionProvider'
 import { ProtectedRoute } from './core/routing/ProtectedRoute'
 import { PublicRoute } from './core/routing/PublicRoute'
 import { PageTransition } from './core/routing/PageTransition'
@@ -17,6 +18,7 @@ const DEBUG = Boolean(import.meta.env?.DEV)
 const ProfilePage = lazy(() => import('./ui/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const ConversationPage = lazy(() => import('./ui/pages/ConversationPage').then(m => ({ default: m.ConversationPage })))
 const QuizPage = lazy(() => import('./ui/pages/QuizPage').then(m => ({ default: m.QuizPage })))
+const QuizResultsPage = lazy(() => import('./ui/pages/QuizResultsPage').then(m => ({ default: m.QuizResultsPage })))
 const QuizDetailPage = lazy(() => import('./ui/pages/QuizDetailPage').then(m => ({ default: m.QuizDetailPage })))
 const QuizPortalPage = lazy(() => import('./ui/pages/QuizPortalPage').then(m => ({ default: m.QuizPortalPage })))
 const InterestsPortalPage = lazy(() => import('./ui/pages/InterestsPortalPage').then(m => ({ default: m.InterestsPortalPage })))
@@ -44,8 +46,9 @@ export default function App() {
   }
   
   return (
-    <ModalStateProvider>
-      <AppShell>
+    <SessionProvider>
+      <ModalStateProvider>
+        <AppShell>
         <PageTransition>
           <Route path="/" element={<Navigate to="/feed" replace />} />
           <Route
@@ -83,6 +86,16 @@ export default function App() {
           <Route
             path="/connections"
             element={<Navigate to="/connections/inbox" replace />}
+          />
+          <Route
+            path="/connections/conversation/:conversationId"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<RouteLoader />}>
+                  <ConversationPage />
+                </Suspense>
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/connections/:section"
@@ -126,6 +139,16 @@ export default function App() {
               <ProtectedRoute>
                 <Suspense fallback={<RouteLoader />}>
                   <QuizPage />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quiz/:quizId/results"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<RouteLoader />}>
+                  <QuizResultsPage />
                 </Suspense>
               </ProtectedRoute>
             }
@@ -186,7 +209,8 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to="/feed" replace />} />
         </PageTransition>
-      </AppShell>
-    </ModalStateProvider>
+        </AppShell>
+      </ModalStateProvider>
+    </SessionProvider>
   )
 }

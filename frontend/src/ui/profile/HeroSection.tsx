@@ -18,10 +18,10 @@ type HeroSectionProps = {
   profile?: ProfileResponse
   isOwner?: boolean
   onMediaUpdate?: () => void
-  onMore?: () => void
+  onMessage?: () => void
 }
 
-export function HeroSection({ profile, isOwner = false, onMediaUpdate, onMore }: HeroSectionProps) {
+export function HeroSection({ profile, isOwner = false, onMediaUpdate, onMessage }: HeroSectionProps) {
   const nav = useNavigate()
   const presenceStatus = usePresence(profile?.userId)
   const presenceLabel = usePresenceLabel(presenceStatus)
@@ -257,14 +257,27 @@ export function HeroSection({ profile, isOwner = false, onMediaUpdate, onMore }:
     [profile?.userId, profile?.posts, baseItems, viewState.pickerSlotIndex, onMediaUpdate, closePicker]
   )
 
-  const handleMore = onMore ?? (() => alert('TODO: menu'))
+  const handleMessage = useCallback(async () => {
+    if (onMessage) {
+      onMessage()
+      return
+    }
+    if (!profile?.userId || isOwner) return
+    try {
+      const res = await api.messaging.getOrCreateConversation(profile.userId)
+      nav(`/connections/conversation/${encodeURIComponent(String(res.conversationId))}`)
+    } catch (error) {
+      console.error('[HeroSection] Failed to start conversation', error)
+      alert('Unable to start conversation right now.')
+    }
+  }, [isOwner, nav, onMessage, profile?.userId])
 
   return (
     <>
     <div className="profile__hero">
       <div className="profile__heroFallback" aria-hidden="true" />
         <div className="profile__heroScrim" />
-        <HeroTopBar onBack={() => nav(-1)} onMore={handleMore} />
+        <HeroTopBar onBack={() => nav(-1)} onMessage={handleMessage} />
         <HeroContent profile={profile} presenceLabel={presenceLabel} />
         <div className="profile__heroMedia">
           <HeroMosaic

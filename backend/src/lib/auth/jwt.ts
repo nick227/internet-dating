@@ -27,7 +27,16 @@ export function signRefreshToken(payload: JwtPayload) {
 }
 
 export function verifyAccessToken(token: string): JwtPayload {
-  return jwt.verify(token, env('JWT_ACCESS_SECRET')) as JwtPayload;
+  try {
+    const payload = jwt.verify(token, env('JWT_ACCESS_SECRET')) as JwtPayload;
+    if (!payload || !payload.sub) {
+      throw new Error('Token payload missing sub field');
+    }
+    return payload;
+  } catch (err) {
+    // Re-throw JWT errors - they'll be caught by tokenToUserId
+    throw err;
+  }
 }
 
 export function verifyRefreshToken(token: string): JwtPayload {

@@ -342,21 +342,6 @@ export function useCommentWidget({
         [isReply ? 'reply' : 'root']: prev[isReply ? 'reply' : 'root'] + 1,
       }))
 
-      // Create optimistic comment
-      const optimisticComment: ApiComment = {
-        id: clientRequestId,
-        body: text,
-        author: { id: 'me', name: 'You' },
-        createdAt: new Date().toISOString(),
-        likeCount: 0,
-        replyCount: isReply ? undefined : 0,
-        myReaction: null,
-        mentionedUserIds: [],
-      }
-
-      // Add to tracker
-      optimisticTracker.current.add(clientRequestId, optimisticComment)
-
       // Update UI immediately
       if (isReply) {
         // For replies: increment parent's reply count
@@ -368,6 +353,21 @@ export function useCommentWidget({
           )
         )
       } else {
+        // Create optimistic comment (root only)
+        const optimisticComment: ApiComment = {
+          id: clientRequestId,
+          body: text,
+          author: { id: 'me', name: 'You' },
+          createdAt: new Date().toISOString(),
+          likeCount: 0,
+          replyCount: 0,
+          myReaction: null,
+          mentionedUserIds: [],
+        }
+
+        // Add to tracker (root only)
+        optimisticTracker.current.add(clientRequestId, optimisticComment)
+
         // For root: extract server comments from prev, then merge with all optimistic
         // Get optimistic IDs before setState to avoid stale closures
         const allOptimistic = optimisticTracker.current.getAll()
@@ -397,17 +397,19 @@ export function useCommentWidget({
 
         const serverId = String(result.id)
 
-        // Update optimistic comment with server ID and timestamp
-        optimisticTracker.current.acknowledge(clientRequestId, serverId, result.createdAt)
+        if (!isReply) {
+          // Update optimistic comment with server ID and timestamp
+          optimisticTracker.current.acknowledge(clientRequestId, serverId, result.createdAt)
 
-        // Update state with server ID
-        setComments(prev =>
-          prev.map(c =>
-            c.id === clientRequestId
-              ? { ...c, id: serverId, createdAt: result.createdAt }
-              : c
+          // Update state with server ID
+          setComments(prev =>
+            prev.map(c =>
+              c.id === clientRequestId
+                ? { ...c, id: serverId, createdAt: result.createdAt }
+                : c
+            )
           )
-        )
+        }
 
         // Reload to get full comment data from server (author info, mentions, etc.)
         // The API only returns id and createdAt, so we need to fetch full data
@@ -422,7 +424,9 @@ export function useCommentWidget({
         return
       } catch (error) {
         // Rollback optimistic changes
-        optimisticTracker.current.remove(clientRequestId)
+        if (!isReply) {
+          optimisticTracker.current.remove(clientRequestId)
+        }
 
         if (isReply) {
           // Restore parent reply count

@@ -13,7 +13,7 @@ export function criticalCssPlugin(): Plugin {
     enforce: 'pre',
     transformIndexHtml: {
       enforce: 'pre',
-      transform(html, ctx) {
+      transform(html, _ctx) {
         // Always inject critical CSS (both dev and production)
         // This ensures consistent styling and allows testing in dev mode
 

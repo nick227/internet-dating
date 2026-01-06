@@ -8,6 +8,9 @@ import tsParser from '@typescript-eslint/parser';
 export default [
   // Base JS rules
   js.configs.recommended,
+  {
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'test-results/**', 'playwright-report/**', '*.config.ts', '*.config.js', '*.config.mjs', 'test-*.js', 'test-*.html'],
+  },
 
   // TS / TSX
   {

@@ -167,7 +167,7 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
     setProfileSaveError(null)
     
     try {
-      const response = await profileSaveFnRef.current()
+      await profileSaveFnRef.current()
       
       // Trigger profile refresh to hydrate with new values
       onUpdated?.()

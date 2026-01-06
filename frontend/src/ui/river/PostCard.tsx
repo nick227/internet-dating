@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from 'react'
-import type { FeedCard, FeedCardStats } from '../../api/types'
+import type { FeedCard } from '../../api/types'
 import type { WsPresenceStatus } from '@app/shared/ws/contracts'
 import { RiverCardFrame } from './RiverCardFrame'
 import { RiverCardBody } from './RiverCardBody'

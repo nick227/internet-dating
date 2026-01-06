@@ -92,6 +92,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const stageContent = (
     <ErrorBoundary>
       <div className="stage">
+        {!isLoading && userId && (
+          <ModalRenderer
+            modalType="post"
+            openModal={openModal}
+            component={PostContentModal}
+            props={{
+              onClose: closeModal,
+              onPosted: triggerAuthChange,
+            }}
+          />
+        )}
         {children}
         {isLoading && (
           <div
@@ -138,15 +149,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                     profile: currentUser.profile,
                     onClose: closeModal,
                     onUpdated: triggerAuthChange,
-                  }}
-                />
-                <ModalRenderer
-                  modalType="post"
-                  openModal={openModal}
-                  component={PostContentModal}
-                  props={{
-                    onClose: closeModal,
-                    onPosted: triggerAuthChange,
                   }}
                 />
               </>

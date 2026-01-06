@@ -7,6 +7,7 @@ export type MatchScoreRow = {
   score: number;
   reasons: unknown;
   distanceKm: number | null;
+  algorithmVersion?: string | null;
 };
 
 export type RecommendationProfile = {
@@ -39,9 +40,11 @@ export async function loadRecentMatchScores(
     cursorUserId?: bigint;
     cursorScore?: number;
     minAge?: Date;
+    algorithmVersion?: string | null;
+    maxDistanceKm?: number;
   }
 ): Promise<MatchScoreRow[]> {
-  const { limit, cursorUserId, cursorScore, minAge } = options;
+  const { limit, cursorUserId, cursorScore, minAge, algorithmVersion, maxDistanceKm } = options;
   
   let cursorWhere: Record<string, unknown> = {};
   if (cursorUserId !== undefined && cursorScore !== undefined) {
@@ -60,6 +63,10 @@ export async function loadRecentMatchScores(
     where: {
       userId,
       scoredAt: minAge ? { gte: minAge } : undefined,
+      algorithmVersion: algorithmVersion !== undefined ? algorithmVersion : undefined,
+      distanceKm: maxDistanceKm !== undefined 
+        ? { lte: maxDistanceKm, not: null }  // Exclude null distances when filtering
+        : undefined,
       ...cursorWhere
     },
     orderBy: [{ score: 'desc' }, { candidateUserId: 'desc' }],
@@ -68,11 +75,20 @@ export async function loadRecentMatchScores(
       candidateUserId: true, 
       score: true,
       reasons: true,
-      distanceKm: true
-    }
+      distanceKm: true,
+      algorithmVersion: true
+    } as const
   });
 
   return scored;
+}
+
+export async function checkMatchScoresExist(userId: bigint): Promise<boolean> {
+  const count = await prisma.matchScore.count({
+    where: { userId },
+    take: 1
+  });
+  return count > 0;
 }
 
 export async function loadRecommendationProfiles(

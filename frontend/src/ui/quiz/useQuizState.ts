@@ -138,11 +138,12 @@ export function useQuizState(quizId?: string) {
     dispatch({ type: 'SUBMIT_START' })
     try {
       await api.quizzes.submit(activeQuiz.id, { answers: state.answers })
-      dispatch({ type: 'SUBMIT_SUCCESS', payload: 'Quiz saved to your profile.' })
+      // Navigate to results page instead of showing message
+      nav(`/quiz/${activeQuiz.id}/results`)
     } catch (e) {
       dispatch({ type: 'SUBMIT_FAILURE', payload: getErrorMessage(e, 'Failed to submit quiz.') })
     }
-  }, [activeQuiz, userId, state.answers])
+  }, [activeQuiz, userId, state.answers, nav])
 
   const updateTitle = useCallback(async (title: string) => {
     if (!activeQuiz) return

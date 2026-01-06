@@ -57,7 +57,11 @@ export async function http<T>(
     if (e instanceof HttpError) {
       throw e
     }
-    console.error('[DEBUG] http: Network/fetch error', { url, error: e })
+    // Suppress AbortError logs - these are expected when requests are cancelled
+    const isAbortError = e instanceof DOMException && e.name === 'AbortError'
+    if (!isAbortError) {
+      console.error('[DEBUG] http: Network/fetch error', { url, error: e })
+    }
     throw e
   }
 }

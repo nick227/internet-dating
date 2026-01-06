@@ -1,4 +1,4 @@
-import type { SearchDimension, SearchDimensionType, Gender, DatingIntent } from './types'
+import type { SearchDimension, SearchDimensionType } from './types'
 
 export const SEARCH_DIMENSIONS: SearchDimension[] = [
   {

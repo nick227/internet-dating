@@ -30,7 +30,7 @@ function CommentListComponent({
   hasMore,
   onLoadMore,
   onLike,
-  onReply,
+  onReply: _onReply,
   onMentionClick,
   onDelete,
   onSubmitComment,

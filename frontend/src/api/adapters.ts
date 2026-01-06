@@ -171,7 +171,7 @@ function validateFeedSuggestion(
   if (!DEV) return
 
   if (!suggestion.displayName) {
-    console.warn(
+    feedDebugLog(
       `[feed:adapter] Suggestion ${userId} missing displayName (using fallback "Unknown")`
     )
   }
@@ -186,21 +186,21 @@ function validateFeedSuggestion(
 
   const hasHeroUrl = 'heroUrl' in suggestion
   if (!hasHeroUrl) {
-    console.debug(
+    feedDebugLog(
       `[feed:adapter] Suggestion ${userId} missing heroUrl field (not yet supported by backend)`
     )
   }
 
   const hasStats = 'stats' in suggestion
   if (!hasStats) {
-    console.debug(
+    feedDebugLog(
       `[feed:adapter] Suggestion ${userId} missing stats field (not yet supported by backend)`
     )
   }
 
   const hasAvatarUrl = 'avatarUrl' in suggestion
   if (!hasAvatarUrl) {
-    console.warn(
+    feedDebugLog(
       `[feed:adapter] Suggestion ${userId} missing avatarUrl - header rendering may be broken`
     )
   }

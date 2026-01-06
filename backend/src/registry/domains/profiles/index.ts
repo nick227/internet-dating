@@ -17,6 +17,13 @@ import { recommendationsRoute } from './handlers/recommendations.js';
 export const profilesDomain: DomainRegistry = {
   domain: 'profiles',
   routes: [
+    // Register specific routes BEFORE parameterized routes to avoid route conflicts
+    // e.g., /profiles/recommendations must come before /profiles/:userId
+    recommendationsRoute,
+    searchRoute,
+    advancedSearchRoute,
+    traitsRoute,
+    // Parameterized routes come after specific routes
     getProfileRoute,
     requestAccessRoute,
     grantAccessRoute,
@@ -27,10 +34,6 @@ export const profilesDomain: DomainRegistry = {
     cancelAccessRoute,
     revokeAccessRoute,
     updateProfileRoute,
-    rateProfileRoute,
-    searchRoute,
-    advancedSearchRoute,
-    recommendationsRoute,
-    traitsRoute
+    rateProfileRoute
   ]
 };

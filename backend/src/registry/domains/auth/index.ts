@@ -107,9 +107,20 @@ export const authDomain: DomainRegistry = {
 
         try {
           const payload = verifyRefreshToken(token);
+          if (!payload || !payload.sub) {
+            console.error('[auth/refresh] Refresh token payload missing sub field', { payload });
+            return json(res, { error: 'invalid refresh token' }, 401);
+          }
+          // Validate that sub is a valid positive integer
+          const userIdTest = BigInt(payload.sub);
+          if (userIdTest <= 0n) {
+            console.error('[auth/refresh] Invalid userId in refresh token', { sub: payload.sub });
+            return json(res, { error: 'invalid refresh token' }, 401);
+          }
           res.cookie('access_token', signAccessToken({ sub: payload.sub }), getCookieOpts(false));
           return json(res, { ok: true });
-        } catch {
+        } catch (err) {
+          console.error('[auth/refresh] Error refreshing token', { error: err });
           return json(res, { error: 'invalid refresh token' }, 401);
         }
       }
@@ -138,7 +149,12 @@ export const authDomain: DomainRegistry = {
       summary: 'Return current user id',
       tags: ['auth'],
       handler: async (req, res) => {
-        return json(res, { userId: req.userId });
+        // req.userId should be set by requireAuth middleware, but ensure it exists
+        const userId = req.userId ?? req.ctx?.userId?.toString();
+        if (!userId) {
+          return json(res, { error: 'User ID not found' }, 401);
+        }
+        return json(res, { userId });
       }
     }
   ]

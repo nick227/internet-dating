@@ -64,8 +64,7 @@ function CommentRowComponent({
       }
 
       // Check if this mention matches a userId
-      const username = match[1].toLowerCase()
-      const mentionedUserId = comment.mentionedUserIds.find(id => {
+      const mentionedUserId = comment.mentionedUserIds.find(() => {
         // In a real implementation, we'd need to fetch user info to match username
         // For now, we'll just check if any userId exists (simplified)
         return true // Simplified - would need user lookup

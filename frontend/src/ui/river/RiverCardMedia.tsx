@@ -30,6 +30,7 @@ export function RiverCardMedia({
     () => selectMedia(media, hero, presentation?.heroIndex),
     [media, hero, presentation?.heroIndex]
   )
+  const hasMedia = items.length > 0
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const swipeRef = useRef({
@@ -231,11 +232,17 @@ export function RiverCardMedia({
       }
     >
       {canNavigate && <AriaLiveAnnouncement index={activeIndex} total={items.length} />}
-      {mode === 'mosaic' ? (
-        <MosaicMedia items={mosaicItems} isCardIntersecting={isCardIntersecting} />
+      {hasMedia ? (
+        mode === 'mosaic' ? (
+          <MosaicMedia items={mosaicItems} isCardIntersecting={isCardIntersecting} />
+        ) : (
+          <div className="riverCard__mediaFrame">
+            {active ? <MediaItem item={active} isCardIntersecting={isCardIntersecting} /> : null}
+          </div>
+        )
       ) : (
-        <div className="riverCard__mediaFrame">
-          {active ? <MediaItem item={active} isCardIntersecting={isCardIntersecting} /> : null}
+        <div className="riverCard__mediaEmpty" role="img" aria-label="Profile media not available">
+          <div className="riverCard__mediaEmptyLabel">Photos coming soon</div>
         </div>
       )}
       {canNavigate && (

@@ -97,6 +97,10 @@ function CommentWidgetComponent({
   // Handle delete with reload
   const handleDeleteWithReload = useCallback(
     async (commentId: string, isReply: boolean, parentId?: string) => {
+      const confirmation = confirm('Delete this comment?');
+      if (!confirmation) {
+        return;
+      }
       await handleDelete(commentId, isReply, parentId)
       await reload()
       onCommentRemoved?.(undefined)
@@ -232,11 +236,11 @@ function CommentWidgetComponent({
               touchHandlersRef.current.handleTouchMove = undefined
               touchHandlersRef.current.handleTouchEnd = undefined
             }
-            
+
             // Store handlers in ref for cleanup
             touchHandlersRef.current.handleTouchMove = handleTouchMove
             touchHandlersRef.current.handleTouchEnd = handleTouchEnd
-            
+
             document.addEventListener('touchmove', handleTouchMove, { passive: true })
             document.addEventListener('touchend', handleTouchEnd, { once: true })
           }

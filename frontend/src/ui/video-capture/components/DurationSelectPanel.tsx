@@ -23,10 +23,9 @@ export function DurationSelectPanel(props: {
           </button>
         ))}
       </div>
-      <button className="btn primary" onClick={onContinue} type="button">
+      <button className="btn btn-full" onClick={onContinue} type="button">
         Open camera
       </button>
-      <div className="hint">Chrome/Edge works best for MediaRecorder.</div>
     </div>
   )
 }

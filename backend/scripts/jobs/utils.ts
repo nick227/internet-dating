@@ -35,6 +35,20 @@ export function parseBigIntArg(flag: string): bigint | null {
   return BigInt(value);
 }
 
+export function parseIntArrayArg(flag: string): number[] | null {
+  const raw = process.argv.find((arg) => arg.startsWith(`${flag}=`));
+  if (!raw) return null;
+  const value = raw.split('=')[1];
+  if (!value) return null;
+  const parts = value.split(',');
+  const parsed = parts
+    .map(p => p.trim())
+    .filter(p => /^\d+$/.test(p))
+    .map(p => Number.parseInt(p, 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+  return parsed.length > 0 ? parsed : null;
+}
+
 export function parseFlag(flag: string): boolean {
   return process.argv.includes(flag);
 }

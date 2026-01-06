@@ -207,6 +207,23 @@ export const quizzesDomain: DomainRegistry = {
         // Note: User traits are rebuilt by the build-user-traits backend job only
         // Do not trigger rebuild here - it's a worker job, not triggered on quiz submission
 
+        // Trigger incremental stats update (async, don't wait)
+        // Extract question IDs from answers - only update affected questions
+        const answerMap = answers as Record<string, string>;
+        const questionIds = Object.keys(answerMap).map(id => BigInt(id));
+        
+        // Enqueue incremental update for affected questions only
+        setImmediate(async () => {
+          try {
+            // Import job dynamically to avoid circular dependencies
+            const { runQuizAnswerStatsJob } = await import('../../../jobs/quizAnswerStatsJob.js');
+            await runQuizAnswerStatsJob({ quizId, questionIds });
+          } catch (err) {
+            console.error('Failed to update quiz answer stats:', err);
+            // Don't fail the request if stats update fails
+          }
+        });
+
         return json(res, { ok: true });
       }
     },
@@ -324,6 +341,175 @@ export const quizzesDomain: DomainRegistry = {
           select: { id: true, label: true, value: true }
         });
         return json(res, updated);
+      }
+    },
+    {
+      id: 'quizzes.GET./quizzes/:quizId/results',
+      method: 'GET',
+      path: '/quizzes/:quizId/results',
+      auth: Auth.user(),
+      summary: 'Get quiz results with demographic comparisons',
+      tags: ['quizzes'],
+      handler: async (req, res) => {
+        const userId = req.ctx.userId!;
+        const quizParsed = parsePositiveBigInt(req.params.quizId, 'quizId');
+        if (!quizParsed.ok) return json(res, { error: quizParsed.error }, 400);
+        const quizId = quizParsed.value;
+
+        // Fetch user's quiz result
+        const userResult = await prisma.quizResult.findUnique({
+          where: { userId_quizId: { userId, quizId } },
+          select: { answers: true }
+        });
+
+        if (!userResult) {
+          return json(res, { error: 'Quiz not completed' }, 404);
+        }
+
+        // Fetch quiz with questions
+        const quiz = await prisma.quiz.findUnique({
+          where: { id: quizId },
+          select: {
+            id: true,
+            title: true,
+            questions: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                prompt: true,
+                options: {
+                  orderBy: { order: 'asc' },
+                  select: { id: true, label: true, value: true, traitValues: true }
+                }
+              }
+            }
+          }
+        });
+
+        if (!quiz) {
+          return json(res, { error: 'Quiz not found' }, 404);
+        }
+
+        // Fetch user demographics
+        const profile = await prisma.profile.findUnique({
+          where: { userId },
+          select: { gender: true, birthdate: true }
+        });
+
+        const searchIndex = await prisma.profileSearchIndex.findUnique({
+          where: { userId },
+          select: { ageBucket: true, locationCity: true }
+        });
+
+        // Calculate user age
+        const age = profile?.birthdate
+          ? Math.floor((Date.now() - profile.birthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+          : null;
+
+        const userGender = profile?.gender ?? 'UNSPECIFIED';
+        const userAgeBucket = searchIndex?.ageBucket !== null
+          ? (['18-24', '25-34', '35-44', '45-54', '55+'][searchIndex.ageBucket] ?? null)
+          : null;
+        const userCity = searchIndex?.locationCity ?? null;
+
+        // Determine opposite gender
+        const oppositeGender = userGender === 'MALE' ? 'FEMALE' : userGender === 'FEMALE' ? 'MALE' : 'UNSPECIFIED';
+
+        // Determine other city (highest total responses overall, not user's city)
+        // This is computed once per quiz, not per request
+        const topCityStats = await prisma.quizAnswerStats.findFirst({
+          where: {
+            quizId,
+            dimension: 'city',
+            bucket: userCity ? { not: userCity } : undefined
+          },
+          orderBy: { total: 'desc' },
+          select: { bucket: true },
+          distinct: ['bucket']
+        });
+        const otherCity = topCityStats?.bucket ?? null;
+
+        // Extract user's answers
+        const answers = userResult.answers as Record<string, string>;
+        const questionIds = quiz.questions.map(q => q.id);
+        const optionValues = quiz.questions
+          .map(q => answers[String(q.id)])
+          .filter((v): v is string => v !== undefined);
+
+        // Fetch all needed stats in one query
+        const stats = await prisma.quizAnswerStats.findMany({
+          where: {
+            quizId,
+            questionId: { in: questionIds },
+            optionValue: { in: optionValues },
+            dimension: { in: ['site', 'gender', 'age', 'city'] }
+          }
+        });
+
+        // Build stats lookup map
+        const statsMap = new Map<string, { count: number; total: number }>();
+        for (const stat of stats) {
+          const key = `${stat.questionId}:${stat.optionValue}:${stat.dimension}:${stat.bucket}`;
+          statsMap.set(key, { count: stat.count, total: stat.total });
+        }
+
+        // Build response
+        const questions = quiz.questions.map(question => {
+          const optionValue = answers[String(question.id)];
+          const selectedOption = question.options.find(o => o.value === optionValue);
+
+          if (!selectedOption) {
+            return null;
+          }
+
+          const getStat = (dimension: string, bucket: string) => {
+            const key = `${question.id}:${optionValue}:${dimension}:${bucket}`;
+            return statsMap.get(key);
+          };
+
+          const siteStat = getStat('site', 'ALL');
+          const genderStat = getStat('gender', userGender);
+          const oppositeGenderStat = getStat('gender', oppositeGender);
+          const ageStat = userAgeBucket ? getStat('age', userAgeBucket) : null;
+          const cityStat = userCity ? getStat('city', userCity) : null;
+          const otherCityStat = otherCity ? getStat('city', otherCity) : null;
+
+          const calculatePercentage = (stat: { count: number; total: number } | null | undefined) => {
+            if (!stat || stat.total === 0) return 0;
+            return Math.round((stat.count / stat.total) * 100);
+          };
+
+          return {
+            questionId: String(question.id),
+            questionPrompt: question.prompt,
+            userSelectedAnswer: {
+              optionId: String(selectedOption.id),
+              optionLabel: selectedOption.label,
+              traitValues: (selectedOption.traitValues as Record<string, number>) ?? {},
+              percentages: {
+                siteAverage: calculatePercentage(siteStat),
+                userGender: calculatePercentage(genderStat),
+                oppositeGender: calculatePercentage(oppositeGenderStat),
+                userAgeGroup: calculatePercentage(ageStat),
+                userCity: calculatePercentage(cityStat),
+                otherCity: calculatePercentage(otherCityStat)
+              }
+            }
+          };
+        }).filter((q): q is NonNullable<typeof q> => q !== null);
+
+        return json(res, {
+          quiz: {
+            id: String(quiz.id),
+            title: quiz.title
+          },
+          userDemo: {
+            gender: userGender,
+            age: age ?? 0,
+            city: userCity
+          },
+          questions
+        });
       }
     }
   ]

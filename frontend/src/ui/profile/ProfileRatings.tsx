@@ -13,18 +13,14 @@ export function ProfileRatings({ ratings }: ProfileRatingsProps) {
   if (average == null && myAverage == null) return null
 
   return (
-    <div className="u-glass profile__card">
-      <div className="u-stack">
-        <div className="inlineChips">
-          {average != null && (
+    <>
+    {average != null && (
             <Pill>
               {`Rating ${formatRating(average)}${ratings.count ? ` (${ratings.count})` : ''}`}
             </Pill>
           )}
           {myAverage != null && <Pill>{`Your rating ${formatRating(myAverage)}`}</Pill>}
-        </div>
-      </div>
-    </div>
+    </>
   )
 }
 

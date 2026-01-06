@@ -27,7 +27,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--component-space-xxs);
-  margin-bottom: var(--s-3);
+  margin-bottom: var(--s-8);
 }
 .modal__body {
   display: flex;
@@ -195,12 +195,14 @@
 }
 
 .sheet {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
+  position: relative;
   display: flex;
   flex-direction: column;
-  background: rgba(10, 10, 16, 0.98);
+  width: 100%;
+  max-width: var(--layout-page-max-width);
+  height: 100%;
+  margin: 0 auto;
+  background: transparent;
 }
 
 .sheet__panel {
@@ -208,8 +210,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-radius: 0;
-  padding: calc(var(--s-4) + var(--safe-top)) var(--s-4) calc(var(--s-4) + var(--safe-bot));
+  height: 100%;
+  border-radius: var(--r-3);
   background: rgba(15, 15, 25, 0.98);
   transition: transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -220,23 +222,32 @@
   flex-direction: column;
   min-height: 0;
   gap: var(--s-3);
+  border-radius: var(--r-3);
 }
 
 .sheet .modal__header {
   margin-bottom: 0;
+  border-top-left-radius: var(--r-3);
+  border-top-right-radius: var(--r-3);
+  padding: var(--s-4);
 }
 
 .sheet .modal__body {
+  padding: var(--s-4);
   flex: 1;
   overflow-y: auto;
   min-height: 0;
   padding-right: var(--s-2);
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .sheet .modal__actions {
   margin-top: 0;
   padding-top: var(--s-2);
   flex-shrink: 0;
+  padding: var(--s-4);
 }

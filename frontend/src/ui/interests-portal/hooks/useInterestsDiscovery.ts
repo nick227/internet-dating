@@ -52,7 +52,7 @@ export function useInterestsDiscovery(
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [subjectId, searchQuery])
+  }, [subjectId, searchQuery, onReconcile])
 
   useEffect(() => {
     // Reset state when filters change

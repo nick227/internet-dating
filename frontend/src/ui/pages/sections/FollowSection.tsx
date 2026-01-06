@@ -81,7 +81,7 @@ export function FollowSection({
       onRefresh: refreshWithReset,
       refreshDisabled: !userId || userLoading || loading,
     })
-  }, [registerHeader, refreshWithReset, loading, userId, userLoading])
+  }, [registerHeader, refreshWithReset, loading, userId, userLoading, mode])
 
   useLayoutEffect(() => {
     if (userLoading || loading || error) {

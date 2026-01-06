@@ -23,6 +23,7 @@
 }
 
 .personality-portal__title {
+  cursor: pointer;
   font-size: clamp(26px, 4vw, 36px);
   font-weight: 700;
   letter-spacing: -0.02em;

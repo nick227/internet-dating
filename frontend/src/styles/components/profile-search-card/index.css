@@ -163,13 +163,15 @@
   background: var(--component-surface-hover);
 }
 
-.profile-search-card__action-btn--primary {
+.profile-search-card__action-btn--primary,
+.profile-search-card__action-btn--active {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--text);
   font-weight: 600;
 }
 
-.profile-search-card__action-btn--primary:hover {
+.profile-search-card__action-btn--primary:hover,
+.profile-search-card__action-btn--active:hover {
   opacity: 0.9;
 }

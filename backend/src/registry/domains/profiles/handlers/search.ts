@@ -150,6 +150,17 @@ export const advancedSearchRoute: RouteDef = {
     const profiles = hasMore ? results.slice(0, take) : results;
     
     const userIds = profiles.map(p => p.userId);
+    const likedIds = viewerId
+      ? await prisma.like.findMany({
+          where: {
+            fromUserId: viewerId,
+            toUserId: { in: userIds },
+            action: 'LIKE'
+          },
+          select: { toUserId: true }
+        })
+      : [];
+    const likedSet = new Set(likedIds.map(item => item.toUserId));
     const fullProfiles = await prisma.profile.findMany({
       where: {
         userId: { in: userIds },
@@ -214,6 +225,7 @@ export const advancedSearchRoute: RouteDef = {
           age: p.age,
           gender: p.gender,
           intent: p.intent,
+          liked: viewerId ? likedSet.has(p.userId) : undefined,
           matchReasons: matchReasons.length > 0 ? matchReasons : undefined
         };
       });

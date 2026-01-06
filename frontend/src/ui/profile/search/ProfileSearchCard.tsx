@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom'
+import { useLike } from '../../../core/actions/useLike'
+import { useStoredReaction } from '../../../core/actions/useStoredReaction'
 import type { ProfileSearchResult } from '../../../core/profile/search/types'
 import { Avatar } from '../../ui/Avatar'
 import { prettyIntent } from '../../../core/format/prettyIntent'
@@ -10,6 +12,9 @@ interface Props {
 
 export function ProfileSearchCard({ profile, onPass }: Props) {
   const navigate = useNavigate()
+  const { send: sendLike, loading: likeLoading } = useLike()
+  const { reaction, setReaction } = useStoredReaction(profile.userId)
+  const isLiked = (profile.liked ?? false) || reaction === 'LIKE'
 
   const handleCardClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.profile-search-card__actions')) {
@@ -23,9 +28,16 @@ export function ProfileSearchCard({ profile, onPass }: Props) {
     onPass?.(profile.userId)
   }
 
-  const handleMessage = (e: React.MouseEvent) => {
+  const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    navigate(`/inbox/${encodeURIComponent(profile.userId)}`)
+    if (likeLoading) return
+    const nextLiked = !isLiked
+    setReaction(nextLiked ? 'LIKE' : null)
+    try {
+      await sendLike(profile.userId, nextLiked ? 'LIKE' : 'UNLIKE')
+    } catch {
+      setReaction(isLiked ? 'LIKE' : null)
+    }
   }
 
   const getIntentClass = (intent: string) => {
@@ -99,10 +111,11 @@ export function ProfileSearchCard({ profile, onPass }: Props) {
           </button>
           <button
             type="button"
-            className="profile-search-card__action-btn profile-search-card__action-btn--primary"
-            onClick={handleMessage}
+            className={`profile-search-card__action-btn${isLiked ? ' profile-search-card__action-btn--active' : ''}`}
+            onClick={handleLike}
+            disabled={likeLoading}
           >
-            Message 💬
+            Like 😘
           </button>
         </div>
       </div>

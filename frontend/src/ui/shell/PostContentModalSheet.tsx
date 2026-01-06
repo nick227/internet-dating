@@ -1,11 +1,11 @@
 import type { ComponentProps } from 'react'
 import { PostContentModalBody } from './PostContentModalBody'
-import { VideoCaptureRoot } from '../video-capture/VideoCaptureRoot'
+import { MediaCaptureRoot } from '../media-capture/MediaCaptureRoot'
 
 type Props = ComponentProps<typeof PostContentModalBody> & {
   showCameraCapture: boolean
   onCloseCameraCapture: () => void
-  onVideoPost: (file: File, note: string) => void
+  onVideoPost: (files: File[], note: string) => void
   onRequestClose: () => void
 }
 
@@ -19,7 +19,7 @@ export function PostContentModalSheet({
   if (showCameraCapture) {
     return (
       <div className="modal__body" data-testid="post-content-camera-sheet">
-        <VideoCaptureRoot onPost={onVideoPost} onRequestClose={onRequestClose} onExitCapture={onCloseCameraCapture} />
+        <MediaCaptureRoot onPost={onVideoPost} onRequestClose={onRequestClose} onExitCapture={onCloseCameraCapture} />
       </div>
     )
   }

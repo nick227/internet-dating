@@ -234,6 +234,26 @@ export interface paths {
       };
     };
   };
+  "/api/profiles/recommendations": {
+    /** Get personalized profile recommendations based on MatchScore */
+    get: {
+    };
+  };
+  "/api/profiles/search": {
+    /** Search users for @mention autocomplete */
+    get: {
+    };
+  };
+  "/api/profiles/advanced-search": {
+    /** Advanced profile search with multiple filters */
+    get: {
+    };
+  };
+  "/api/profiles/search/traits": {
+    /** Get available trait keys for search filters */
+    get: {
+    };
+  };
   "/api/profiles/{userId}": {
     /** Get profile */
     get: {
@@ -309,29 +329,6 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["ProfileAccessResponse"];
-          };
-        };
-      };
-    };
-  };
-  "/api/profiles/{userId}/rate": {
-    /** Rate profile */
-    post: {
-      parameters: {
-        path: {
-          userId: components["schemas"]["Id"];
-        };
-      };
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["RateBody"];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          content: {
-            "application/json": components["schemas"]["OkResponse"];
           };
         };
       };
@@ -445,9 +442,27 @@ export interface paths {
       };
     };
   };
-  "/api/profiles/search": {
-    /** Search users for @mention autocomplete */
-    get: {
+  "/api/profiles/{userId}/rate": {
+    /** Rate profile */
+    post: {
+      parameters: {
+        path: {
+          userId: components["schemas"]["Id"];
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["RateBody"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["OkResponse"];
+          };
+        };
+      };
     };
   };
   "/api/likes": {
@@ -625,6 +640,37 @@ export interface paths {
       };
     };
   };
+  "/api/quizzes/{quizId}": {
+    /** Get quiz by id */
+    get: {
+      parameters: {
+        path: {
+          quizId: components["schemas"]["Id"];
+        };
+      };
+    };
+    /** Update quiz */
+    patch: {
+      parameters: {
+        path: {
+          quizId: components["schemas"]["Id"];
+        };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["QuizUpdateBody"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          content: {
+            "application/json": components["schemas"]["QuizUpdateResponse"];
+          };
+        };
+      };
+    };
+  };
   "/api/quizzes": {
     /** List quizzes */
     get: {
@@ -653,29 +699,6 @@ export interface paths {
         200: {
           content: {
             "application/json": components["schemas"]["OkResponse"];
-          };
-        };
-      };
-    };
-  };
-  "/api/quizzes/{quizId}": {
-    /** Update quiz */
-    patch: {
-      parameters: {
-        path: {
-          quizId: components["schemas"]["Id"];
-        };
-      };
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["QuizUpdateBody"];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          content: {
-            "application/json": components["schemas"]["QuizUpdateResponse"];
           };
         };
       };

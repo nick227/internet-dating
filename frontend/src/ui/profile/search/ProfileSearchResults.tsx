@@ -7,9 +7,10 @@ interface Props {
   loading: boolean
   hasMore: boolean
   onLoadMore: () => void
+  isShowingRecommendations?: boolean
 }
 
-export function ProfileSearchResults({ profiles, loading, hasMore, onLoadMore }: Props) {
+export function ProfileSearchResults({ profiles, loading, hasMore, onLoadMore, isShowingRecommendations = false }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const [passedUserIds, setPassedUserIds] = useState<Set<string>>(new Set())
 
@@ -47,7 +48,11 @@ export function ProfileSearchResults({ profiles, loading, hasMore, onLoadMore }:
     return (
       <div className="profile-search-results">
         <div className="profile-search-results__empty">
-          <p>No profiles found. Try adjusting your filters or search terms.</p>
+          {isShowingRecommendations ? (
+            <p>No recommendations available at this time. Check back later or try using search filters to find profiles.</p>
+          ) : (
+            <p>No profiles found. Try adjusting your filters or search terms.</p>
+          )}
         </div>
       </div>
     )

@@ -121,9 +121,9 @@ export class ProfileSearchQueryBuilder {
       where.AND = where.AND || [];
       where.AND.push({
         OR: [
-          { displayName: { contains: q, mode: 'insensitive' } },
-          { bio: { contains: q, mode: 'insensitive' } },
-          { locationText: { contains: q, mode: 'insensitive' } }
+          { displayName: { contains: q } },
+          { bio: { contains: q } },
+          { locationText: { contains: q } }
         ]
       });
     }
@@ -154,10 +154,10 @@ export class ProfileSearchQueryBuilder {
     if (this.filters.location && this.filters.location.trim().length > 0) {
       const location = this.filters.location.trim();
       const locationOr = [
-        { locationText: { contains: location, mode: 'insensitive' } },
-        { locationCity: { contains: location, mode: 'insensitive' } },
-        { locationState: { contains: location, mode: 'insensitive' } },
-        { locationCountry: { contains: location, mode: 'insensitive' } }
+        { locationText: { contains: location } },
+        { locationCity: { contains: location } },
+        { locationState: { contains: location } },
+        { locationCountry: { contains: location } }
       ];
       
       if (where.AND) {

@@ -10,9 +10,55 @@ import { notify } from '../../../ws/notify.js';
 import type { WsMessage, WsSubscribeTopic } from '@app/shared/ws/contracts';
 import type { ServerEventType, WsEvents } from '@app/shared/ws/contracts';
 
+function orderedPair(a: bigint, b: bigint) {
+  return a < b ? { userAId: a, userBId: b } : { userAId: b, userBId: a };
+}
+
 export const messagingDomain: DomainRegistry = {
   domain: 'messaging',
   routes: [
+    {
+      id: 'messaging.POST./conversations/with/:userId',
+      method: 'POST',
+      path: '/conversations/with/:userId',
+      auth: Auth.user(),
+      summary: 'Get or create conversation with user',
+      tags: ['messaging'],
+      handler: async (req, res) => {
+        const me = req.ctx.userId!;
+        const targetParsed = parsePositiveBigInt(req.params.userId, 'userId');
+        if (!targetParsed.ok) return json(res, { error: targetParsed.error }, 400);
+        const targetId = targetParsed.value;
+
+        if (targetId === me) return json(res, { error: 'Cannot message yourself' }, 400);
+
+        const blocked = await prisma.userBlock.findFirst({
+          where: {
+            OR: [
+              { blockerId: me, blockedId: targetId },
+              { blockerId: targetId, blockedId: me }
+            ]
+          },
+          select: { id: true }
+        });
+        if (blocked) return json(res, { error: 'User is blocked' }, 403);
+
+        const pair = orderedPair(me, targetId);
+        const conversation = await prisma.conversation.upsert({
+          where: { userAId_userBId: { userAId: pair.userAId, userBId: pair.userBId } },
+          update: {},
+          create: { ...pair },
+          select: { id: true }
+        });
+
+        await prisma.conversationUserState.update({
+          where: { conversationId_userId: { conversationId: conversation.id, userId: me } },
+          data: { deletedAt: null }
+        }).catch(() => null);
+
+        return json(res, { conversationId: conversation.id });
+      }
+    },
     {
       id: 'messaging.GET./inbox',
       method: 'GET',

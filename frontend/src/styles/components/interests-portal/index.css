@@ -19,6 +19,7 @@
 }
 
 .interests-portal__title {
+  cursor: pointer;
   font-size: clamp(32px, 6vw, 48px);
   font-weight: 700;
   line-height: 1.1;
@@ -109,6 +110,14 @@
   max-width: none;
   margin: 0;
   padding: 0;
+  height: 100%;
+  display: block;
+}
+
+.portal-grid {
+  overflow-y: auto;
+  height: 50%;
+  width: 100%;
 }
 
 /* Interest Card */

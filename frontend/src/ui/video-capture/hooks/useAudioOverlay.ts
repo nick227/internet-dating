@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useObjectUrl } from './useObjectUrl'
 
 export type AudioOverlayState = {
@@ -32,11 +32,19 @@ export function useAudioOverlay() {
     setVolume(0.9)
   }, [])
 
-  return {
-    overlay: { file, blob, url, volume, offsetMs } as AudioOverlayState,
-    setFile,
-    setVolume,
-    setOffsetMs,
-    clear,
-  }
+  const overlay = useMemo(
+    () => ({ file, blob, url, volume, offsetMs } as AudioOverlayState),
+    [file, blob, url, volume, offsetMs]
+  )
+
+  return useMemo(
+    () => ({
+      overlay,
+      setFile,
+      setVolume,
+      setOffsetMs,
+      clear,
+    }),
+    [overlay, setFile, setVolume, setOffsetMs, clear]
+  )
 }

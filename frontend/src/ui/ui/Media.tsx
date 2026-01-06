@@ -19,6 +19,8 @@ type MediaProps = {
   muted?: boolean
   playsInline?: boolean
   controls?: boolean
+  overlay?: 'none' | 'light'
+  enableViewer?: boolean
   autoplayOnScroll?: boolean
   gallery?: Array<{ src: string; alt?: string; type?: 'image' | 'video' | 'audio'; poster?: string }>
   galleryIndex?: number
@@ -38,6 +40,8 @@ export function Media({
   muted = true,
   playsInline = true,
   controls = true,
+  overlay = 'none',
+  enableViewer = true,
   autoplayOnScroll = false,
   gallery,
   galleryIndex = 0,
@@ -54,10 +58,12 @@ export function Media({
   const { autoplayEnabled } = useMediaPreferences()
   const isThresholdMet = useIntersectionThreshold(containerRef, 0.5)
   const shouldAutoplay = type === 'video' && autoplayOnScroll && autoplayEnabled && isThresholdMet
+  const shouldPauseOnLeave = type === 'video' && autoplayOnScroll
+  const showOverlay = overlay === 'light'
 
   useVideoPlayback(videoRef, shouldAutoplay, {
     autoplay: autoplayEnabled,
-    pauseOnLeave: true,
+    pauseOnLeave: shouldPauseOnLeave,
   })
 
   // Reset loading state when src changes
@@ -93,6 +99,8 @@ export function Media({
         return
       }
 
+      if (!enableViewer) return
+
       if (galleryItems.length > 0) {
         e.preventDefault()
         e.stopPropagation()
@@ -110,7 +118,7 @@ export function Media({
         openMediaViewer()
       }
     },
-    [onClick, galleryItems, gallery, galleryIndex, openViewer, openMediaViewer, type]
+    [onClick, enableViewer, galleryItems, gallery, galleryIndex, openViewer, openMediaViewer, type]
   )
 
   const handleKeyDown = useCallback(
@@ -149,10 +157,11 @@ export function Media({
     const classes = ['media']
     if (isLoading) classes.push('media--loading')
     if (hasError) classes.push('media--error')
-    if (onClick || galleryItems.length > 0) classes.push('media--clickable')
+    if (onClick || (enableViewer && galleryItems.length > 0)) classes.push('media--clickable')
+    if (showOverlay) classes.push('media--overlay-light')
     if (className) classes.push(className)
     return classes.join(' ')
-  }, [isLoading, hasError, onClick, galleryItems.length, className])
+  }, [isLoading, hasError, onClick, enableViewer, galleryItems.length, className, showOverlay])
 
   if (!hasValidSrc) {
     return (
@@ -166,8 +175,9 @@ export function Media({
     )
   }
 
-  const hasClickHandler = Boolean(onClick || galleryItems.length > 0)
-  const showVideoControls = controls !== false && !hasClickHandler
+  const hasClickHandler = Boolean(onClick || (enableViewer && galleryItems.length > 0))
+  const showVideoControls = controls !== false && !hasClickHandler && !showOverlay
+  const showAudioControls = controls !== false && !showOverlay
 
   if (type === 'audio') {
     return (
@@ -181,6 +191,7 @@ export function Media({
         tabIndex={hasClickHandler ? 0 : undefined}
         aria-label={hasClickHandler ? alt || 'View audio' : undefined}
       >
+        {showOverlay && <div className="media__overlay media__overlay--light" aria-hidden="true" />}
         {isLoading && (
           <div className="media__loader" aria-hidden="true">
             <div className="media__spinner" />
@@ -197,7 +208,7 @@ export function Media({
             ref={audioRef}
             src={src}
             preload={preload}
-            controls={controls !== false}
+            controls={showAudioControls}
             onLoadedData={handleLoad}
             onError={handleError}
             className="media__element media__element--audio"
@@ -220,6 +231,7 @@ export function Media({
         tabIndex={hasClickHandler ? 0 : undefined}
         aria-label={hasClickHandler ? alt || 'View media' : undefined}
       >
+        {showOverlay && <div className="media__overlay media__overlay--light" aria-hidden="true" />}
         {isLoading && (
           <div className="media__loader" aria-hidden="true">
             <div className="media__spinner" />
@@ -261,6 +273,7 @@ export function Media({
       tabIndex={hasClickHandler ? 0 : undefined}
       aria-label={hasClickHandler ? alt || 'View image' : undefined}
     >
+      {showOverlay && <div className="media__overlay media__overlay--light" aria-hidden="true" />}
       {isLoading && (
         <div className="media__loader" aria-hidden="true">
           <div className="media__spinner" />

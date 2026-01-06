@@ -3,6 +3,7 @@ import { Pill } from '../ui/Pill'
 import { prettyIntent } from '../../core/format/prettyIntent'
 import { useCompatibilityLabel } from '../../core/profile/useCompatibilityLabel'
 import { Avatar } from '../ui/Avatar'
+import { ProfileRatings } from './ProfileRatings'
 
 type HeroContentProps = {
   profile?: ProfileResponse
@@ -24,6 +25,8 @@ export function HeroContent({ profile, presenceLabel }: HeroContentProps) {
           {profile?.intent && <Pill>{prettyIntent(profile.intent)}</Pill>}
           {presenceLabel && <Pill>{presenceLabel}</Pill>}
           {compatibilityLabel && <Pill>{compatibilityLabel}</Pill>}
+
+          {profile?.ratings && profile.ratings.avg && <ProfileRatings ratings={profile.ratings} />}
         </div>
       </div>
     </div>

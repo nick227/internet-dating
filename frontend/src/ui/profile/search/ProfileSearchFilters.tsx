@@ -103,7 +103,7 @@ export function ProfileSearchFilters({ open, filters, onFiltersChange, onClose }
 
   return (
     <div className={className} onClick={handleBackdropClick}>
-      <div className="profile-search-advanced-filters__backdrop" />
+      <div className="profile-search-advanced-filters__container" />
       <div className="profile-search-advanced-filters__panel" onClick={(e) => e.stopPropagation()}>
         <div className="profile-search-advanced-filters__handle" />
         <div className="profile-search-advanced-filters__content">

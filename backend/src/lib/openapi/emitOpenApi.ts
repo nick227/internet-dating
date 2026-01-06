@@ -1,4 +1,5 @@
 import { registry } from '../../registry/registry.js';
+import { writeFileSync } from 'node:fs';
 
 type OpenApi = {
   openapi: '3.0.0';
@@ -1021,4 +1022,11 @@ for (const d of registry) {
   }
 }
 
-process.stdout.write(JSON.stringify(spec, null, 2));
+// Write to file if output path provided, otherwise stdout (for backwards compatibility)
+const outputPath = process.argv[2];
+if (outputPath) {
+  writeFileSync(outputPath, JSON.stringify(spec, null, 2));
+  process.exit(0);
+} else {
+  process.stdout.write(JSON.stringify(spec, null, 2));
+}

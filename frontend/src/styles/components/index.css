@@ -2,6 +2,7 @@
 @import './a11y/index.css';
 @import './transitions/index.css';
 @import './layout/index.css';
+@import './typography/index.css';
 @import './profiles-portal/index.css';
 @import './profile-search-quick-filters/index.css';
 @import './profile-search-advanced-filters/index.css';

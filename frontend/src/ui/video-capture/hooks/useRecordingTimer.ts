@@ -5,6 +5,11 @@ export function useRecordingTimer(maxMs: number, isRunning: boolean, onMaxReache
   const startAtRef = useRef<number | null>(null)
   const rafRef = useRef<number | null>(null)
   const firedRef = useRef(false)
+  const onMaxReachedRef = useRef(onMaxReached)
+
+  useEffect(() => {
+    onMaxReachedRef.current = onMaxReached
+  }, [onMaxReached])
 
   const reset = useCallback(() => {
     setElapsedMs(0)
@@ -14,12 +19,16 @@ export function useRecordingTimer(maxMs: number, isRunning: boolean, onMaxReache
 
   useEffect(() => {
     if (!isRunning) {
+      if (elapsedMs > 0) {
+        console.log('[capture] timer:stop', { elapsedMs, maxMs })
+      }
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
       return
     }
 
     if (startAtRef.current == null) startAtRef.current = performance.now()
+    console.log('[capture] timer:start', { maxMs })
 
     const tick = () => {
       const startAt = startAtRef.current ?? performance.now()
@@ -29,7 +38,8 @@ export function useRecordingTimer(maxMs: number, isRunning: boolean, onMaxReache
 
       if (!firedRef.current && next >= maxMs) {
         firedRef.current = true
-        onMaxReached()
+        console.log('[capture] timer:max-reached', { elapsedMs: next, maxMs })
+        onMaxReachedRef.current()
       } else {
         rafRef.current = requestAnimationFrame(tick)
       }
@@ -41,7 +51,7 @@ export function useRecordingTimer(maxMs: number, isRunning: boolean, onMaxReache
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
     }
-  }, [isRunning, maxMs, onMaxReached])
+  }, [isRunning, maxMs, elapsedMs])
 
   return { elapsedMs, reset }
 }
