@@ -1,4 +1,4 @@
-import type { Gender, DatingIntent } from '../../api/types'
+import type { Gender, DatingIntent } from '../../../api/types'
 
 export type SearchDimensionType = 
   | 'text'

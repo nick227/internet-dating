@@ -140,28 +140,6 @@ function validateFeedPost(
       `[feed:adapter] Post ${postId} missing user.profile.displayName (using fallback "Unknown")`
     )
   }
-
-  // Check for expected but missing fields
-  const hasStats = 'stats' in post
-  if (!hasStats) {
-    console.debug(
-      `[feed:adapter] Post ${postId} missing stats field (not yet supported by backend)`
-    )
-  }
-
-  const hasComments = 'comments' in post
-  if (!hasComments) {
-    console.debug(
-      `[feed:adapter] Post ${postId} missing comments field (not yet supported by backend)`
-    )
-  }
-
-  const hasQuestion = 'question' in post
-  if (!hasQuestion) {
-    console.debug(
-      `[feed:adapter] Post ${postId} missing question field (not yet supported by backend)`
-    )
-  }
 }
 
 function validateFeedSuggestion(

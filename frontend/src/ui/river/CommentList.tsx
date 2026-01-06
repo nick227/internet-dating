@@ -61,7 +61,7 @@ function CommentListComponent({
         const nextLikeCount = nextLiked
           ? previousReply.likeCount + 1
           : Math.max(0, previousReply.likeCount - 1)
-        const nextReplies = existingReplies.map(reply =>
+        const nextReplies: ApiComment[] = existingReplies.map(reply =>
           reply.id === commentId
             ? { ...reply, myReaction: nextLiked ? 'like' : null, likeCount: nextLikeCount }
             : reply

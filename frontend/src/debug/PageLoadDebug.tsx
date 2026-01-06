@@ -70,10 +70,10 @@ export function PageLoadDebug() {
     })
 
     // Test 6: Phase-1 API Request
-    const phase1Requests = performance.getEntriesByType('resource')
-      .filter((entry: PerformanceResourceTiming) => 
-        entry.name.includes('/api/feed') && entry.name.includes('lite=1')
-      )
+    const resourceEntries = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
+    const phase1Requests = resourceEntries.filter(entry =>
+      entry.name.includes('/api/feed') && entry.name.includes('lite=1')
+    )
     tests.push({
       name: 'Phase-1 API Request',
       status: phase1Requests.length > 0 ? 'pass' : 'fail',
@@ -84,10 +84,9 @@ export function PageLoadDebug() {
     })
 
     // Test 7: Phase-2 API Request
-    const phase2Requests = performance.getEntriesByType('resource')
-      .filter((entry: PerformanceResourceTiming) => 
-        entry.name.includes('/api/feed') && !entry.name.includes('lite=1')
-      )
+    const phase2Requests = resourceEntries.filter(entry =>
+      entry.name.includes('/api/feed') && !entry.name.includes('lite=1')
+    )
     tests.push({
       name: 'Phase-2 API Request',
       status: phase2Requests.length > 0 ? 'pass' : 'fail',

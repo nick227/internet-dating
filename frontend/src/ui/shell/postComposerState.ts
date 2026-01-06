@@ -57,7 +57,11 @@ export type PostComposerAction =
   | { type: 'setFiles'; value: FileWithPreview[] }
   | { type: 'removeFile'; value: string }
   | { type: 'setUploadProgress'; value: Record<string, UploadProgress> }
-  | { type: 'updateUploadProgress'; fileId: string; patch: Partial<UploadProgress> }
+  | {
+      type: 'updateUploadProgress'
+      fileId: string
+      patch: Partial<Omit<UploadProgress, 'fileId'>>
+    }
   | { type: 'linkPreviewStart'; url: string }
   | { type: 'linkPreviewSuccess'; url: string; preview: LinkPreview | null }
   | { type: 'linkPreviewFailure'; url: string }
@@ -112,11 +116,16 @@ export function postComposerReducer(
       return { ...state, uploadProgress: action.value }
     case 'updateUploadProgress': {
       const current = state.uploadProgress[action.fileId]
+      const base: UploadProgress = current ?? {
+        fileId: action.fileId,
+        progress: 0,
+        status: 'pending',
+      }
       return {
         ...state,
         uploadProgress: {
           ...state.uploadProgress,
-          [action.fileId]: { fileId: action.fileId, ...current, ...action.patch },
+          [action.fileId]: { ...base, ...action.patch },
         },
       }
     }

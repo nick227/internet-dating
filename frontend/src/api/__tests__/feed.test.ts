@@ -34,38 +34,37 @@ describe('Feed API - Duplicate UserId Check', () => {
       }
     }
     
-    // Find duplicates
-    const seen = new Set<string | number>()
-    const duplicates: Array<{ userId: string | number; items: FeedCard[] }> = []
+    // Find userIds that exceed maxPerActor limit
+    // Backend allows up to 3 items per actor (maxPerActor: 3)
+    const MAX_PER_ACTOR = 3
+    const violations: Array<{ userId: string | number; count: number; items: FeedCard[] }> = []
     
-    for (const userId of userIds) {
-      if (seen.has(userId)) {
-        const items = userIdToItems.get(userId) || []
-        duplicates.push({ userId, items })
-      } else {
-        seen.add(userId)
+    for (const [userId, userItems] of userIdToItems.entries()) {
+      if (userItems.length > MAX_PER_ACTOR) {
+        violations.push({ userId, count: userItems.length, items: userItems })
       }
     }
     
     // Report results
+    const uniqueUserIds = new Set(userIds)
     console.log(`\nFeed Analysis:`)
     console.log(`- Total items: ${items.length}`)
     console.log(`- Items with actors: ${userIds.length}`)
-    console.log(`- Unique userIds: ${seen.size}`)
+    console.log(`- Unique userIds: ${uniqueUserIds.size}`)
     
-    if (duplicates.length > 0) {
-      console.log(`\n⚠️  Found ${duplicates.length} duplicate userId(s):`)
-      for (const { userId, items } of duplicates) {
-        console.log(`  - UserId ${userId} appears ${items.length} times:`)
+    if (violations.length > 0) {
+      console.log(`\n⚠️  Found ${violations.length} userId(s) exceeding maxPerActor limit (${MAX_PER_ACTOR}):`)
+      for (const { userId, count, items } of violations) {
+        console.log(`  - UserId ${userId} appears ${count} times (limit: ${MAX_PER_ACTOR}):`)
         items.forEach((item, idx) => {
           console.log(`    ${idx + 1}. ${item.kind} card (id: ${item.id})`)
         })
       }
     } else {
-      console.log(`\n✅ No duplicate userIds found`)
+      console.log(`\n✅ All userIds within maxPerActor limit (${MAX_PER_ACTOR})`)
     }
     
-    // Assert no duplicates
-    expect(duplicates.length).toBe(0)
+    // Assert no violations of maxPerActor limit
+    expect(violations.length).toBe(0)
   }, 30000) // 30 second timeout for API call
 })

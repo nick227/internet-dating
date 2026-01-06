@@ -71,7 +71,7 @@ export function useCommentActions({
       if (parentId) {
         const replyCache = commentCache.getReplies(parentId)
         const reply = replyCache?.replies.find(r => r.id === commentId)
-        if (reply) {
+        if (replyCache && reply) {
           previousReplyCache = {
             myReaction: reply.myReaction ?? null,
             likeCount: reply.likeCount,

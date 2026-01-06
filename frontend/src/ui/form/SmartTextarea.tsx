@@ -19,7 +19,7 @@ type Props = {
   onSuggestionSelect?: (message: string) => void
   onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
   className?: string
-  inputRef?: React.RefObject<HTMLDivElement>
+  inputRef?: React.MutableRefObject<HTMLDivElement | null> | null
   inputTestId?: string
 }
 

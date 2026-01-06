@@ -33,6 +33,7 @@ export function ModalRenderer<TProps extends { open: boolean }>({
 
   // Derive open prop from the match condition (single source of truth)
   const open = true
+  const componentProps = { ...(props as TProps), open }
 
   return (
     <ErrorBoundary
@@ -58,7 +59,7 @@ export function ModalRenderer<TProps extends { open: boolean }>({
       }
     >
       <Suspense fallback={fallback ?? <ModalLoader />}>
-        <Component {...props} open={open} />
+        <Component {...componentProps} />
       </Suspense>
     </ErrorBoundary>
   )

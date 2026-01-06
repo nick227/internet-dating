@@ -90,7 +90,7 @@ export function usePostSubmission() {
         const fileArray = files.map(f => f.file)
         const { results, errors: uploadErrors } = await uploadMediaFiles(fileArray, {
           signal: controller.signal,
-          onProgress: (progress, fileIndex) => {
+          onProgress: (progress, fileIndex?: number) => {
             if (fileIndex !== undefined && files[fileIndex]) {
               const fileId = files[fileIndex].id
               const status = progress.loaded === progress.total ? 'complete' : 'uploading'

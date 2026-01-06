@@ -5,7 +5,8 @@ import { defineConfig, devices } from '@playwright/test'
  * Tests feed loading, CSS, and card rendering
  */
 export default defineConfig({
-  testDir: './tests',
+  testDir: '.',
+  testMatch: /(tests|e2e)\/.*\.(spec|test)\.(ts|js|mjs)/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

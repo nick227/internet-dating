@@ -140,7 +140,7 @@ describe('Profile Patch Functionality', () => {
     })
 
     it('should handle empty birthdate as null', () => {
-      const dateInput = ''
+      const dateInput: string = ''
       const isoDate = dateInput && dateInput.length ? `${dateInput}T00:00:00.000Z` : null
 
       expect(isoDate).toBeNull()

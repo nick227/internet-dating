@@ -170,7 +170,7 @@ export function InboxSection({
             const isFromMe = Boolean(userId && idsEqual(userId, row.lastSenderId))
             const subtitle = isFromMe ? `You: ${preview}` : preview
             const onOpenProfile = row.profileId
-              ? () => nav(`/profiles/${encodeURIComponent(row.profileId)}`)
+              ? () => nav(`/profiles/${encodeURIComponent(String(row.profileId))}`)
               : undefined
             const processingKey = `conversation:${row.conversationId}`
             const isDeleting = Boolean(processing[processingKey])

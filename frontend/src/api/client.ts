@@ -39,10 +39,11 @@ import type {
   ApiRateResponse,
   ApiSwipeResponse,
 } from './contracts'
-import type { paths } from './openapi'
 import { HttpError, http } from './http'
 import { refreshToken } from './authRefresh'
 import type { FeedResponse, ProfileResponse, LikeBody, RateBody } from './types'
+
+export type { ApiQuizResponse } from './contracts'
 
 export type InterestItem = {
   id: string
@@ -109,7 +110,7 @@ const API_PATHS = {
   profileAdvancedSearch: '/api/profiles/advanced-search',
   profileRecommendations: '/api/profiles/recommendations',
   profileSearchTraits: '/api/profiles/search/traits',
-} as const satisfies Record<string, keyof paths>
+} as const
 
 function fillPath(template: string, params: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (_match, key) => encodeURIComponent(String(params[key])))
@@ -467,7 +468,7 @@ export const api = {
       const path = fillPath(API_PATHS.interestSelect, { interestId })
       return http<ApiOkResponse>(`${API_BASE_URL}${path}`, 'DELETE', { signal })
     },
-    search: (body: { text: string; subjectId: string }, signal?: AbortSignal) => {
+    search: (body: { text: string; subjectId?: string }, signal?: AbortSignal) => {
       return http<{ items: Array<InterestItem> }>(`${API_BASE_URL}${API_PATHS.interestSearch}`, 'POST', { body, signal })
     },
   },

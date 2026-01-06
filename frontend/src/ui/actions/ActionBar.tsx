@@ -47,8 +47,9 @@ export function ActionBar({
 
   const handleReaction = useCallback(
     async (next: LikeAction) => {
-      setReaction(next)
-      notify(next === 'LIKE' ? 'Liked' : 'Disliked')
+      const stored = next === 'UNLIKE' ? null : next
+      setReaction(stored)
+      notify(next === 'LIKE' ? 'Liked' : next === 'DISLIKE' ? 'Disliked' : 'Removed reaction')
       try {
         await sendLike(userId, next)
       } catch (e: unknown) {

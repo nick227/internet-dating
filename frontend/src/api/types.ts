@@ -168,7 +168,7 @@ export type ProfileAccessInfo = {
 
 export type ProfilePost = {
   id: Id
-  userId: Id
+  userId?: Id
   text?: string
   createdAt: string
   visibility?: Visibility

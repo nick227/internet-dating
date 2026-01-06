@@ -85,7 +85,6 @@ export function ProfileInlineEditor({ userId, profile, onSaveReady }: Props) {
       console.log('[ProfileInlineEditor] Patch payload:', patch)
       const response = await api.profileUpdate(userId, patch)
       console.log('[ProfileInlineEditor] Save response:', response)
-      return response
     }
     
     const stableHasChanges = () => {

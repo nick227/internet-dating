@@ -46,6 +46,9 @@ export async function renderAudioMix(params: RenderAudioMixParams) {
       hiddenVideo.addEventListener('error', onError, { once: true })
     })
 
+    if (!hiddenVideo) {
+      throw new Error('Failed to initialize video element')
+    }
     return await renderMixedWebm({
       videoEl: hiddenVideo,
       audioBlob: overlay.blob,

@@ -31,10 +31,8 @@ export function InterestSearchTextarea({
 
     setSearching(true)
     try {
-      const res = await api.interests.search({ 
-        text: text.trim(), 
-        subjectId: subjectId || undefined 
-      })
+      const body = subjectId ? { text: text.trim(), subjectId } : { text: text.trim() }
+      const res = await api.interests.search(body)
       setSuggestions(res.items)
       setShowSuggestions(res.items.length > 0)
     } catch (e) {

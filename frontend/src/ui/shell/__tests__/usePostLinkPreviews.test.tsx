@@ -5,6 +5,7 @@ import type { DetectedMedia } from '../../form/SmartTextarea'
 import type { LinkPreviewState } from '../postComposerState'
 import { usePostLinkPreviews } from '../usePostLinkPreviews'
 import * as linkPreviewModule from '../../../core/media/linkPreview'
+import type { LinkPreview } from '../../../core/media/linkPreview'
 
 type HarnessProps = {
   detected: DetectedMedia[]
@@ -13,7 +14,17 @@ type HarnessProps = {
 }
 
 function HookHarness({ detected, linkPreviews, dispatch }: HarnessProps) {
-  usePostLinkPreviews({ detected, linkPreviews, dispatch })
+  usePostLinkPreviews(detected, linkPreviews, (url, preview, loading) => {
+    if (loading) {
+      dispatch({ type: 'linkPreviewStart', url })
+      return
+    }
+    if (preview) {
+      dispatch({ type: 'linkPreviewSuccess', url, preview })
+      return
+    }
+    dispatch({ type: 'linkPreviewFailure', url })
+  })
   return null
 }
 
@@ -23,7 +34,11 @@ describe('usePostLinkPreviews', () => {
   })
 
   it('dispatches start and success for new link previews', async () => {
-    const preview = { url: 'https://example.com', type: 'website', siteName: 'example.com' }
+    const preview: LinkPreview = {
+      url: 'https://example.com',
+      type: 'website',
+      siteName: 'example.com',
+    }
     const fetchSpy = vi
       .spyOn(linkPreviewModule, 'fetchLinkPreview')
       .mockResolvedValue(preview)

@@ -1,5 +1,5 @@
 import type { SearchDimension, SearchFilters, TraitFilter } from './types'
-import type { Gender, DatingIntent } from '../../api/types'
+import type { Gender, DatingIntent } from '../../../api/types'
 
 interface SearchParams {
   q?: string

@@ -97,14 +97,15 @@ export function usePostFormState() {
     setState(prev => ({ ...prev, uploadProgress: progress }))
   }, [])
 
-  const updateUploadProgress = useCallback((fileId: string, patch: Partial<{ fileId: string; progress: number; status: 'pending' | 'uploading' | 'complete' | 'error'; error?: string }>) => {
+  const updateUploadProgress = useCallback((fileId: string, patch: Partial<{ progress: number; status: 'pending' | 'uploading' | 'complete' | 'error'; error?: string }>) => {
     setState(prev => {
       const current = prev.uploadProgress[fileId]
+      const base = current ?? { fileId, progress: 0, status: 'pending' as const }
       return {
         ...prev,
         uploadProgress: {
           ...prev.uploadProgress,
-          [fileId]: { fileId, ...current, ...patch },
+          [fileId]: { ...base, ...patch },
         },
       }
     })
