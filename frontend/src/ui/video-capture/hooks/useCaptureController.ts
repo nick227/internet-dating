@@ -126,7 +126,7 @@ export function useCaptureController(params: Params) {
     } finally {
       rerecordInFlightRef.current = false
     }
-  }, [audio, cap])
+  }, [audio, cap, cancelMix])
 
   const handlePostComplete = useCallback(() => {
     console.log('[capture] post:complete')

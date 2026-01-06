@@ -33,6 +33,10 @@ export async function renderAudioMix(params: RenderAudioMixParams) {
     document.body.appendChild(hiddenVideo)
 
     await new Promise<void>((res, rej) => {
+      if (!hiddenVideo) {
+        rej(new Error('Failed to initialize video element'))
+        return
+      }
       if (hiddenVideo.readyState >= 1) return res()
       const onLoaded = () => {
         hiddenVideo?.removeEventListener('error', onError)

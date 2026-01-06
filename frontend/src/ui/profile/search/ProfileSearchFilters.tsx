@@ -3,6 +3,18 @@ import { SEARCH_DIMENSIONS } from '../../../core/profile/search/dimensions'
 import { DimensionFilterFactory } from './DimensionFilterFactory'
 import { apiParamsToDimensions } from '../../../core/profile/search/adapter'
 import type { SearchFilters } from '../../../core/profile/search/types'
+import type { Gender, DatingIntent } from '../../../api/types'
+
+const VALID_GENDERS: Set<string> = new Set(['UNSPECIFIED', 'MALE', 'FEMALE', 'NONBINARY', 'OTHER'])
+const VALID_INTENTS: Set<string> = new Set(['UNSPECIFIED', 'FRIENDS', 'CASUAL', 'LONG_TERM', 'MARRIAGE'])
+
+function filterValidGenders(values: string[]): Gender[] {
+  return values.filter(v => VALID_GENDERS.has(v)) as Gender[]
+}
+
+function filterValidIntents(values: string[]): DatingIntent[] {
+  return values.filter(v => VALID_INTENTS.has(v)) as DatingIntent[]
+}
 
 interface Props {
   open: boolean
@@ -42,10 +54,10 @@ export function ProfileSearchFilters({ open, filters, onFiltersChange, onClose }
         newFilters.q = (value as string) || undefined
         break
       case 'gender':
-        newFilters.gender = (Array.isArray(value) && value.length > 0) ? value as string[] : undefined
+        newFilters.gender = (Array.isArray(value) && value.length > 0) ? filterValidGenders(value as string[]) : undefined
         break
       case 'intent':
-        newFilters.intent = (Array.isArray(value) && value.length > 0) ? value as string[] : undefined
+        newFilters.intent = (Array.isArray(value) && value.length > 0) ? filterValidIntents(value as string[]) : undefined
         break
       case 'age': {
         const range = value as { min?: number; max?: number } | undefined

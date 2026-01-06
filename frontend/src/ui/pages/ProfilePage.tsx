@@ -11,7 +11,6 @@ import { ProfileActions } from '../profile/ProfileActions'
 import { PostComposer } from '../profile/PostComposer'
 import { ProfilePostList } from '../profile/ProfilePostList'
 import { HeroSection } from '../profile/HeroSection'
-import { ProfileRatings } from '../profile/ProfileRatings'
 import { useControlPanel } from '../shell/ControlPanelContext'
 
 /**

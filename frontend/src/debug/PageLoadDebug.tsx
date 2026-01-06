@@ -179,8 +179,10 @@ export function PageLoadDebug() {
         <pre style={{ fontSize: '12px', overflow: 'auto' }}>
           {JSON.stringify(
             performance.getEntriesByType('resource')
-              .filter((entry: PerformanceResourceTiming) => entry.name.includes('/api/'))
-              .map((entry: PerformanceResourceTiming) => ({
+              .filter((entry): entry is PerformanceResourceTiming => 
+                entry instanceof PerformanceResourceTiming && entry.name.includes('/api/')
+              )
+              .map((entry) => ({
                 url: entry.name,
                 duration: Math.round(entry.duration),
                 size: entry.transferSize,

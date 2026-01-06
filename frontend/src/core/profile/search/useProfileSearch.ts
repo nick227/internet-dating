@@ -5,7 +5,47 @@ import { HttpError } from '../../../api/http'
 import { useDebounce } from '../../hooks/useDebounce'
 import { useAuth } from '../../auth/useAuth'
 import type { ProfileSearchResult, SearchFilters } from './types'
+import type { Gender, DatingIntent } from '../../../api/types'
 import { serializeFiltersToURL, parseFiltersFromURL } from './adapter'
+
+const VALID_GENDERS: Set<string> = new Set(['UNSPECIFIED', 'MALE', 'FEMALE', 'NONBINARY', 'OTHER'])
+const VALID_INTENTS: Set<string> = new Set(['UNSPECIFIED', 'FRIENDS', 'CASUAL', 'LONG_TERM', 'MARRIAGE'])
+
+function toGender(value: string): Gender {
+  return VALID_GENDERS.has(value) ? (value as Gender) : 'UNSPECIFIED'
+}
+
+function toDatingIntent(value: string): DatingIntent {
+  return VALID_INTENTS.has(value) ? (value as DatingIntent) : 'UNSPECIFIED'
+}
+
+function convertApiProfileToResult(profile: {
+  userId: string
+  displayName: string | null
+  bio: string | null
+  avatarUrl: string | null
+  heroUrl: string | null
+  locationText: string | null
+  age: number | null
+  gender: string
+  intent: string
+  liked?: boolean
+  matchReasons?: string[]
+}): ProfileSearchResult {
+  return {
+    userId: profile.userId,
+    displayName: profile.displayName,
+    bio: profile.bio,
+    avatarUrl: profile.avatarUrl,
+    heroUrl: profile.heroUrl,
+    locationText: profile.locationText,
+    age: profile.age,
+    gender: toGender(profile.gender),
+    intent: toDatingIntent(profile.intent),
+    liked: profile.liked,
+    matchReasons: profile.matchReasons,
+  }
+}
 
 export function useProfileSearch() {
   const location = useLocation()
@@ -53,10 +93,12 @@ export function useProfileSearch() {
     try {
       const response = await api.advancedSearch(searchFilters, abortController.signal)
       
+      const convertedProfiles = response.profiles.map(convertApiProfileToResult)
+      
       if (append) {
-        setResults(prev => [...prev, ...response.profiles])
+        setResults(prev => [...prev, ...convertedProfiles])
       } else {
-        setResults(response.profiles)
+        setResults(convertedProfiles)
       }
       
       setNextCursor(response.nextCursor)
@@ -122,10 +164,12 @@ export function useProfileSearch() {
         abortController.signal
       )
       
+      const convertedProfiles = response.profiles.map(convertApiProfileToResult)
+      
       if (append) {
-        setResults(prev => [...prev, ...response.profiles])
+        setResults(prev => [...prev, ...convertedProfiles])
       } else {
-        setResults(response.profiles)
+        setResults(convertedProfiles)
       }
       
       setNextCursor(response.nextCursor)
