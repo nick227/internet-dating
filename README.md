@@ -2,6 +2,69 @@
 
 Production-minded dating app POC with a sequence-first feed, match system, and job-driven personalization.
 
+## Railway Single-Service Launch (MySQL + One Volume)
+This setup assumes one Railway service for the Node app, one Railway MySQL database, and one attached volume for uploads.
+
+### Railway Environment Variables
+Backend required:
+- `DATABASE_URL` (Railway MySQL connection string)
+- `JWT_ACCESS_SECRET` (random 32+ chars)
+- `JWT_REFRESH_SECRET` (random 32+ chars)
+- `NODE_ENV=production`
+
+Backend recommended:
+- `SERVE_FRONTEND=true` (serve `frontend/dist` from the backend)
+- `MEDIA_BASE_URL` (public base URL for media, e.g. `https://your-app.up.railway.app`)
+- `MEDIA_UPLOAD_DIR` (volume path, e.g. `/data/uploads/media`)
+- `JWT_ACCESS_TTL` (optional, default `15m`)
+- `JWT_REFRESH_TTL` (optional, default `30d`)
+
+Frontend build:
+- `VITE_API_BASE_URL` (public API base URL, e.g. `https://your-app.up.railway.app`)
+
+### Railway Commands (root of repo)
+Build command:
+```
+npm install
+npm run build
+npm run -w backend prisma:generate
+```
+
+Release command (runs migrations):
+```
+npm run -w backend prisma:migrate -- --schema prisma/schema
+```
+
+Start command:
+```
+npm run start
+```
+
+### Railway UI Setup (DB + Volume)
+MySQL:
+- Create a Railway MySQL service and link it to the app.
+- Set `DATABASE_URL` in the app service to the Railway MySQL connection string.
+
+Volume:
+- Attach a volume to the app service (e.g. mount at `/data`).
+- Set `MEDIA_UPLOAD_DIR=/data/uploads/media`.
+
+### Railway One-Off Commands (Migrations, Seeds, Jobs)
+Use Railway "Release Command" for migrations so you do not need SSH:
+- Release command: `npm run -w backend prisma:migrate -- --schema prisma/schema`
+
+If you need to run one-off tasks manually (Railway "Run Command" or SSH):
+```
+npm run -w backend prisma:generate
+npm run -w backend prisma:migrate -- --schema prisma/schema
+npm run -w backend seed:all
+node --import tsx backend/scripts/runJobs.ts match-scores --userId=8
+node --import tsx backend/scripts/runJobs.ts feed-presort --userId=8
+```
+
+Jobs are not scheduled by default in this repo. To automate them, use Railway cron
+or a separate worker service that runs `scripts/runJobs.ts` on an interval.
+
 ## Repository Structure
 - `backend/` Express + Prisma API, jobs, and seeds.
 - `frontend/` Vite + React UI.
