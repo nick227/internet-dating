@@ -1,4 +1,4 @@
-# internet-dating.com
+# internet-dating.com 
 
 Production-minded dating app POC with a sequence-first feed, match system, and job-driven personalization.
 
