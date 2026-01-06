@@ -16,7 +16,9 @@ export function createApp() {
   app.use(express.json({ limit: '2mb' }));
   app.use(cookieParser());
 
-  app.get('/health', (_req, res) => res.json({ ok: true }));
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
 
   app.get('/media/:key(*)', attachContext, async (req, res) => {
     const key = req.params.key;
