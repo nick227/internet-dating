@@ -30,17 +30,24 @@ try {
   loadEnv();
   process.stdout.write('[server] Environment variables loaded\n');
 
+  // Log important env vars (without sensitive values)
+  process.stdout.write(`[server] NODE_ENV=${process.env.NODE_ENV}\n`);
+  process.stdout.write(`[server] DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'not set'}\n`);
+  process.stdout.write(`[server] PORT=${process.env.PORT || 'not set'}\n`);
+  process.stdout.write(`[server] RAILWAY_PORT=${process.env.RAILWAY_PORT || 'not set'}\n`);
+
   process.stdout.write('[server] Creating Express app...\n');
   const app = createApp();
   process.stdout.write('[server] Express app created successfully\n');
 
-  const portEnv = process.env.PORT ?? process.env.RAILWAY_PORT ?? '4000';
+  // Railway automatically sets PORT, but fallback to 4000 for local dev
+  const portEnv = process.env.PORT || process.env.RAILWAY_PORT || '4000';
   const port = Number(portEnv);
   if (isNaN(port) || port <= 0 || port > 65535) {
-    console.error(`[server] Invalid port: ${portEnv} (parsed as ${port})`);
+    process.stderr.write(`[server] Invalid port: ${portEnv} (parsed as ${port})\n`);
     process.exit(1);
   }
-  process.stdout.write(`[server] Starting server on port ${port} (from PORT=${process.env.PORT}, RAILWAY_PORT=${process.env.RAILWAY_PORT})\n`);
+  process.stdout.write(`[server] Starting server on port ${port} (from PORT=${process.env.PORT || 'undefined'}, RAILWAY_PORT=${process.env.RAILWAY_PORT || 'undefined'})\n`);
 
   process.stdout.write('[server] Creating HTTP server...\n');
   const server = createServer(app);
@@ -90,12 +97,16 @@ try {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  process.stdout.write(`[server] Attempting to listen on port ${port}\n`);
+  process.stdout.write(`[server] Attempting to listen on port ${port} on 0.0.0.0\n`);
   server.listen(port, '0.0.0.0', () => {
     process.stdout.write(`[server] ✓ API listening on 0.0.0.0:${port}\n`);
     process.stdout.write(`[server] ✓ Health endpoint available at http://0.0.0.0:${port}/health\n`);
-    // Keep process alive
     process.stdout.write('[server] Server is ready and waiting for requests\n');
+    // Verify server is actually listening
+    const address = server.address();
+    if (address) {
+      process.stdout.write(`[server] Server address: ${JSON.stringify(address)}\n`);
+    }
   }).on('error', (err) => {
     process.stderr.write(`[server] ✗ Failed to start server: ${err.message}\n`);
     if (err.stack) {
