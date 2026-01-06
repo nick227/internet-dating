@@ -114,12 +114,12 @@ export class ProfileSearchQueryBuilder {
     const where: Prisma.ProfileSearchIndexWhereInput = {
       userId: { in: this.baseUserIds }
     };
+    const andFilters: Prisma.ProfileSearchIndexWhereInput[] = [];
     
     // Text search (displayName, bio, locationText)
     if (this.filters.q && this.filters.q.trim().length > 0) {
       const q = this.filters.q.trim();
-      where.AND = where.AND || [];
-      where.AND.push({
+      andFilters.push({
         OR: [
           { displayName: { contains: q } },
           { bio: { contains: q } },
@@ -159,12 +159,8 @@ export class ProfileSearchQueryBuilder {
         { locationState: { contains: location } },
         { locationCountry: { contains: location } }
       ];
-      
-      if (where.AND) {
-        where.AND.push({ OR: locationOr });
-      } else {
-        where.AND = [{ OR: locationOr }];
-      }
+
+      andFilters.push({ OR: locationOr });
     }
     
     // Collect all userId filters to intersect at the end
@@ -215,6 +211,10 @@ export class ProfileSearchQueryBuilder {
       where.userId = { in: intersection };
     }
     
+    if (andFilters.length) {
+      where.AND = andFilters;
+    }
+
     return where;
   }
   

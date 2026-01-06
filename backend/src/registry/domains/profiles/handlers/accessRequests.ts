@@ -15,7 +15,7 @@ import {
 } from '../services/accessService.js';
 
 // Helper to map service errors to HTTP responses
-function handleServiceError(err: unknown, res: Parameters<typeof json>[1]): ReturnType<typeof json> {
+function handleServiceError(err: unknown, res: Parameters<typeof json>[0]): void {
   if (err instanceof ValidationError) {
     return json(res, { error: err.message }, 400);
   }

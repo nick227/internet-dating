@@ -407,8 +407,9 @@ export const quizzesDomain: DomainRegistry = {
           : null;
 
         const userGender = profile?.gender ?? 'UNSPECIFIED';
-        const userAgeBucket = searchIndex?.ageBucket !== null
-          ? (['18-24', '25-34', '35-44', '45-54', '55+'][searchIndex.ageBucket] ?? null)
+        const ageBucket = searchIndex?.ageBucket ?? null;
+        const userAgeBucket = ageBucket !== null
+          ? (['18-24', '25-34', '35-44', '45-54', '55+'][ageBucket] ?? null)
           : null;
         const userCity = searchIndex?.locationCity ?? null;
 

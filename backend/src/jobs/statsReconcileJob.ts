@@ -181,7 +181,7 @@ async function reconcilePostStatsFull(config: StatsReconcileConfig) {
   let cursorId: bigint | null = null;
   let updated = 0;
   while (true) {
-    const posts = await prisma.post.findMany({
+    const posts: Array<{ id: bigint }> = await prisma.post.findMany({
       where: {
         deletedAt: null,
         ...(cursorId ? { id: { lt: cursorId } } : {})
@@ -202,7 +202,7 @@ async function reconcileProfileStatsFull(config: StatsReconcileConfig) {
   let cursorId: bigint | null = null;
   let updated = 0;
   while (true) {
-    const profiles = await prisma.profile.findMany({
+    const profiles: Array<{ id: bigint }> = await prisma.profile.findMany({
       where: {
         deletedAt: null,
         ...(cursorId ? { id: { lt: cursorId } } : {})

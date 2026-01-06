@@ -114,7 +114,15 @@ async function convertPresortedToFeedItems(
   const questionMap = new Map(questions.map((q) => [q.id, q]));
 
   // Convert to FeedItems
-  const feedItems = [];
+  const feedItems: Array<{
+    type: 'post' | 'suggestion' | 'question';
+    post?: any;
+    suggestion?: any;
+    question?: any;
+    actorId: bigint;
+    source: 'post' | 'match' | 'suggested' | 'question';
+    tier: 'everyone';
+  }> = [];
   for (const presorted of presortedItems) {
     if (presorted.type === 'post') {
       const post = postMap.get(BigInt(presorted.id));

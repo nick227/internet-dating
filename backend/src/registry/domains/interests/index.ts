@@ -168,7 +168,7 @@ export const interestsDomain: DomainRegistry = {
       tags: ['interests'],
       handler: async (req, res) => {
         const userId = BigInt(req.ctx!.userId!);
-        const interestIdParsed = parsePositiveBigInt(req.params.interestId);
+        const interestIdParsed = parsePositiveBigInt(req.params.interestId, 'interestId');
         if (!interestIdParsed.ok) {
           return json(res, { error: interestIdParsed.error }, 400);
         }
@@ -250,7 +250,7 @@ export const interestsDomain: DomainRegistry = {
       tags: ['interests'],
       handler: async (req, res) => {
         const userId = BigInt(req.ctx!.userId!);
-        const interestIdParsed = parsePositiveBigInt(req.params.interestId);
+        const interestIdParsed = parsePositiveBigInt(req.params.interestId, 'interestId');
         if (!interestIdParsed.ok) {
           return json(res, { error: interestIdParsed.error }, 400);
         }

@@ -5,6 +5,9 @@ export const GenderGate: MatchOperator = {
   key: 'gender',
   weightKey: 'quiz', // Not used for gates, but required by interface
   componentKey: 'scoreQuiz', // Not used for gates, but required by interface
+  score(): { score: number } {
+    return { score: 0.5 };
+  },
 
   // Keep gate() for backward compatibility (can delegate to classify)
   gate(ctx: MatchContext): boolean {
@@ -24,6 +27,9 @@ export const AgeGate: MatchOperator = {
   key: 'age',
   weightKey: 'quiz', // Not used for gates, but required by interface
   componentKey: 'scoreQuiz', // Not used for gates, but required by interface
+  score(): { score: number } {
+    return { score: 0.5 };
+  },
 
   // Keep gate() for backward compatibility (can delegate to classify)
   gate(ctx: MatchContext): boolean {
@@ -58,6 +64,9 @@ export const DistanceGate: MatchOperator = {
   key: 'distance',
   weightKey: 'quiz', // Not used for gates, but required by interface
   componentKey: 'scoreQuiz', // Not used for gates, but required by interface
+  score(): { score: number } {
+    return { score: 0.5 };
+  },
 
   // Keep gate() for backward compatibility (can delegate to classify)
   gate(ctx: MatchContext): boolean {

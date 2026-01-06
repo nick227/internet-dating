@@ -255,7 +255,7 @@ async function callFeed(userId: bigint | null, query: Record<string, string>) {
   if (!route) throw new Error('Feed route not found');
   const req = { ctx: { userId }, query } as unknown as Request;
   const res = createMockResponse();
-  await route.handler(req, res);
+  await route.handler(req, res, () => undefined);
   return { status: res.getStatus(), body: JSON.parse(res.getBody()) };
 }
 

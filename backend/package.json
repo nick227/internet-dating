@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "prisma generate --schema prisma/schema && tsc",
     "start": "node dist/index.js",
     "test": "node --test --import tsx src/**/__tests__/**/*.test.ts",
     "test:feed": "node --test --import tsx src/registry/domains/feed/__tests__/feed.test.ts",

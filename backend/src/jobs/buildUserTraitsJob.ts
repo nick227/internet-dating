@@ -195,7 +195,7 @@ export async function buildUserTraitsForAll(config: BuildUserTraitsJobOptions = 
       const batchSize = resolvedConfig.userBatchSize;
 
       while (true) {
-        const users = await prisma.user.findMany({
+        const users: Array<{ id: bigint }> = await prisma.user.findMany({
           where: {
             deletedAt: null,
             quizResults: { some: {} },

@@ -5,6 +5,7 @@ import { json } from '../../../lib/http/json.js';
 import { parseLimit, parseOptionalPositiveBigInt, parsePositiveBigInt } from '../../../lib/http/parse.js';
 import { parseMentions } from '../../../services/comments/mentionParser.js';
 import { toAvatarUrl } from '../../../services/media/presenter.js';
+import type { MediaForAvatar } from '../profiles/types/models.js';
 
 type CommentCreateBody = {
   cardId?: string | number;
@@ -36,13 +37,7 @@ async function formatComment(
     author: {
       profile: {
         displayName: string | null;
-        avatarMedia: {
-          id: bigint;
-          storageKey: string | null;
-          variants: unknown;
-          url: string | null;
-          thumbUrl: string | null;
-        } | null;
+        avatarMedia: MediaForAvatar | null;
       } | null;
     };
     mentions: Array<{ userId: bigint }>;
@@ -301,6 +296,7 @@ export const commentsDomain: DomainRegistry = {
                     avatarMedia: {
                       select: {
                         id: true,
+                        type: true,
                         storageKey: true,
                         variants: true,
                         url: true,
@@ -398,6 +394,7 @@ export const commentsDomain: DomainRegistry = {
                     avatarMedia: {
                       select: {
                         id: true,
+                        type: true,
                         storageKey: true,
                         variants: true,
                         url: true,
@@ -448,7 +445,7 @@ export const commentsDomain: DomainRegistry = {
         // Verify comment exists
         const comment = await prisma.comment.findUnique({
           where: { id: commentIdParsed.value },
-          select: { id: true, status: true },
+          select: { id: true, status: true, likeCount: true },
         });
         if (!comment || comment.status !== 'ACTIVE') {
           return json(res, { error: 'Comment not found' }, 404);
@@ -597,7 +594,8 @@ export const commentsDomain: DomainRegistry = {
         const commentIdParsed = parsePositiveBigInt(commentId, 'commentId');
         if (!commentIdParsed.ok) return json(res, { error: commentIdParsed.error }, 400);
 
-        if (!body.body || typeof body.body !== 'string' || !body.body.trim()) {
+        const trimmedBody = typeof body.body === 'string' ? body.body.trim() : '';
+        if (!trimmedBody) {
           return json(res, { error: 'body is required' }, 400);
         }
 
@@ -634,7 +632,7 @@ export const commentsDomain: DomainRegistry = {
         }
 
         // Parse mentions from new body
-        const mentionedUserIds = await parseMentions(body.body.trim(), postAuthorId);
+        const mentionedUserIds = await parseMentions(trimmedBody, postAuthorId);
 
         const updated = await prisma.$transaction(async (tx) => {
           // Delete existing mentions
@@ -656,7 +654,7 @@ export const commentsDomain: DomainRegistry = {
           const updatedComment = await tx.comment.update({
             where: { id: commentIdParsed.value },
             data: {
-              body: body.body.trim(),
+              body: trimmedBody,
             },
             select: {
               id: true,

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { ProfileSearchQueryBuilder } from '../../../services/search/profileSearchQueryBuilder.js'
+import { ProfileSearchQueryBuilder } from '../../../../services/search/profileSearchQueryBuilder.js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { fileURLToPath } from 'url'

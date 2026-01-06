@@ -2,7 +2,7 @@ import type { DomainRegistry } from '../../types.js';
 import { Auth } from '../../../lib/auth/rules.js';
 import { json } from '../../../lib/http/json.js';
 import { parsePositiveBigInt } from '../../../lib/http/parse.js';
-import { MediaError } from '../../../services/media/mediaService.js';
+import { mediaService, MediaError } from '../../../services/media/mediaService.js';
 import { uploadMedia } from '../../../services/media/uploadHandler.js';
 import { streamUploadToDisk } from '../../../services/media/streamingUpload.js';
 

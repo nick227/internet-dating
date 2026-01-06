@@ -11,6 +11,7 @@ import { scoreCandidates } from './scoring/index.js';
 import { mergeAndRank } from './ranking/index.js';
 import { hydrateFeedItems } from './hydration/index.js';
 import { hydrateFeedItemsFromPresorted } from './hydration/presorted.js';
+import type { FeedItem } from './types.js';
 import { recordFeedSeen } from '../../../services/feed/feedSeenService.js';
 import { getPresortedSegment, invalidateAllSegmentsForUser } from '../../../services/feed/presortedFeedService.js';
 import { applySeenPenalty, checkAllUnseen } from '../../../services/feed/presortedFeedHelpers.js';
@@ -47,7 +48,7 @@ export const feedDomain: DomainRegistry = {
           ? await getRelationshipPostCandidates(ctx, relationshipIds, cursorCutoff)
           : { self: [], following: [], followers: [] };
 
-        const relationshipItemsAll = [
+        const relationshipItemsAll: FeedItem[] = [
           ...relationshipPosts.self.map((post) => ({
             type: 'post' as const,
             post,
@@ -81,9 +82,7 @@ export const feedDomain: DomainRegistry = {
           }
         }
 
-        const filterRankedItems = (
-          items: Array<{ type: string; post?: { id: bigint }; suggestion?: { userId: bigint } }>
-        ) =>
+        const filterRankedItems = (items: FeedItem[]) =>
           items.filter((item) => {
             if (item.type === 'post' && item.post) {
               return !relationshipPostIds.has(item.post.id);
@@ -94,9 +93,13 @@ export const feedDomain: DomainRegistry = {
             return true;
           });
 
-        const recordSeenIfNeeded = async (
-          items: Array<{ type: string; post?: { id: bigint }; suggestion?: { userId: bigint } }>
-        ) => {
+        type SeenItem = {
+          type: 'post' | 'suggestion' | 'question';
+          post?: { id: bigint };
+          suggestion?: { userId: bigint };
+        };
+
+        const recordSeenIfNeeded = async (items: SeenItem[]) => {
           if (!ctx.markSeen || !ctx.userId) return;
           const seenItems: Array<{ itemType: 'POST' | 'SUGGESTION'; itemId: bigint }> = [];
           for (const item of items) {
@@ -111,9 +114,7 @@ export const feedDomain: DomainRegistry = {
           }
         };
 
-        const getNextPostCursorId = (
-          items: Array<{ type: string; post?: { id: bigint } }>
-        ): string | null => {
+        const getNextPostCursorId = (items: SeenItem[]): string | null => {
           for (let i = items.length - 1; i >= 0; i -= 1) {
             const item = items[i];
             if (item.type === 'post' && item.post) {
@@ -202,7 +203,7 @@ export const feedDomain: DomainRegistry = {
                     actor: {
                       id: String(item.post.user.id),
                       name: item.post.user.profile?.displayName ?? 'User',
-                      avatarUrl: item.post.user.profile?.avatarUrl ?? null,
+                    avatarUrl: null,
                     },
                     textPreview: item.post.text ? (item.post.text.length > 150 ? item.post.text.slice(0, 150) + '...' : item.post.text) : null,
                     createdAt: new Date(item.post.createdAt).getTime(),
@@ -215,7 +216,7 @@ export const feedDomain: DomainRegistry = {
                     actor: {
                       id: String(item.suggestion.userId),
                       name: item.suggestion.displayName ?? 'User',
-                      avatarUrl: item.suggestion.avatarUrl ?? null,
+                    avatarUrl: null,
                     },
                     textPreview: item.suggestion.bio ? (item.suggestion.bio.length > 150 ? item.suggestion.bio.slice(0, 150) + '...' : item.suggestion.bio) : null,
                     createdAt: Date.now(),
@@ -284,7 +285,7 @@ export const feedDomain: DomainRegistry = {
                 actor: {
                   id: String(item.post.user.id),
                   name: item.post.user.profile?.displayName ?? 'User',
-                  avatarUrl: item.post.user.profile?.avatarUrl ?? null,
+                  avatarUrl: null,
                 },
                 textPreview: item.post.text ? (item.post.text.length > 150 ? item.post.text.slice(0, 150) + '...' : item.post.text) : null,
                 createdAt: new Date(item.post.createdAt).getTime(),
@@ -297,7 +298,7 @@ export const feedDomain: DomainRegistry = {
                 actor: {
                   id: String(item.suggestion.userId),
                   name: item.suggestion.displayName ?? 'User',
-                  avatarUrl: item.suggestion.avatarUrl ?? null,
+                  avatarUrl: null,
                 },
                 textPreview: item.suggestion.bio ? (item.suggestion.bio.length > 150 ? item.suggestion.bio.slice(0, 150) + '...' : item.suggestion.bio) : null,
                 createdAt: Date.now(),
@@ -388,13 +389,13 @@ export const feedDomain: DomainRegistry = {
 
           // If posting to another user's profile, validate follow relationship
           if (parsedTargetUserId !== userId) {
-            const followRelationship = await prisma.profileAccess.findFirst({
-              where: {
-                ownerProfile: { userId: parsedTargetUserId },
-                viewerProfile: { userId },
-                status: 'GRANTED',
-              },
-            });
+              const followRelationship = await prisma.profileAccess.findFirst({
+                where: {
+                  ownerUserId: parsedTargetUserId,
+                  viewerUserId: userId,
+                  status: 'GRANTED',
+                },
+              });
             if (!followRelationship) {
               return json(res, { error: 'You must be following this user to post on their profile' }, 403);
             }
