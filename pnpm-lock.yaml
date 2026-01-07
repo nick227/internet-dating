@@ -16,6 +16,9 @@ importers:
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
+      busboy:
+        specifier: ^1.6.0
+        version: 1.6.0
       cookie-parser:
         specifier: ^1.4.6
         version: 1.4.7
