@@ -4,15 +4,8 @@ process.stderr.write('[server] Starting application (stderr)...\n');
 
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 import { createApp } from './app/createApp.js';
 import { createWsServer } from './ws/index.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const backendRoot = join(__dirname, '..');
 
 function loadEnv() {
   if (process.env.DATABASE_URL) return;
@@ -46,78 +39,12 @@ try {
   process.stdout.write(`[server] PORT=${process.env.PORT || 'not set'}\n`);
   process.stdout.write(`[server] RAILWAY_PORT=${process.env.RAILWAY_PORT || 'not set'}\n`);
 
-  // Run migrations in production before starting the server
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      process.stdout.write('[server] Checking migration status...\n');
-      // Check migration status first
-      const status = execSync('npx prisma migrate status --schema prisma/schema', {
-        encoding: 'utf8',
-        env: process.env,
-        cwd: backendRoot,
-      });
-      process.stdout.write(`[server] Migration status: ${status}\n`);
-      
-      // Only run deploy if there are pending migrations
-      if (!status.includes('Database schema is up to date')) {
-        process.stdout.write('[server] Running Prisma migrations...\n');
-        execSync('npx prisma migrate deploy --schema prisma/schema', {
-          stdio: 'inherit',
-          env: process.env,
-          cwd: backendRoot,
-        });
-        process.stdout.write('[server] ✓ Migrations completed\n');
-      } else {
-        process.stdout.write('[server] ✓ Database schema is up to date, skipping migrations\n');
-      }
-    } catch (migrationErr: any) {
-      const errorOutput = migrationErr.stdout || migrationErr.stderr || migrationErr.message || String(migrationErr);
-      process.stderr.write(`[server] Migration error: ${errorOutput}\n`);
-      
-      // If migration history is out of sync (database has different migrations than local)
-      // or if there are duplicate constraints (database already has schema from db push)
-      if (errorOutput.includes('migration history') || errorOutput.includes('not found locally') || 
-          errorOutput.includes('Duplicate') || errorOutput.includes('already exists') || 
-          errorOutput.includes('P3018') || errorOutput.includes('1826')) {
-        process.stdout.write('[server] Migration history out of sync, marking baseline as applied...\n');
-        try {
-          // Mark the local baseline migration as applied to sync with database
-          execSync('npx prisma migrate resolve --applied 20260107015518_baseline_fresh_start --schema prisma/schema', {
-            stdio: 'inherit',
-            env: process.env,
-            cwd: backendRoot,
-          });
-          process.stdout.write('[server] ✓ Baseline migration marked as applied\n');
-          
-          // Try running migrations again
-          process.stdout.write('[server] Retrying migrations...\n');
-          execSync('npx prisma migrate deploy --schema prisma/schema', {
-            stdio: 'inherit',
-            env: process.env,
-            cwd: backendRoot,
-          });
-          process.stdout.write('[server] ✓ Migrations completed after sync\n');
-        } catch (resolveErr: any) {
-          const resolveError = resolveErr.stdout || resolveErr.stderr || String(resolveErr);
-          process.stderr.write(`[server] Could not resolve migration: ${resolveError}\n`);
-          process.stderr.write('[server] Continuing anyway - database schema exists, server will start\n');
-        }
-      }
-      // Don't exit - allow server to start even if migrations fail
-    }
-  }
-
   process.stdout.write('[server] Creating Express app...\n');
   const app = createApp();
   process.stdout.write('[server] Express app created successfully\n');
 
   // Railway automatically sets PORT, but fallback to 4000 for local dev
-  const portEnv = process.env.PORT || process.env.RAILWAY_PORT || '4000';
-  const port = Number(portEnv);
-  if (isNaN(port) || port <= 0 || port > 65535) {
-    process.stderr.write(`[server] Invalid port: ${portEnv} (parsed as ${port})\n`);
-    process.exit(1);
-  }
+  const port = Number(process.env.PORT ?? 4000);
   process.stdout.write(`[server] Starting server on port ${port} (from PORT=${process.env.PORT || 'undefined'}, RAILWAY_PORT=${process.env.RAILWAY_PORT || 'undefined'})\n`);
 
   process.stdout.write('[server] Creating HTTP server...\n');
@@ -174,21 +101,6 @@ try {
   server.listen(port, '0.0.0.0', async () => {
     process.stdout.write(`[server] ✓ API listening on 0.0.0.0:${port}\n`);
     process.stdout.write(`[server] ✓ Health endpoint available at http://0.0.0.0:${port}/health\n`);
-    
-    // Test database connection
-    try {
-      process.stdout.write('[server] Testing database connection...\n');
-      const { prisma } = await import('./lib/prisma/client.js');
-      await prisma.$queryRaw`SELECT 1`;
-      process.stdout.write('[server] ✓ Database connection successful\n');
-    } catch (dbErr) {
-      process.stderr.write(`[server] ✗ Database connection failed: ${String(dbErr)}\n`);
-      if (dbErr instanceof Error && dbErr.stack) {
-        process.stderr.write(`[server] DB Error stack: ${dbErr.stack}\n`);
-      }
-      // Don't exit - let the server start, but log the error
-      // This way we can see if DB is the issue
-    }
     
     process.stdout.write('[server] Server is ready and waiting for requests\n');
     // Verify server is actually listening
