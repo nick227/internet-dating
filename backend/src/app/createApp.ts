@@ -85,10 +85,15 @@ export function createApp() {
       }));
       
       // SPA catch-all - send index.html for all other GET requests
+      // Use absolute path for sendFile
+      const absoluteIndexPath = path.resolve(indexPath);
       app.get('*', (_req, res) => {
-        res.sendFile(indexPath, (err) => {
+        res.sendFile(absoluteIndexPath, (err) => {
           if (err) {
             process.stderr.write(`[frontend] Failed to serve index.html: ${String(err)}\n`);
+            if (err instanceof Error && err.stack) {
+              process.stderr.write(`[frontend] Stack: ${err.stack}\n`);
+            }
             if (!res.headersSent) {
               res.status(500).send('Internal Server Error');
             }
