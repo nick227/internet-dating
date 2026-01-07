@@ -34,6 +34,12 @@ export function createApp() {
     res.status(200).json({ ok: true });
   });
 
+  // Test route to verify requests reach the server
+  app.get('/test-root', (_req, res) => {
+    process.stdout.write(`[test] /test-root route hit\n`);
+    res.status(200).json({ message: 'Root test route works', path: '/test-root' });
+  });
+
   // API routes
   app.use('/api', buildApiRouter());
 
@@ -92,7 +98,7 @@ export function createApp() {
       // Use absolute path for sendFile
       process.stdout.write(`[frontend] Registering catch-all route for SPA\n`);
       app.get('*', (req, res) => {
-        process.stdout.write(`[frontend] Catch-all route hit: ${req.method} ${req.path}\n`);
+        process.stdout.write(`[frontend] Catch-all GET route hit: ${req.method} ${req.path}\n`);
         res.sendFile(absoluteIndexPath, (err) => {
           if (err) {
             process.stderr.write(`[frontend] Failed to serve index.html: ${String(err)}\n`);
@@ -106,6 +112,12 @@ export function createApp() {
             process.stdout.write(`[frontend] Successfully served index.html for ${req.path}\n`);
           }
         });
+      });
+      
+      // Also handle HEAD requests (Railway might use these for healthchecks)
+      app.head('*', (req, res) => {
+        process.stdout.write(`[frontend] Catch-all HEAD route hit: ${req.path}\n`);
+        res.status(200).end();
       });
       process.stdout.write(`[frontend] Frontend serving configured successfully\n`);
     } else {
