@@ -95,10 +95,15 @@ export function createApp() {
       }));
       
       // SPA catch-all - send index.html for all other GET requests
-      // Use absolute path for sendFile
-      process.stdout.write(`[frontend] Registering catch-all route for SPA\n`);
-      app.get('*', (req, res) => {
-        process.stdout.write(`[frontend] Catch-all GET route hit: ${req.method} ${req.path}\n`);
+      // MUST exclude /api and /media to avoid catching their routes
+      process.stdout.write(`[frontend] Registering guarded catch-all route for SPA\n`);
+      app.get('*', (req, res, next) => {
+        // Never catch /api or /media routes - let them fail properly
+        if (req.path.startsWith('/api') || req.path.startsWith('/media')) {
+          return next();
+        }
+        
+        process.stdout.write(`[frontend] SPA fallback: ${req.path}\n`);
         res.sendFile(absoluteIndexPath, (err) => {
           if (err) {
             process.stderr.write(`[frontend] Failed to serve index.html: ${String(err)}\n`);
@@ -112,12 +117,6 @@ export function createApp() {
             process.stdout.write(`[frontend] Successfully served index.html for ${req.path}\n`);
           }
         });
-      });
-      
-      // Also handle HEAD requests (Railway might use these for healthchecks)
-      app.head('*', (req, res) => {
-        process.stdout.write(`[frontend] Catch-all HEAD route hit: ${req.path}\n`);
-        res.status(200).end();
       });
       process.stdout.write(`[frontend] Frontend serving configured successfully\n`);
     } else {
