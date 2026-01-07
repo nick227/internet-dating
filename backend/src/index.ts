@@ -74,19 +74,32 @@ try {
       const errorOutput = migrationErr.stdout || migrationErr.stderr || migrationErr.message || String(migrationErr);
       process.stderr.write(`[server] Migration error: ${errorOutput}\n`);
       
-      // If migration fails due to duplicate constraints (database already has schema),
-      // the database was created with db push, so we need to mark migrations as applied
-      if (errorOutput.includes('Duplicate') || errorOutput.includes('already exists') || errorOutput.includes('P3018') || errorOutput.includes('1826')) {
-        process.stdout.write('[server] Database schema already exists, marking baseline as applied...\n');
+      // If migration history is out of sync (database has different migrations than local)
+      // or if there are duplicate constraints (database already has schema from db push)
+      if (errorOutput.includes('migration history') || errorOutput.includes('not found locally') || 
+          errorOutput.includes('Duplicate') || errorOutput.includes('already exists') || 
+          errorOutput.includes('P3018') || errorOutput.includes('1826')) {
+        process.stdout.write('[server] Migration history out of sync, marking baseline as applied...\n');
         try {
+          // Mark the local baseline migration as applied to sync with database
           execSync('npx prisma migrate resolve --applied 20260107015518_baseline_fresh_start --schema prisma/schema', {
             stdio: 'inherit',
             env: process.env,
             cwd: backendRoot,
           });
           process.stdout.write('[server] ✓ Baseline migration marked as applied\n');
-        } catch (resolveErr) {
-          process.stderr.write(`[server] Could not mark migration as applied: ${String(resolveErr)}\n`);
+          
+          // Try running migrations again
+          process.stdout.write('[server] Retrying migrations...\n');
+          execSync('npx prisma migrate deploy --schema prisma/schema', {
+            stdio: 'inherit',
+            env: process.env,
+            cwd: backendRoot,
+          });
+          process.stdout.write('[server] ✓ Migrations completed after sync\n');
+        } catch (resolveErr: any) {
+          const resolveError = resolveErr.stdout || resolveErr.stderr || String(resolveErr);
+          process.stderr.write(`[server] Could not resolve migration: ${resolveError}\n`);
           process.stderr.write('[server] Continuing anyway - database schema exists, server will start\n');
         }
       }
