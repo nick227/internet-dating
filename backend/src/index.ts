@@ -46,7 +46,7 @@ try {
     loadEnv();
   }
 
-  const port = Number(process.env.PORT ?? 4000);
+  const port = Number(process.env.PORT) || 8080;
   process.stdout.write(`[server] PORT=${port} NODE_ENV=${process.env.NODE_ENV || 'development'}\n`);
 
   // Create app and server
