@@ -130,7 +130,7 @@ async function testMediaVolume() {
       loadEnv();
     }
 
-    const port = Number(process.env.PORT) || 8080;
+    const port = Number(process.env.PORT) || (process.env.NODE_ENV === 'production' ? 8080 : 4000);
     process.stdout.write(`[server] PORT=${port} NODE_ENV=${process.env.NODE_ENV || 'development'}\n`);
 
     // Test media volume before starting server

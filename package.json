@@ -1,19 +1,24 @@
-
 {
   "name": "internet-date",
   "private": true,
   "type": "module",
-  "workspaces": ["backend", "frontend", "shared"],
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
   "scripts": {
     "dev:backend": "pnpm --filter ./backend dev",
     "dev:frontend": "pnpm --filter ./frontend dev",
-    "dev:all": "pnpm --filter \"*\" --parallel dev",
+    "dev:all": "concurrently -n backend,frontend -c blue,green \"pnpm -C backend dev\" \"pnpm -C frontend dev\"",
     "build": "pnpm --filter @app/shared build && pnpm --filter ./frontend build && pnpm --filter ./backend build",
     "build:verify": "node scripts/verify-build.js",
     "build:railway": "pnpm run build && pnpm run build:verify",
     "start": "node backend/dist/index.js",
     "start:local": "pnpm run build && pnpm run start",
     "dev:prod": "pnpm run build && NODE_ENV=production pnpm run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
-  

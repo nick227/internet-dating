@@ -3,7 +3,7 @@
   z-index: 40;
   padding: calc(var(--safe-top) + var(--component-space-xxs)) var(--s-7) var(--component-space-xxs);
   background: var(--component-backdrop);
-  backdrop-filter: blur(16px);
+  height: 100px;
   border-bottom: 1px solid var(--component-border-subtle);
 }
 .topBar__inner {
@@ -11,6 +11,9 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
+  width: var(--layout-page-max-width);
+  margin: 0 auto;
+  height: 100%;
 }
 .topBar__title {
   background: none;
@@ -25,16 +28,6 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-}
-.topBar__btn {
-  height: var(--component-height-btn-sm);
-  padding: 0 var(--s-4);
-  border-radius: 999px;
-  border: 1px solid var(--component-border-soft);
-  background-color: var(--component-backdrop);
-  color: var(--text);
-  cursor: pointer;
-  font-size: var(--fs-2);
 }
 .topBar__btn:hover {
   background: var(--component-surface);

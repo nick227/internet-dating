@@ -56,10 +56,10 @@ export function TopBar({
   } else {
     actions = (
       <>
-        <button type="button" className="topBar__btn" onClick={onLogin}>
+        <button type="button" className="actionBtn" onClick={onLogin}>
           Login
         </button>
-        <button type="button" className="topBar__btn topBar__btn--primary" onClick={onSignup}>
+        <button type="button" className="actionBtn actionBtn--like" onClick={onSignup}>
           Register
         </button>
       </>
@@ -70,7 +70,7 @@ export function TopBar({
     <header className="topBar">
       <div className="topBar__inner">
         <button type="button" className="topBar__title" onClick={onHome}>
-          {title}
+          <h1 className="topBar__titleText">{title}</h1>
         </button>
         <div className="topBar__actions">{actions}</div>
       </div>

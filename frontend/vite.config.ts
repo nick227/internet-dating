@@ -22,7 +22,27 @@ export default defineConfig(({ mode }) => ({
         ]
       : []),
   ],
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/media': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/ws': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:4000',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   build: {
     target: 'esnext',
     minify: 'esbuild',
