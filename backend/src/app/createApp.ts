@@ -80,8 +80,34 @@ export function createApp() {
       process.stderr.write('[server] Frontend will not be served\n');
     } else {
       process.stdout.write(`[server] Serving frontend from: ${frontendDist}\n`);
-      app.use(express.static(frontendDist));
-      app.get('*', (_req, res) => res.sendFile(indexPath));
+      process.stdout.write(`[server] Frontend index.html at: ${indexPath}\n`);
+      app.use(express.static(frontendDist, {
+        // Don't serve index.html for static files, let the catch-all handle it
+        index: false
+      }));
+      // Catch-all route for SPA - must be last
+      // Use absolute path for sendFile
+      const absoluteIndexPath = path.resolve(indexPath);
+      app.get('*', (req, res) => {
+        // Skip API and media routes
+        if (req.path.startsWith('/api') || req.path.startsWith('/media') || req.path === '/health' || req.path === '/test') {
+          return; // Let other routes handle these
+        }
+        process.stdout.write(`[frontend] Serving index.html for: ${req.path}\n`);
+        res.sendFile(absoluteIndexPath, (err) => {
+          if (err) {
+            process.stderr.write(`[frontend] Error serving index.html: ${String(err)}\n`);
+            if (err instanceof Error && err.stack) {
+              process.stderr.write(`[frontend] Stack: ${err.stack}\n`);
+            }
+            if (!res.headersSent) {
+              res.status(500).json({ error: 'Failed to serve frontend' });
+            }
+          } else {
+            process.stdout.write(`[frontend] Successfully served index.html for: ${req.path}\n`);
+          }
+        });
+      });
     }
   } else if (!frontendDist) {
     process.stdout.write('[server] Frontend dist not found, only serving API\n');
