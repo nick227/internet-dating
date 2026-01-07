@@ -69,7 +69,10 @@ export function createApp() {
 
   // Error handler - must be after all routes
   app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('[Express] Unhandled error:', err);
+    process.stderr.write(`[Express] Unhandled error on ${req.method} ${req.url}: ${String(err)}\n`);
+    if (err instanceof Error && err.stack) {
+      process.stderr.write(`[Express] Error stack: ${err.stack}\n`);
+    }
     if (res.headersSent) {
       return next(err);
     }

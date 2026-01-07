@@ -1,6 +1,5 @@
 // Immediate logging to verify process starts
 process.stdout.write('[server] Starting application...\n');
-process.stderr.write('[server] Starting application (stderr)...\n');
 
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -55,8 +54,9 @@ try {
   createWsServer(server);
   process.stdout.write('[server] WebSocket server created\n');
 
-  process.on('unhandledRejection', (reason) => {
-    process.stderr.write(`[server] Unhandled rejection: ${String(reason)}\n`);
+  process.on('unhandledRejection', (reason, promise) => {
+    process.stderr.write(`[server] Unhandled rejection at: ${promise}\n`);
+    process.stderr.write(`[server] Reason: ${String(reason)}\n`);
     if (reason instanceof Error && reason.stack) {
       process.stderr.write(`[server] Stack: ${reason.stack}\n`);
     }
@@ -78,6 +78,21 @@ try {
       process.stderr.write(`[server] Stack: ${err.stack}\n`);
     }
     process.exit(1);
+  });
+
+  // Log all incoming requests to debug 502s
+  server.on('request', (req, res) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      process.stdout.write(`[server] ${req.method} ${req.url} ${res.statusCode} ${duration}ms\n`);
+    });
+    res.on('error', (err) => {
+      process.stderr.write(`[server] Response error for ${req.method} ${req.url}: ${err.message}\n`);
+      if (err.stack) {
+        process.stderr.write(`[server] Stack: ${err.stack}\n`);
+      }
+    });
   });
 
   // Handle graceful shutdown
