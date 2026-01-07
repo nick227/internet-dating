@@ -4,6 +4,7 @@ process.stderr.write('[server] Starting application (stderr)...\n');
 
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { createApp } from './app/createApp.js';
 import { createWsServer } from './ws/index.js';
 
@@ -38,6 +39,22 @@ try {
   process.stdout.write(`[server] DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'not set'}\n`);
   process.stdout.write(`[server] PORT=${process.env.PORT || 'not set'}\n`);
   process.stdout.write(`[server] RAILWAY_PORT=${process.env.RAILWAY_PORT || 'not set'}\n`);
+
+  // Run migrations in production before starting the server
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      process.stdout.write('[server] Running Prisma migrations...\n');
+      execSync('pnpm prisma migrate deploy --schema prisma/schema', {
+        stdio: 'inherit',
+        env: process.env,
+      });
+      process.stdout.write('[server] ✓ Migrations completed\n');
+    } catch (migrationErr) {
+      process.stderr.write(`[server] ✗ Migration failed: ${String(migrationErr)}\n`);
+      // Don't exit - migrations might already be applied
+      // This allows the server to start even if migrations fail (e.g., already applied)
+    }
+  }
 
   process.stdout.write('[server] Creating Express app...\n');
   const app = createApp();
