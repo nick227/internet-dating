@@ -5,8 +5,14 @@ process.stderr.write('[server] Starting application (stderr)...\n');
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { createApp } from './app/createApp.js';
 import { createWsServer } from './ws/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const backendRoot = join(__dirname, '..');
 
 function loadEnv() {
   if (process.env.DATABASE_URL) return;
@@ -44,9 +50,11 @@ try {
   if (process.env.NODE_ENV === 'production') {
     try {
       process.stdout.write('[server] Running Prisma migrations...\n');
-      execSync('pnpm prisma migrate deploy --schema prisma/schema', {
+      // Run from backend directory where prisma schema is located
+      execSync('npx prisma migrate deploy --schema prisma/schema', {
         stdio: 'inherit',
         env: process.env,
+        cwd: backendRoot,
       });
       process.stdout.write('[server] ✓ Migrations completed\n');
     } catch (migrationErr) {
