@@ -13,25 +13,31 @@
 .bottomNav {
   height: 5.4vh;
 }
-.topBar {
-  height: 3.6vh;
-}
 
 .page,
+.sheet,
 .river__pad,
 .profile,
 .inbox__pad,
 .followers__pad,
+.profiles-portal__pad,
 .matches__pad,
+.connections__pad,
+.quiz-page,
 .quiz-portal,
+.quiz-results-page,
 .quiz__pad,
+.personality-portal,
 .conversation__header,
+.topBar__inner,
+.interests-portal,
 .conversation__body,
 .conversation__composer {
-  width: 100%;
-  max-width: var(--layout-page-max-width);
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
+  padding: calc(var(--safe-top) + var(--s-4)) var(--s-3) calc(var(--component-bottom-offset) + var(--safe-bot));
+  width: var(--page-width);
 }
 .hidden {
   display: none;

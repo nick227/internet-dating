@@ -114,12 +114,6 @@
   display: block;
 }
 
-.portal-grid {
-  overflow-y: auto;
-  height: 50%;
-  width: 100%;
-}
-
 /* Interest Card */
 .interest-card {
   display: flex;

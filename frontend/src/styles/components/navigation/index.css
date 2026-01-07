@@ -1,17 +1,18 @@
 .topBar {
   position: relative;
   z-index: 40;
-  padding: calc(var(--safe-top) + var(--component-space-xxs)) var(--s-7) var(--component-space-xxs);
   background: var(--component-backdrop);
   height: 100px;
   border-bottom: 1px solid var(--component-border-subtle);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .topBar__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  width: var(--layout-page-max-width);
   margin: 0 auto;
   height: 100%;
 }

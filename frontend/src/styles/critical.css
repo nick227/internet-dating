@@ -72,25 +72,15 @@ body {
   scroll-snap-align: start;
   border-radius: 24px;
   overflow: hidden;
-  min-height: min(82vh, 720px);
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: #0b0b10;
   /* Freeze dimensions - prevent layout shift */
   width: 100%;
-  aspect-ratio: 9 / 16;
-  max-height: min(82vh, 720px);
   /* GPU promotion - isolate paints, reduce repaint cost on hydration */
   will-change: transform;
   contain: layout paint;
-}
-@media (min-width: 768px) {
-  .riverCard {
-    height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 140px);
-    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 140px);
-    aspect-ratio: auto;
-  }
 }
 
 /* Card Media Frame - Fixed aspect ratio */

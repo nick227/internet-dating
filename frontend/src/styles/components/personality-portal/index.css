@@ -4,8 +4,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
-  padding: var(--s-4) var(--s-3) calc(var(--component-bottom-offset) + var(--safe-bot));
-  max-width: var(--layout-page-max-width);
   margin: 0 auto;
 }
 
@@ -14,6 +12,9 @@
 .personality-portal__panel {
   width: min(1100px, 100%);
   margin: 0 auto;
+  white-space: nowrap;
+  display: flex; 
+  flex-wrap: nowrap;
 }
 
 .personality-portal__intro {
@@ -130,7 +131,7 @@
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  height: 80px;
+  height: 250px;
 }
 
 .portal-item:hover {
@@ -268,7 +269,7 @@
 
 .portal-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
   padding: 0;
   overflow-y: auto;
@@ -327,10 +328,4 @@
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-@media (max-width: 640px) {
-  .personality-portal__tabs {
-    flex-direction: column;
-  }
 }

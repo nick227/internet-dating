@@ -3,6 +3,7 @@
   gap: var(--s-3);
   align-items: center;
   width: 100%;
+  z-index: 100;
 }
 .actionBtn {
   flex: 1;

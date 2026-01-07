@@ -19,7 +19,7 @@
 
   --component-space-xxs: 6px;
   --component-bottom-offset: 110px;
-  --layout-page-max-width: 680px;
+  --page-width: 680px;
 
   --component-size-badge: 22px;
   --component-size-delete-btn: 28px;

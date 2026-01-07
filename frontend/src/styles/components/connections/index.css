@@ -6,12 +6,6 @@
   background: transparent;
 }
 
-.connections__pad {
-  padding: calc(var(--safe-top) + var(--s-4)) var(--s-3) calc(var(--component-bottom-offset) + var(--safe-bot));
-  max-width: var(--layout-page-max-width);
-  margin: 0 auto;
-}
-
 .connections__header {
   display: flex;
   align-items: center;

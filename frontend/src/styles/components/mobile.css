@@ -1,22 +1,24 @@
-@media (min-width: 768px) {
-  .riverCard {
-    height: calc(100vh - var(--safe-top) - var(--safe-bot) - var(--component-size-river-offset));
-    min-height: calc(100vh - var(--safe-top) - var(--safe-bot) - var(--component-size-river-offset));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fullScreenModal__backdrop,
-  .fullScreenModal__panel {
-    transition: none;
-  }
-  .page-transition__content,
-  .page-transition--active .page-transition__content {
-    transition: none;
-    animation: none;
-  }
-  .page-transition--active .page-transition__content {
-    opacity: 1;
-    transform: none;
-  }
+@media (max-width: 768px) {
+    .page,
+    .sheet,
+    .river__pad,
+    .profile,
+    .inbox__pad,
+    .followers__pad,
+    .profiles-portal__pad,
+    .matches__pad,
+    .connections__pad,
+    .quiz-page,
+    .quiz-portal,
+    .quiz-results-page,
+    .quiz__pad,
+    .personality-portal,
+    .conversation__header,
+    .topBar__inner,
+    .conversation__body,
+    .conversation__composer {
+      width: 98%;
+      padding: 0 1%;
+      margin: 0;
+    }
 }

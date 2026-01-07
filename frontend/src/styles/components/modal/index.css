@@ -198,8 +198,6 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  max-width: var(--layout-page-max-width);
   height: 100%;
   margin: 0 auto;
   background: transparent;
