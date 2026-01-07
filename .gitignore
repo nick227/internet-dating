@@ -3,6 +3,8 @@ node_modules/
 .pnp.js
 
 dist/
+backend/dist/
+frontend/dist/
 build/
 out/
 coverage/

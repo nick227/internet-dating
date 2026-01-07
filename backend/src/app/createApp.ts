@@ -25,13 +25,23 @@ export function createApp() {
     res.status(200).json({ message: 'Server is responding', timestamp: new Date().toISOString() });
   });
 
-  app.get('/media/:key(*)', attachContext, async (req, res) => {
-    const key = req.params.key;
-    if (!key) return res.status(404).end();
+  // Media serving route - must match paths with slashes like /media/0d/7a/uuid.jpg
+  // Extract key from URL path (everything after /media/)
+  app.get('/media/*', attachContext, async (req, res) => {
+    // Extract the key from the URL path
+    // Remove leading /media/ and any leading slashes
+    const key = req.path.replace(/^\/media\//, '').replace(/^\/+/, '');
+    if (!key) {
+      process.stderr.write(`[media] No key found in request: ${req.url}\n`);
+      return res.status(404).end();
+    }
+    process.stdout.write(`[media] Serving media with key: ${key}\n`);
     try {
       const result = await mediaService.getMediaStreamByKey(key, req.ctx.userId ?? null);
+      process.stdout.write(`[media] Found media, streaming with mimeType: ${result.mimeType}\n`);
       res.status(200).type(result.mimeType);
-      result.stream.on('error', () => {
+      result.stream.on('error', (err) => {
+        process.stderr.write(`[media] Stream error for key ${key}: ${String(err)}\n`);
         if (!res.headersSent) {
           res.status(404).end();
         } else {
@@ -41,7 +51,12 @@ export function createApp() {
       result.stream.pipe(res);
     } catch (err) {
       if (err instanceof MediaError) {
+        process.stderr.write(`[media] MediaError for key ${key}: ${err.message} (${err.status})\n`);
         return res.status(err.status).end();
+      }
+      process.stderr.write(`[media] Unexpected error for key ${key}: ${String(err)}\n`);
+      if (err instanceof Error && err.stack) {
+        process.stderr.write(`[media] Stack: ${err.stack}\n`);
       }
       throw err;
     }
@@ -49,22 +64,33 @@ export function createApp() {
 
   app.use('/api', buildApiRouter());
 
+  // Serve frontend if dist exists (unless explicitly disabled)
+  // This works for both local testing and Railway production
+  const frontendDist = resolveFrontendDist();
   const shouldServeFrontend =
-  process.env.RAILWAY_ENVIRONMENT === 'production' ||
-  process.env.NODE_ENV === 'production' ||
-  process.env.SERVE_FRONTEND === 'true';
+    frontendDist !== null &&
+    process.env.SERVE_FRONTEND !== 'false';
 
-  if (shouldServeFrontend) {
-    const frontendDist = resolveFrontendDist();
-    if (frontendDist) {
-      console.log(`[server] Serving frontend from: ${frontendDist}`);
-      app.use(express.static(frontendDist));
-      app.get('*', (_req, res) => res.sendFile(path.join(frontendDist, 'index.html')));
+  if (shouldServeFrontend && frontendDist) {
+    const indexPath = path.join(frontendDist, 'index.html');
+    if (!existsSync(indexPath)) {
+      process.stderr.write(`[server] WARNING: Frontend index.html not found at ${indexPath}\n`);
+      process.stderr.write('[server] Frontend will not be served\n');
     } else {
-      console.warn('[server] Frontend dist not found, only serving API');
+      process.stdout.write(`[server] Serving frontend from: ${frontendDist}\n`);
+      app.use(express.static(frontendDist));
+      app.get('*', (_req, res) => res.sendFile(indexPath));
     }
+  } else if (!frontendDist) {
+    process.stdout.write('[server] Frontend dist not found, only serving API\n');
+    process.stdout.write('[server] Expected locations:\n');
+    process.stdout.write(`  - ${path.join(process.cwd(), 'frontend', 'dist')}\n`);
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const root = path.resolve(__dirname, '../../..');
+    process.stdout.write(`  - ${path.join(root, 'frontend', 'dist')}\n`);
   } else {
-    console.log('[server] Frontend serving disabled');
+    process.stdout.write('[server] Frontend serving disabled (SERVE_FRONTEND=false)\n');
   }
 
   // Error handler - must be after all routes

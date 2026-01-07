@@ -5,10 +5,12 @@
   "type": "module",
   "workspaces": ["backend", "frontend", "shared"],
   "scripts": {
-    "dev:backend": "npm run -w backend dev",
-    "dev:frontend": "npm run -w frontend dev",
-    "dev:all": "npm run -ws --if-present --parallel dev",
-    "build": "npm run build -w shared && npm run build -w frontend && npm run build -w backend",
-    "start": "npm run start -w backend"
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:all": "pnpm --filter \"*\" --parallel dev",
+    "build": "pnpm --filter shared build && pnpm --filter frontend build && pnpm --filter backend build",
+    "start": "node backend/dist/index.js",
+    "start:local": "pnpm run build && pnpm run start",
+    "dev:prod": "pnpm run build && NODE_ENV=production pnpm run start"
   }
 }

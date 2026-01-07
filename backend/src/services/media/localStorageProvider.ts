@@ -20,6 +20,12 @@ export class LocalStorageProvider implements StorageProvider {
 
   async get(key: string) {
     const filePath = this.resolvePath(key);
+    // Check if file exists before creating stream
+    try {
+      await fs.promises.access(filePath, fs.constants.F_OK);
+    } catch {
+      throw new Error(`File not found: ${filePath}`);
+    }
     return fs.createReadStream(filePath);
   }
 

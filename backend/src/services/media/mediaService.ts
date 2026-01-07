@@ -169,8 +169,16 @@ export const mediaService = {
     if (!servableStatuses.includes(media.status || '')) {
       throw new MediaError('Media not ready', 409);
     }
-    const stream = await storage.get(media.storageKey);
-    return { stream, mimeType: media.mimeType ?? 'application/octet-stream' };
+    try {
+      const stream = await storage.get(media.storageKey);
+      return { stream, mimeType: media.mimeType ?? 'application/octet-stream' };
+    } catch (err) {
+      // If file doesn't exist on disk, return 404
+      if (err instanceof Error && (err.message.includes('not found') || err.message.includes('ENOENT'))) {
+        throw new MediaError('Media file not found on disk', 404);
+      }
+      throw err;
+    }
   },
 
   async assertProfileMedia(mediaId: bigint, ownerUserId: bigint) {

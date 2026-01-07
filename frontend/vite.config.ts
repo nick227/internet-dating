@@ -31,7 +31,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Split vendor chunks more granularly for better caching
+          // Only split vendor chunks and routes - let Vite handle the rest automatically
+          // This avoids circular dependency issues with manual chunking
           if (id.includes('node_modules')) {
             // React core - always needed
             if (id.includes('react/') && !id.includes('react-dom')) {
@@ -50,6 +51,7 @@ export default defineConfig(({ mode }) => ({
           }
           
           // Route-based code splitting - each route gets its own chunk
+          // This is safe because routes don't have circular dependencies
           if (id.includes('/pages/')) {
             const pageName = id.match(/pages\/(\w+Page)\.tsx?$/)?.[1]
             if (pageName) {
@@ -57,31 +59,8 @@ export default defineConfig(({ mode }) => ({
             }
           }
           
-          // Modal components - lazy loaded
-          if (id.includes('/shell/') && (id.includes('Modal') || id.includes('Panel'))) {
-            const modalName = id.match(/(\w+Modal|\w+Panel)\.tsx?$/)?.[1]
-            if (modalName) {
-              return `modals/${modalName.toLowerCase()}`
-            }
-          }
-          
-          // Card components - already split
-          if (id.includes('/river/') && (id.includes('Card') || id.includes('Card.tsx'))) {
-            const cardName = id.match(/(\w+Card)\.tsx?$/)?.[1]
-            if (cardName && cardName !== 'RiverCard') {
-              return `cards/${cardName.toLowerCase()}`
-            }
-          }
-          
-          // Core features - shared across routes
-          if (id.includes('/core/')) {
-            if (id.includes('/ws/') || id.includes('/feed/')) {
-              return 'core/features'
-            }
-            if (id.includes('/auth/') || id.includes('/routing/')) {
-              return 'core/app'
-            }
-          }
+          // Let Vite automatically chunk everything else (cards, modals, core)
+          // This avoids circular dependency issues
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
