@@ -111,10 +111,9 @@ try {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  process.stdout.write(`[server] Attempting to listen on port ${port} on 0.0.0.0\n`);
+  process.stdout.write(`[server] Attempting to listen on port ${port}\n`);
   server.listen(port, () => {
-    process.stdout.write(`[server] ✓ API listening on 0.0.0.0:${port}\n`);
-    process.stdout.write(`[server] ✓ Health endpoint available at http://0.0.0.0:${port}/health\n`);
+    process.stdout.write(`[server] ✓ API listening on:${port}\n`);
     
     // Verify server is actually listening
     const address = server.address();

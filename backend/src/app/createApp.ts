@@ -12,6 +12,12 @@ import { mediaService, MediaError } from '../services/media/mediaService.js';
 export function createApp() {
   const app = express();
   
+  // Log all incoming requests at the very start
+  app.use((req, res, next) => {
+    process.stdout.write(`[request] ${req.method} ${req.url} from ${req.ip}\n`);
+    next();
+  });
+  
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: '2mb' }));
   app.use(cookieParser());
@@ -81,16 +87,26 @@ export function createApp() {
     } else {
       process.stdout.write(`[server] Serving frontend from: ${frontendDist}\n`);
       process.stdout.write(`[server] Frontend index.html at: ${indexPath}\n`);
+      // Serve static files from frontend dist
       app.use(express.static(frontendDist, {
         // Don't serve index.html for static files, let the catch-all handle it
-        index: false
+        index: false,
+        // Add error handling for static files
+        fallthrough: true
       }));
+      
       // Catch-all route for SPA - must be last
       // Express routes are matched in order, so /api, /media, /health, /test will be matched first
       // This route only handles requests that don't match any other route
       const absoluteIndexPath = path.resolve(indexPath);
-      app.get('*', (req, res) => {
-        process.stdout.write(`[frontend] Serving index.html for: ${req.path}\n`);
+      process.stdout.write(`[frontend] Catch-all route configured with path: ${absoluteIndexPath}\n`);
+      app.get('*', (req, res, next) => {
+        process.stdout.write(`[frontend] Catch-all route hit for: ${req.method} ${req.path}\n`);
+        // Verify file exists before trying to send it
+        if (!existsSync(absoluteIndexPath)) {
+          process.stderr.write(`[frontend] ERROR: index.html not found at ${absoluteIndexPath}\n`);
+          return res.status(500).json({ error: 'Frontend not found' });
+        }
         res.sendFile(absoluteIndexPath, (err) => {
           if (err) {
             process.stderr.write(`[frontend] Error serving index.html: ${String(err)}\n`);
