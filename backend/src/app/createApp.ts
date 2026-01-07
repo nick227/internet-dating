@@ -16,7 +16,9 @@ export function createApp() {
   app.use(express.json({ limit: '2mb' }));
   app.use(cookieParser());
 
+  // Healthcheck endpoint - must respond quickly for Railway
   app.get('/health', (_req, res) => {
+    // Respond immediately without any async operations
     res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
   });
 

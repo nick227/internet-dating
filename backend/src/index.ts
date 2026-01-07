@@ -113,16 +113,18 @@ try {
   process.on('SIGINT', () => shutdown('SIGINT'));
 
   process.stdout.write(`[server] Attempting to listen on port ${port} on 0.0.0.0\n`);
-  server.listen(port, '0.0.0.0', async () => {
+  server.listen(port, '0.0.0.0', () => {
     process.stdout.write(`[server] ✓ API listening on 0.0.0.0:${port}\n`);
     process.stdout.write(`[server] ✓ Health endpoint available at http://0.0.0.0:${port}/health\n`);
     
-    process.stdout.write('[server] Server is ready and waiting for requests\n');
     // Verify server is actually listening
     const address = server.address();
     if (address) {
       process.stdout.write(`[server] Server address: ${JSON.stringify(address)}\n`);
     }
+    
+    process.stdout.write('[server] Server is ready and waiting for requests\n');
+    process.stdout.write('[server] Railway healthcheck endpoint: /health\n');
   }).on('error', (err) => {
     process.stderr.write(`[server] ✗ Failed to start server: ${err.message}\n`);
     if (err.stack) {
