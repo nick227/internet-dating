@@ -71,6 +71,10 @@ export function createApp() {
     const indexPath = path.join(frontendDist, 'index.html');
     
     if (existsSync(indexPath)) {
+      const absoluteIndexPath = path.resolve(indexPath);
+      process.stdout.write(`[frontend] Configuring static serving from: ${frontendDist}\n`);
+      process.stdout.write(`[frontend] Index file: ${absoluteIndexPath}\n`);
+      
       // Serve static assets (JS, CSS, images)
       app.use(express.static(frontendDist, {
         index: false,
@@ -86,8 +90,9 @@ export function createApp() {
       
       // SPA catch-all - send index.html for all other GET requests
       // Use absolute path for sendFile
-      const absoluteIndexPath = path.resolve(indexPath);
-      app.get('*', (_req, res) => {
+      process.stdout.write(`[frontend] Registering catch-all route for SPA\n`);
+      app.get('*', (req, res) => {
+        process.stdout.write(`[frontend] Catch-all route hit: ${req.method} ${req.path}\n`);
         res.sendFile(absoluteIndexPath, (err) => {
           if (err) {
             process.stderr.write(`[frontend] Failed to serve index.html: ${String(err)}\n`);
@@ -97,12 +102,19 @@ export function createApp() {
             if (!res.headersSent) {
               res.status(500).send('Internal Server Error');
             }
+          } else {
+            process.stdout.write(`[frontend] Successfully served index.html for ${req.path}\n`);
           }
         });
       });
+      process.stdout.write(`[frontend] Frontend serving configured successfully\n`);
     } else {
       process.stderr.write(`[server] Frontend index.html not found at ${indexPath}\n`);
     }
+  } else if (!frontendDist) {
+    process.stdout.write(`[server] Frontend dist not found\n`);
+  } else {
+    process.stdout.write(`[server] Frontend serving disabled (SERVE_FRONTEND=false)\n`);
   }
 
   // Global error handler
