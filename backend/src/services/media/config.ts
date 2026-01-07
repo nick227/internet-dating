@@ -4,7 +4,12 @@ import { existsSync } from 'node:fs';
 
 const envDir = process.env.MEDIA_UPLOAD_DIR;
 export const MEDIA_UPLOAD_ROOT = envDir
-  ? path.resolve(envDir)
+  ? (() => {
+      // Use absolute path as-is (for Railway volumes like /data/uploads/media)
+      const resolved = path.resolve(envDir);
+      process.stdout.write(`[media] Using MEDIA_UPLOAD_DIR: ${resolved}\n`);
+      return resolved;
+    })()
   : (() => {
       // Resolve relative to this file's location (backend/src/services/media)
       // This ensures it works whether running from project root or backend directory
@@ -28,5 +33,12 @@ export const MEDIA_UPLOAD_ROOT = envDir
       return defaultPath; // Default to backend/uploads/media
     })();
 
+// MEDIA_BASE_URL is used to construct full media URLs
+// buildUrl() already adds '/media' prefix, so:
+// - For same-domain (production): use empty string → results in '/media/key'
+// - For different domain (dev): use full URL → results in 'http://localhost:4000/media/key'
+// If MEDIA_BASE_URL is set to '/media', it would create '/media/media/key' (wrong!)
 const fallbackBase = `http://localhost:${process.env.PORT ?? 4000}`;
-export const MEDIA_BASE_URL = (process.env.MEDIA_BASE_URL ?? process.env.API_BASE_URL ?? fallbackBase).replace(/\/$/, '');
+const rawMediaBase = process.env.MEDIA_BASE_URL ?? process.env.API_BASE_URL ?? fallbackBase;
+// Normalize: if it's '/media', convert to empty string (same-domain serving)
+export const MEDIA_BASE_URL = rawMediaBase === '/media' ? '' : rawMediaBase.replace(/\/$/, '');
