@@ -10,7 +10,9 @@
     "test:feed": "node --test --import tsx src/registry/domains/feed/__tests__/feed.test.ts",
     "prisma:generate": "prisma generate --schema prisma/schema",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema",
     "prisma:studio": "prisma studio --schema prisma/schema",
+    "migrate": "tsx scripts/runMigrations.ts",
     "openapi:emit": "tsx src/lib/openapi/emitOpenApi.ts",
     "seed:all": "tsx scripts/seedAll.ts"
   },
