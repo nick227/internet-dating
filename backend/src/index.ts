@@ -49,18 +49,48 @@ try {
   // Run migrations in production before starting the server
   if (process.env.NODE_ENV === 'production') {
     try {
-      process.stdout.write('[server] Running Prisma migrations...\n');
-      // Run from backend directory where prisma schema is located
-      execSync('npx prisma migrate deploy --schema prisma/schema', {
-        stdio: 'inherit',
+      process.stdout.write('[server] Checking migration status...\n');
+      // Check migration status first
+      const status = execSync('npx prisma migrate status --schema prisma/schema', {
+        encoding: 'utf8',
         env: process.env,
         cwd: backendRoot,
       });
-      process.stdout.write('[server] ✓ Migrations completed\n');
-    } catch (migrationErr) {
-      process.stderr.write(`[server] ✗ Migration failed: ${String(migrationErr)}\n`);
-      // Don't exit - migrations might already be applied
-      // This allows the server to start even if migrations fail (e.g., already applied)
+      process.stdout.write(`[server] Migration status: ${status}\n`);
+      
+      // Only run deploy if there are pending migrations
+      if (!status.includes('Database schema is up to date')) {
+        process.stdout.write('[server] Running Prisma migrations...\n');
+        execSync('npx prisma migrate deploy --schema prisma/schema', {
+          stdio: 'inherit',
+          env: process.env,
+          cwd: backendRoot,
+        });
+        process.stdout.write('[server] ✓ Migrations completed\n');
+      } else {
+        process.stdout.write('[server] ✓ Database schema is up to date, skipping migrations\n');
+      }
+    } catch (migrationErr: any) {
+      const errorOutput = migrationErr.stdout || migrationErr.stderr || migrationErr.message || String(migrationErr);
+      process.stderr.write(`[server] Migration error: ${errorOutput}\n`);
+      
+      // If migration fails due to duplicate constraints (database already has schema),
+      // the database was created with db push, so we need to mark migrations as applied
+      if (errorOutput.includes('Duplicate') || errorOutput.includes('already exists') || errorOutput.includes('P3018') || errorOutput.includes('1826')) {
+        process.stdout.write('[server] Database schema already exists, marking baseline as applied...\n');
+        try {
+          execSync('npx prisma migrate resolve --applied 20260107015518_baseline_fresh_start --schema prisma/schema', {
+            stdio: 'inherit',
+            env: process.env,
+            cwd: backendRoot,
+          });
+          process.stdout.write('[server] ✓ Baseline migration marked as applied\n');
+        } catch (resolveErr) {
+          process.stderr.write(`[server] Could not mark migration as applied: ${String(resolveErr)}\n`);
+          process.stderr.write('[server] Continuing anyway - database schema exists, server will start\n');
+        }
+      }
+      // Don't exit - allow server to start even if migrations fail
     }
   }
 
