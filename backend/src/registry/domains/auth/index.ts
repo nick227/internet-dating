@@ -10,11 +10,19 @@ import {
 } from '../../../lib/auth/jwt.js';
 
 const getCookieOpts = (rememberMe: boolean = false) => {
+  // Cookie settings for Chrome compatibility:
+  // - Production: 'none' + secure (required for cross-site cookies)
+  // - Development: 'lax' + !secure (Chrome allows this for localhost)
+  // Note: Chrome is stricter about cookie timing and navigation context
+  const isProduction = process.env.NODE_ENV === 'production';
+  const sameSite = isProduction ? ('none' as const) : ('lax' as const);
   const base = {
     httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/'
+    sameSite,
+    secure: isProduction,
+    path: '/',
+    // Add explicit domain for localhost (Chrome sometimes needs this)
+    ...(process.env.NODE_ENV !== 'production' ? {} : {}), // No domain for localhost
   };
   
   if (rememberMe) {

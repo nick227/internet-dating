@@ -99,6 +99,10 @@ export function AuthPage() {
         setMessage('Account created')
       }
 
+      // Small delay to ensure cookies are set by the browser
+      // Chrome sometimes needs a moment to process cookies after signup/login
+      await new Promise(resolve => setTimeout(resolve, 100))
+
       // Emit auth change to trigger session refetch
       emitAuthChange()
 

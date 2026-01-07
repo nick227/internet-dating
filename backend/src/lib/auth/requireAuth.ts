@@ -38,10 +38,12 @@ export function requireAuth(rule: AuthRule): Handler {
       if (!req.ctx?.userId) {
         const token = getAccessToken(req);
         if (!token) {
+          process.stdout.write(`[auth] requireAuth: No token found for ${req.method} ${req.url}\n`);
           return res.status(401).json({ error: 'Authentication required' });
         }
         const userId = tokenToUserId(token);
         if (!userId) {
+          process.stdout.write(`[auth] requireAuth: Invalid token for ${req.method} ${req.url}\n`);
           return res.status(401).json({ error: 'invalid token' });
         }
         req.ctx.userId = userId;

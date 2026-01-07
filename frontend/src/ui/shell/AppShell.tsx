@@ -76,7 +76,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     // Note: This handler is only called from TopBar when user is logged in.
     // However, during loading state, userId may be null, so we guard it.
     // In normal state, TopBar only shows user avatar when isLoggedIn is true.
-    if (userId) {
+    // Chrome-specific: Prevent navigation if session is invalid to avoid auth loops
+    if (userId && !isLoading) {
       goToProfile(userId)
     }
   }

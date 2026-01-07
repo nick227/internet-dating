@@ -29,9 +29,14 @@ export function Avatar({
   // If onClick is provided, don't wrap in anchor (parent handles click)
   // Pass onClick to Media to prevent it from opening viewer, but Media stops propagation
   // So we handle the click on Avatar's div by calling onClick directly in Media's handler
-  const handleMediaClick = onClick ? () => {
+  const handleMediaClick = onClick ? (e?: React.MouseEvent) => {
+    // Prevent default and stop propagation to avoid double-firing
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     // Call Avatar's onClick handler directly since Media stops propagation
-    onClick({} as React.MouseEvent)
+    onClick(e || ({} as React.MouseEvent))
   } : undefined
 
   const mediaContent = src ? (
@@ -52,6 +57,11 @@ export function Avatar({
         style={style}
         role="button"
         tabIndex={0}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onClick(e)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()

@@ -68,9 +68,11 @@ export function createWsServer(server: HttpServer) {
   wss.on('connection', (socket: WebSocket, req: IncomingMessage) => {
     const userId = getUserId(req)
     if (!userId) {
+      process.stdout.write(`[ws] Connection rejected: no valid token. Cookie header: ${req.headers?.cookie ? 'present' : 'missing'}\n`);
       socket.close(4401, 'unauthorized')
       return
     }
+    process.stdout.write(`[ws] Connection accepted for user ${userId}\n`);
 
     const socketId = randomUUID()
     const ctx: WsContext = {
