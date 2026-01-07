@@ -26,7 +26,10 @@ type BusboyFileInfo = {
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024 // 200MB (for videos)
 const MAX_UPLOAD_TIME_MS = 5 * 60 * 1000 // 5 minutes (fail fast)
 const IDLE_TIMEOUT_MS = 30 * 1000 // 30 seconds no data (fail fast)
-const UPLOAD_TEMP_DIR = process.env.UPLOAD_TEMP_DIR || 'tmp/uploads'
+// Temp directory for uploads - MUST be on the same volume as final storage
+// If MEDIA_UPLOAD_DIR is set (Railway volume), use a tmp subdirectory on that volume
+// This ensures files survive the move operation and aren't lost on ephemeral storage
+const UPLOAD_TEMP_DIR = process.env.UPLOAD_TEMP_DIR || (process.env.MEDIA_UPLOAD_DIR ? `${process.env.MEDIA_UPLOAD_DIR}/tmp` : 'tmp/uploads')
 
 export type UploadProgress = {
   bytesReceived: number
@@ -167,7 +170,13 @@ export async function streamUploadToDisk(
       mimeType = fileMimeType || 'application/octet-stream'
 
       // Ensure temp directory exists
-      await fs.mkdir(UPLOAD_TEMP_DIR, { recursive: true })
+      try {
+        await fs.mkdir(UPLOAD_TEMP_DIR, { recursive: true })
+        process.stdout.write(`[media] Temp directory ready: ${UPLOAD_TEMP_DIR}\n`);
+      } catch (err) {
+        process.stderr.write(`[media] Failed to create temp directory ${UPLOAD_TEMP_DIR}: ${String(err)}\n`);
+        throw new Error(`Failed to create upload temp directory: ${err instanceof Error ? err.message : String(err)}`)
+      }
 
       // Create temp file path (use .part extension to indicate incomplete)
       const ext = filename?.split('.').pop() || ''
@@ -285,10 +294,32 @@ export async function finalizeUpload(
 ): Promise<void> {
   // Ensure destination directory exists
   const finalDir = finalPath.substring(0, finalPath.lastIndexOf('/'))
-  await fs.mkdir(finalDir, { recursive: true })
+  try {
+    await fs.mkdir(finalDir, { recursive: true })
+    process.stdout.write(`[media] Final directory ready: ${finalDir}\n`);
+  } catch (err) {
+    process.stderr.write(`[media] Failed to create final directory ${finalDir}: ${String(err)}\n`);
+    throw new Error(`Failed to create final storage directory: ${err instanceof Error ? err.message : String(err)}`)
+  }
 
   // Atomic move (rename is atomic on same filesystem)
-  await fs.rename(tempPath, finalPath)
+  // If rename fails (different filesystems), fall back to copy + delete
+  try {
+    await fs.rename(tempPath, finalPath)
+    process.stdout.write(`[media] File moved atomically: ${tempPath} -> ${finalPath}\n`);
+  } catch (err) {
+    // If rename fails (e.g., different filesystems), use copy + delete
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'EXDEV') {
+      process.stdout.write(`[media] Cross-filesystem move detected, using copy+delete\n`);
+      const { copyFile } = await import('fs/promises')
+      await copyFile(tempPath, finalPath)
+      await fs.unlink(tempPath)
+      process.stdout.write(`[media] File copied and temp deleted\n`);
+    } else {
+      process.stderr.write(`[media] Failed to move file: ${String(err)}\n`);
+      throw err
+    }
+  }
 }
 
 /**

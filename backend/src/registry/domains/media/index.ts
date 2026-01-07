@@ -18,6 +18,7 @@ export const mediaDomain: DomainRegistry = {
       tags: ['media'],
       handler: async (req, res) => {
         try {
+          process.stdout.write(`[media] Starting upload for user ${req.ctx.userId}\n`);
           // Stream upload to temp file on disk (no memory buffering)
           // Conservative limits: 200MB max, 5min total, 30s idle timeout
           const fileInfo = await streamUploadToDisk(req, res, {
@@ -26,6 +27,9 @@ export const mediaDomain: DomainRegistry = {
             idleTimeoutMs: 30 * 1000, // 30 seconds (fail fast)
           });
 
+          process.stdout.write(`[media] Upload streamed to temp file: ${fileInfo.filePath}\n`);
+          process.stdout.write(`[media] File info: ${fileInfo.mimeType}, ${fileInfo.sizeBytes} bytes\n`);
+
           // Process and finalize upload
           const result = await uploadMedia({
             ownerUserId: req.ctx.userId!,
@@ -33,8 +37,13 @@ export const mediaDomain: DomainRegistry = {
             fileInfo,
           });
 
+          process.stdout.write(`[media] Upload successful: mediaId=${result.mediaId}\n`);
           return json(res, result, 201);
         } catch (e) {
+          process.stderr.write(`[media] Upload error: ${String(e)}\n`);
+          if (e instanceof Error && e.stack) {
+            process.stderr.write(`[media] Stack: ${e.stack}\n`);
+          }
           if (e instanceof MediaError) {
             return json(res, { error: e.message }, e.status);
           }

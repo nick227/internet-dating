@@ -230,7 +230,9 @@ export async function uploadMedia(input: UploadInput): Promise<UploadResult> {
   try {
     // Move temp file to final storage location
     const finalPath = `${MEDIA_UPLOAD_ROOT}/${storageKey}`
+    process.stdout.write(`[media] Moving temp file to final location: ${finalPath}\n`);
     await finalizeUpload(filePath, finalPath)
+    process.stdout.write(`[media] File moved successfully\n`);
 
     // Update status to UPLOADED
     await prisma.media.update({

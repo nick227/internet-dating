@@ -149,6 +149,7 @@ export const mediaService = {
   },
 
   async getMediaStreamByKey(storageKey: string, viewerId?: bigint | null) {
+    process.stdout.write(`[media] getMediaStreamByKey: looking up storageKey=${storageKey}\n`);
     const media = await prisma.media.findFirst({
       where: { storageKey, deletedAt: null },
       select: {
@@ -159,7 +160,11 @@ export const mediaService = {
         mimeType: true
       }
     });
-    if (!media || !media.storageKey) throw new MediaError('Media not found', 404);
+    if (!media || !media.storageKey) {
+      process.stderr.write(`[media] getMediaStreamByKey: media not found in database for key=${storageKey}\n`);
+      throw new MediaError('Media not found', 404);
+    }
+    process.stdout.write(`[media] getMediaStreamByKey: found media status=${media.status}, storageKey=${media.storageKey}\n`);
     if (media.visibility === 'PRIVATE' && media.ownerUserId !== viewerId) {
       const allowed = await hasProfileAccess(media.ownerUserId, viewerId ?? null);
       if (!allowed) throw new MediaError('Forbidden', 403);
@@ -167,6 +172,7 @@ export const mediaService = {
     // Allow serving if status is READY or READY_WITH_VARIANTS
     const servableStatuses = ['READY', 'READY_WITH_VARIANTS', 'PENDING', 'UPLOADED'];
     if (!servableStatuses.includes(media.status || '')) {
+      process.stderr.write(`[media] getMediaStreamByKey: media not ready, status=${media.status}\n`);
       throw new MediaError('Media not ready', 409);
     }
     try {

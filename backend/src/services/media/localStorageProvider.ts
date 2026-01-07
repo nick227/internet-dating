@@ -13,17 +13,32 @@ export class LocalStorageProvider implements StorageProvider {
 
   async put(stream: Readable, key: string, _meta?: StorageMeta) {
     const filePath = this.resolvePath(key);
+    process.stdout.write(`[media] Storage.put: saving to ${filePath}\n`);
     await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
     const out = fs.createWriteStream(filePath);
     await pipeline(stream, out);
+    // Verify file was written
+    try {
+      const stats = await fs.promises.stat(filePath);
+      process.stdout.write(`[media] Storage.put: file saved successfully (${stats.size} bytes)\n`);
+    } catch (err) {
+      process.stderr.write(`[media] Storage.put: WARNING - file not found after write: ${filePath}\n`);
+    }
   }
 
   async get(key: string) {
     const filePath = this.resolvePath(key);
+    process.stdout.write(`[media] Storage.get: reading from ${filePath}\n`);
     // Check if file exists before creating stream
     try {
       await fs.promises.access(filePath, fs.constants.F_OK);
-    } catch {
+      const stats = await fs.promises.stat(filePath);
+      process.stdout.write(`[media] Storage.get: file found (${stats.size} bytes)\n`);
+    } catch (err) {
+      process.stderr.write(`[media] Storage.get: file not found: ${filePath}\n`);
+      if (err instanceof Error && err.stack) {
+        process.stderr.write(`[media] Storage.get: error: ${err.stack}\n`);
+      }
       throw new Error(`File not found: ${filePath}`);
     }
     return fs.createReadStream(filePath);

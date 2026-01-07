@@ -7,7 +7,18 @@ export const MEDIA_UPLOAD_ROOT = envDir
   ? (() => {
       // Use absolute path as-is (for Railway volumes like /data/uploads/media)
       const resolved = path.resolve(envDir);
-      process.stdout.write(`[media] Using MEDIA_UPLOAD_DIR: ${resolved}\n`);
+      process.stdout.write(`[media] Config: MEDIA_UPLOAD_DIR env var set to: ${envDir}\n`);
+      process.stdout.write(`[media] Config: Resolved MEDIA_UPLOAD_ROOT to: ${resolved}\n`);
+      // Verify directory exists or can be created
+      try {
+        if (!existsSync(resolved)) {
+          process.stdout.write(`[media] Config: Directory does not exist, will be created on first write\n`);
+        } else {
+          process.stdout.write(`[media] Config: Directory exists ✓\n`);
+        }
+      } catch (err) {
+        process.stderr.write(`[media] Config: Error checking directory: ${String(err)}\n`);
+      }
       return resolved;
     })()
   : (() => {
@@ -37,8 +48,11 @@ export const MEDIA_UPLOAD_ROOT = envDir
 // buildUrl() already adds '/media' prefix, so:
 // - For same-domain (production): use empty string → results in '/media/key'
 // - For different domain (dev): use full URL → results in 'http://localhost:4000/media/key'
-// If MEDIA_BASE_URL is set to '/media', it would create '/media/media/key' (wrong!)
-const fallbackBase = `http://localhost:${process.env.PORT ?? 4000}`;
-const rawMediaBase = process.env.MEDIA_BASE_URL ?? process.env.API_BASE_URL ?? fallbackBase;
-// Normalize: if it's '/media', convert to empty string (same-domain serving)
-export const MEDIA_BASE_URL = rawMediaBase === '/media' ? '' : rawMediaBase.replace(/\/$/, '');
+// Default to empty string (relative URLs) for same-domain serving
+// Only set MEDIA_BASE_URL if you need cross-domain media serving
+const rawMediaBase = process.env.MEDIA_BASE_URL;
+// Normalize: if it's '/media' or not set, use empty string (same-domain serving)
+// If explicitly set to a full URL, use it (for cross-domain scenarios)
+export const MEDIA_BASE_URL = !rawMediaBase || rawMediaBase === '/media' 
+  ? '' 
+  : rawMediaBase.replace(/\/$/, '');

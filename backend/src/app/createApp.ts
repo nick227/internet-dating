@@ -40,6 +40,47 @@ export function createApp() {
     res.status(200).json({ message: 'Root test route works', path: '/test-root' });
   });
 
+  // Test route to verify media volume configuration
+  app.get('/test-media-config', async (_req, res) => {
+    try {
+      const { MEDIA_UPLOAD_ROOT } = await import('../services/media/config.js');
+      const { promises: fs } = await import('fs');
+      const path = await import('path');
+      
+      const info = {
+        MEDIA_UPLOAD_DIR: process.env.MEDIA_UPLOAD_DIR || 'not set',
+        MEDIA_UPLOAD_ROOT,
+        cwd: process.cwd(),
+        volumeExists: false,
+        volumeWritable: false,
+        volumePath: '',
+      };
+      
+      try {
+        if (existsSync(MEDIA_UPLOAD_ROOT)) {
+          info.volumeExists = true;
+          const stats = await fs.stat(MEDIA_UPLOAD_ROOT);
+          info.volumePath = MEDIA_UPLOAD_ROOT;
+          // Try to write a test file
+          const testFile = path.join(MEDIA_UPLOAD_ROOT, '.test-write');
+          try {
+            await fs.writeFile(testFile, 'test');
+            await fs.unlink(testFile);
+            info.volumeWritable = true;
+          } catch (err) {
+            info.volumeWritable = false;
+          }
+        }
+      } catch (err) {
+        // Directory doesn't exist or not accessible
+      }
+      
+      res.status(200).json(info);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // API routes
   app.use('/api', buildApiRouter());
 
@@ -50,12 +91,17 @@ export function createApp() {
       return res.status(404).end();
     }
     
+    process.stdout.write(`[media] GET /media/* request for key: ${key}\n`);
     try {
       const result = await mediaService.getMediaStreamByKey(key, req.ctx.userId ?? null);
+      process.stdout.write(`[media] GET /media/*: stream created, mimeType=${result.mimeType}\n`);
       res.status(200).type(result.mimeType);
       
       result.stream.on('error', (err) => {
         process.stderr.write(`[media] Stream error: ${String(err)}\n`);
+        if (err instanceof Error && err.stack) {
+          process.stderr.write(`[media] Stream error stack: ${err.stack}\n`);
+        }
         if (!res.headersSent) {
           res.status(404).end();
         }
@@ -63,10 +109,13 @@ export function createApp() {
       
       result.stream.pipe(res);
     } catch (err) {
+      process.stderr.write(`[media] GET /media/* error: ${String(err)}\n`);
+      if (err instanceof Error && err.stack) {
+        process.stderr.write(`[media] GET /media/* error stack: ${err.stack}\n`);
+      }
       if (err instanceof MediaError) {
         return res.status(err.status).end();
       }
-      process.stderr.write(`[media] Error: ${String(err)}\n`);
       res.status(500).end();
     }
   });
