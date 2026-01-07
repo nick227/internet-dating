@@ -47,11 +47,6 @@ export function createApp() {
     }
   });
 
-  
-  app.get('/', (_req, res) => {
-    res.status(200).send('ROOT_OK');
-  });
-  // Registry-driven REST API
   app.use('/api', buildApiRouter());
 
   const shouldServeFrontend =
