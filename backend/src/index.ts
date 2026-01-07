@@ -36,7 +36,6 @@ try {
   process.stdout.write(`[server] NODE_ENV=${process.env.NODE_ENV}\n`);
   process.stdout.write(`[server] DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'not set'}\n`);
   process.stdout.write(`[server] PORT=${process.env.PORT || 'not set'}\n`);
-  process.stdout.write(`[server] RAILWAY_PORT=${process.env.RAILWAY_PORT || 'not set'}\n`);
 
   process.stdout.write('[server] Creating Express app...\n');
   const app = createApp();
@@ -44,7 +43,7 @@ try {
 
   // Railway automatically sets PORT, but fallback to 4000 for local dev
   const port = Number(process.env.PORT ?? 4000);
-  process.stdout.write(`[server] Starting server on port ${port} (from PORT=${process.env.PORT || 'undefined'}, RAILWAY_PORT=${process.env.RAILWAY_PORT || 'undefined'})\n`);
+  process.stdout.write(`[server] Starting server on port ${port} (from PORT=${process.env.PORT || 'undefined'})\n`);
 
   process.stdout.write('[server] Creating HTTP server...\n');
   const server = createServer(app);

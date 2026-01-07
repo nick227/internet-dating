@@ -86,13 +86,10 @@ export function createApp() {
         index: false
       }));
       // Catch-all route for SPA - must be last
-      // Use absolute path for sendFile
+      // Express routes are matched in order, so /api, /media, /health, /test will be matched first
+      // This route only handles requests that don't match any other route
       const absoluteIndexPath = path.resolve(indexPath);
       app.get('*', (req, res) => {
-        // Skip API and media routes
-        if (req.path.startsWith('/api') || req.path.startsWith('/media') || req.path === '/health' || req.path === '/test') {
-          return; // Let other routes handle these
-        }
         process.stdout.write(`[frontend] Serving index.html for: ${req.path}\n`);
         res.sendFile(absoluteIndexPath, (err) => {
           if (err) {
