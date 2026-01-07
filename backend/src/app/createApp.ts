@@ -11,7 +11,7 @@ import { mediaService, MediaError } from '../services/media/mediaService.js';
 
 export function createApp() {
   const app = express();
-
+  
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: '2mb' }));
   app.use(cookieParser());
@@ -50,18 +50,11 @@ export function createApp() {
   // Registry-driven REST API
   app.use('/api', buildApiRouter());
 
-  // Error handler - must be after all routes
-  app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('[Express] Unhandled error:', err);
-    if (res.headersSent) {
-      return next(err);
-    }
-    // Default to 500 for unexpected errors
-    res.status(500).json({ error: 'Internal server error' });
-  });
-
   const shouldServeFrontend =
-    process.env.NODE_ENV === 'production' || process.env.SERVE_FRONTEND === 'true';
+  process.env.RAILWAY_ENVIRONMENT === 'production' ||
+  process.env.NODE_ENV === 'production' ||
+  process.env.SERVE_FRONTEND === 'true';
+
   if (shouldServeFrontend) {
     const frontendDist = resolveFrontendDist();
     if (frontendDist) {
@@ -74,6 +67,16 @@ export function createApp() {
   } else {
     console.log('[server] Frontend serving disabled');
   }
+
+  // Error handler - must be after all routes
+  app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[Express] Unhandled error:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    // Default to 500 for unexpected errors
+    res.status(500).json({ error: 'Internal server error' });
+  });
 
   return app;
 }

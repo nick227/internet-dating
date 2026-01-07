@@ -27,7 +27,10 @@ function loadEnv() {
 
 try {
   process.stdout.write('[server] Loading environment variables...\n');
-  loadEnv();
+  if (process.env.NODE_ENV !== 'production') {
+    loadEnv();
+  }
+  
   process.stdout.write('[server] Environment variables loaded\n');
 
   // Log important env vars (without sensitive values)
@@ -62,6 +65,8 @@ try {
     if (reason instanceof Error && reason.stack) {
       process.stderr.write(`[server] Stack: ${reason.stack}\n`);
     }
+    // Don't exit on unhandled rejection, but log it
+    // The server should continue running
   });
 
   process.on('uncaughtException', (err) => {
@@ -98,9 +103,25 @@ try {
   process.on('SIGINT', () => shutdown('SIGINT'));
 
   process.stdout.write(`[server] Attempting to listen on port ${port} on 0.0.0.0\n`);
-  server.listen(port, '0.0.0.0', () => {
+  server.listen(port, '0.0.0.0', async () => {
     process.stdout.write(`[server] ✓ API listening on 0.0.0.0:${port}\n`);
     process.stdout.write(`[server] ✓ Health endpoint available at http://0.0.0.0:${port}/health\n`);
+    
+    // Test database connection
+    try {
+      process.stdout.write('[server] Testing database connection...\n');
+      const { prisma } = await import('./lib/prisma/client.js');
+      await prisma.$queryRaw`SELECT 1`;
+      process.stdout.write('[server] ✓ Database connection successful\n');
+    } catch (dbErr) {
+      process.stderr.write(`[server] ✗ Database connection failed: ${String(dbErr)}\n`);
+      if (dbErr instanceof Error && dbErr.stack) {
+        process.stderr.write(`[server] DB Error stack: ${dbErr.stack}\n`);
+      }
+      // Don't exit - let the server start, but log the error
+      // This way we can see if DB is the issue
+    }
+    
     process.stdout.write('[server] Server is ready and waiting for requests\n');
     // Verify server is actually listening
     const address = server.address();
