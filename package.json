@@ -5,10 +5,10 @@
   "type": "module",
   "workspaces": ["backend", "frontend", "shared"],
   "scripts": {
-    "dev:backend": "pnpm --filter backend dev",
-    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter ./backend dev",
+    "dev:frontend": "pnpm --filter ./frontend dev",
     "dev:all": "pnpm --filter \"*\" --parallel dev",
-    "build": "pnpm --filter shared build && pnpm --filter frontend build && pnpm --filter backend build",
+    "build": "pnpm --filter @app/shared build && pnpm --filter ./frontend build && pnpm --filter ./backend build",
     "build:verify": "node scripts/verify-build.js",
     "build:railway": "pnpm run build && pnpm run build:verify",
     "start": "node backend/dist/index.js",
