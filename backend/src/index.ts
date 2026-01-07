@@ -24,86 +24,49 @@ function loadEnv() {
   } catch {}
 }
 
+// Error handlers - set up early
+process.on('unhandledRejection', (reason, promise) => {
+  process.stderr.write(`[error] Unhandled rejection: ${String(reason)}\n`);
+  if (reason instanceof Error && reason.stack) {
+    process.stderr.write(`[error] ${reason.stack}\n`);
+  }
+});
+
+process.on('uncaughtException', (err) => {
+  process.stderr.write(`[error] Uncaught exception: ${err.message}\n`);
+  if (err.stack) {
+    process.stderr.write(`[error] ${err.stack}\n`);
+  }
+  process.exit(1);
+});
+
 try {
-  process.stdout.write('[server] Loading environment variables...\n');
+  // Load environment
   if (process.env.NODE_ENV !== 'production') {
     loadEnv();
   }
-  
-  process.stdout.write('[server] Environment variables loaded\n');
 
-  // Log important env vars (without sensitive values)
-  process.stdout.write(`[server] NODE_ENV=${process.env.NODE_ENV}\n`);
-  process.stdout.write(`[server] DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'not set'}\n`);
-  process.stdout.write(`[server] PORT=${process.env.PORT || 'not set'}\n`);
-
-  process.stdout.write('[server] Creating Express app...\n');
-  const app = createApp();
-  process.stdout.write('[server] Express app created successfully\n');
-
-  // Railway automatically sets PORT, but fallback to 4000 for local dev
   const port = Number(process.env.PORT ?? 4000);
-  process.stdout.write(`[server] Starting server on port ${port} (from PORT=${process.env.PORT || 'undefined'})\n`);
+  process.stdout.write(`[server] PORT=${port} NODE_ENV=${process.env.NODE_ENV || 'development'}\n`);
 
-  process.stdout.write('[server] Creating HTTP server...\n');
+  // Create app and server
+  const app = createApp();
   const server = createServer(app);
-  process.stdout.write('[server] HTTP server created\n');
   
-  process.stdout.write('[server] Creating WebSocket server...\n');
+  // Create WebSocket server
   createWsServer(server);
-  process.stdout.write('[server] WebSocket server created\n');
-
-  process.on('unhandledRejection', (reason, promise) => {
-    process.stderr.write(`[server] Unhandled rejection at: ${promise}\n`);
-    process.stderr.write(`[server] Reason: ${String(reason)}\n`);
-    if (reason instanceof Error && reason.stack) {
-      process.stderr.write(`[server] Stack: ${reason.stack}\n`);
-    }
-    // Don't exit on unhandled rejection, but log it
-    // The server should continue running
-  });
-
-  process.on('uncaughtException', (err) => {
-    process.stderr.write(`[server] Uncaught exception: ${err.message}\n`);
-    if (err.stack) {
-      process.stderr.write(`[server] Stack: ${err.stack}\n`);
-    }
-    process.exit(1);
-  });
-
-  server.on('error', (err) => {
-    process.stderr.write(`[server] HTTP server error: ${err.message}\n`);
-    if (err.stack) {
-      process.stderr.write(`[server] Stack: ${err.stack}\n`);
-    }
-    process.exit(1);
-  });
-
-  // Log all incoming requests to debug 502s
-  server.on('request', (req, res) => {
-    const start = Date.now();
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      process.stdout.write(`[server] ${req.method} ${req.url} ${res.statusCode} ${duration}ms\n`);
-    });
-    res.on('error', (err) => {
-      process.stderr.write(`[server] Response error for ${req.method} ${req.url}: ${err.message}\n`);
-      if (err.stack) {
-        process.stderr.write(`[server] Stack: ${err.stack}\n`);
-      }
-    });
-  });
 
   // Handle graceful shutdown
   const shutdown = (signal: string) => {
-    process.stdout.write(`[server] Received ${signal}, shutting down gracefully...\n`);
+    process.stdout.write(`[server] Received ${signal}, shutting down...\n`);
     server.close(() => {
-      process.stdout.write('[server] Server closed\n');
+      process.stdout.write('[server] Shutdown complete\n');
       process.exit(0);
     });
+    
     // Force shutdown after 10 seconds
     setTimeout(() => {
-      process.stderr.write('[server] Forced shutdown after timeout\n');
+      process.stderr.write('[server] Forced shutdown\n');
       process.exit(1);
     }, 10000);
   };
@@ -111,31 +74,25 @@ try {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  process.stdout.write(`[server] Attempting to listen on port ${port}\n`);
-  server.listen(port, () => {
-    process.stdout.write(`[server] ✓ API listening on:${port}\n`);
-    
-    // Verify server is actually listening
+  // Start server - bind to 0.0.0.0 for Railway
+  server.listen(port, '0.0.0.0', () => {
     const address = server.address();
-    if (address) {
-      process.stdout.write(`[server] Server address: ${JSON.stringify(address)}\n`);
-    }
-    
-    process.stdout.write('[server] Server is ready and waiting for requests\n');
-    process.stdout.write('[server] Railway healthcheck endpoint: /health\n');
-  }).on('error', (err) => {
-    process.stderr.write(`[server] ✗ Failed to start server: ${err.message}\n`);
+    process.stdout.write(`[server] ✓ Listening on ${JSON.stringify(address)}\n`);
+    process.stdout.write('[server] ✓ Ready for requests\n');
+  });
+
+  server.on('error', (err) => {
+    process.stderr.write(`[server] Failed to start: ${err.message}\n`);
     if (err.stack) {
-      process.stderr.write(`[server] Stack: ${err.stack}\n`);
+      process.stderr.write(`[error] ${err.stack}\n`);
     }
     process.exit(1);
   });
+
 } catch (err) {
-  process.stderr.write(`[server] ✗ Fatal error during startup: ${String(err)}\n`);
-  if (err instanceof Error) {
-    if (err.stack) {
-      process.stderr.write(`[server] Error stack: ${err.stack}\n`);
-    }
+  process.stderr.write(`[server] Fatal error: ${String(err)}\n`);
+  if (err instanceof Error && err.stack) {
+    process.stderr.write(`[error] ${err.stack}\n`);
   }
   process.exit(1);
 }
