@@ -17,7 +17,12 @@ export function createApp() {
   app.use(cookieParser());
 
   app.get('/health', (_req, res) => {
-    res.status(200).json({ ok: true });
+    res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
+  });
+
+  // Test endpoint to verify routing works
+  app.get('/test', (_req, res) => {
+    res.status(200).json({ message: 'Server is responding', timestamp: new Date().toISOString() });
   });
 
   app.get('/media/:key(*)', attachContext, async (req, res) => {
@@ -60,9 +65,14 @@ export function createApp() {
   if (shouldServeFrontend) {
     const frontendDist = resolveFrontendDist();
     if (frontendDist) {
+      console.log(`[server] Serving frontend from: ${frontendDist}`);
       app.use(express.static(frontendDist));
       app.get('*', (_req, res) => res.sendFile(path.join(frontendDist, 'index.html')));
+    } else {
+      console.warn('[server] Frontend dist not found, only serving API');
     }
+  } else {
+    console.log('[server] Frontend serving disabled');
   }
 
   return app;
