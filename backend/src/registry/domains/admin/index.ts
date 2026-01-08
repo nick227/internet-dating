@@ -458,10 +458,10 @@ export const adminDomain: DomainRegistry = {
 
         return json(res, run);
       }
-    }
-  ],
-  // Worker Management
-  {
+    },
+
+    // Worker Management
+    {
     id: 'admin.GET./admin/worker/status',
     method: 'GET',
     path: '/admin/worker/status',
@@ -582,5 +582,5 @@ export const adminDomain: DomainRegistry = {
         }, 500);
       }
     }
-  }]
+  ]
 };
