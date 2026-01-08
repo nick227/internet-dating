@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from '../../api/admin';
+import { trackError } from '../../utils/errorTracking';
 import type { JobRun } from '../../types';
 
 interface JobDetailsModalProps {
@@ -25,7 +26,13 @@ export function JobDetailsModal({ jobRunId, onClose, onRerun, onCancel }: JobDet
       const data = await adminApi.getJobRun(jobRunId);
       setJob(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load job details');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load job details';
+      setError(errorMessage);
+      trackError(err, {
+        action: 'loadJobDetails',
+        component: 'JobDetailsModal',
+        jobRunId
+      });
     } finally {
       setLoading(false);
     }

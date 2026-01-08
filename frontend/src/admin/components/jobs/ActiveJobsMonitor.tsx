@@ -6,6 +6,7 @@ interface ActiveJobsMonitorProps {
   cancelRequested: Set<string>;
   onCancel: (jobRunId: string) => void;
   onViewDetails: (jobRunId: string) => void;
+  onCleanupStalled?: () => void;
 }
 
 export function ActiveJobsMonitor({ 
@@ -13,7 +14,8 @@ export function ActiveJobsMonitor({
   loading, 
   cancelRequested, 
   onCancel, 
-  onViewDetails 
+  onViewDetails,
+  onCleanupStalled
 }: ActiveJobsMonitorProps) {
   const formatTimeAgo = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -46,6 +48,14 @@ export function ActiveJobsMonitor({
     }
   };
 
+  // Detect stalled jobs (running > 30 minutes)
+  const STALL_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+  const stalledJobs = jobs.filter(job => {
+    if (job.status !== 'RUNNING' || !job.startedAt) return false;
+    const elapsed = Date.now() - new Date(job.startedAt).getTime();
+    return elapsed > STALL_THRESHOLD_MS;
+  });
+
   if (loading && jobs.length === 0) {
     return (
       <div className="active-jobs-monitor">
@@ -64,6 +74,24 @@ export function ActiveJobsMonitor({
         <h2>Active & Queued Jobs</h2>
         <span className="monitor-subtitle">(updates via WebSocket)</span>
       </div>
+      
+      {stalledJobs.length > 0 && onCleanupStalled && (
+        <div className="alert alert-warning">
+          <div className="alert-content">
+            <span className="alert-icon">⚠️</span>
+            <div className="alert-text">
+              <strong>{stalledJobs.length} job(s) may be stalled</strong>
+              <span className="alert-detail">
+                Running for more than 30 minutes without completion
+              </span>
+            </div>
+          </div>
+          <button onClick={onCleanupStalled} className="btn-secondary btn-small">
+            Clean Up Stalled
+          </button>
+        </div>
+      )}
+      
       <div className="jobs-list">
         {jobs.length === 0 ? (
           <div className="no-jobs">(No active jobs)</div>

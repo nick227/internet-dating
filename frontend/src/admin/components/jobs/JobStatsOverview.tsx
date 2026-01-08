@@ -5,9 +5,10 @@ interface JobStatsOverviewProps {
   loading: boolean;
   onRefresh: () => void;
   onCleanupStalled: () => void;
+  wsConnected?: boolean;
 }
 
-export function JobStatsOverview({ stats, loading, onRefresh, onCleanupStalled }: JobStatsOverviewProps) {
+export function JobStatsOverview({ stats, loading, onRefresh, onCleanupStalled, wsConnected }: JobStatsOverviewProps) {
   if (loading) {
     return (
       <div className="job-stats-overview">
@@ -41,9 +42,17 @@ export function JobStatsOverview({ stats, loading, onRefresh, onCleanupStalled }
     <div className="job-stats-overview">
       <div className="stats-header">
         <h2>Job Statistics</h2>
-        <button onClick={onRefresh} className="btn-secondary" disabled={loading}>
-          Refresh
-        </button>
+        <div className="header-actions">
+          {wsConnected !== undefined && (
+            <div className={`ws-status ${wsConnected ? 'connected' : 'disconnected'}`}>
+              <span className="status-dot">●</span>
+              <span className="status-text">{wsConnected ? 'Live' : 'Reconnecting...'}</span>
+            </div>
+          )}
+          <button onClick={onRefresh} className="btn-secondary" disabled={loading}>
+            Refresh
+          </button>
+        </div>
       </div>
       <div className="stats-content">
         <div className="stat-item">

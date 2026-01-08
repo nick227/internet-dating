@@ -8,12 +8,14 @@ import { ActiveJobsMonitor } from '../components/jobs/ActiveJobsMonitor';
 import { JobHistoryList } from '../components/jobs/JobHistoryList';
 import { JobDetailsModal } from '../components/jobs/JobDetailsModal';
 import { RunJobModal } from '../components/jobs/RunJobModal';
+import { trackError } from '../utils/errorTracking';
 import type { JobRun, JobRunStatus } from '../types';
 
 export function JobManagerPage() {
   // State for active jobs (WS-driven, single source of truth)
   const [activeJobs, setActiveJobs] = useState<JobRun[]>([]);
   const [cancelRequested, setCancelRequested] = useState<Set<string>>(new Set());
+  const [wsConnected, setWsConnected] = useState(false);
   
   // State for history (API-driven, single source of truth)
   const [historyRuns, setHistoryRuns] = useState<JobRun[]>([]);
@@ -47,6 +49,10 @@ export function JobManagerPage() {
       const response = await adminApi.getActiveJobs();
       setActiveJobs(response.runs);
     } catch (err) {
+      trackError(err, {
+        action: 'loadActiveJobs',
+        component: 'JobManagerPage'
+      });
       console.error('Failed to load active jobs:', err);
     }
   };
@@ -63,6 +69,12 @@ export function JobManagerPage() {
       setHistoryRuns(response.runs);
       setHistoryTotal(response.total);
     } catch (err) {
+      trackError(err, {
+        action: 'loadHistory',
+        component: 'JobManagerPage',
+        page: historyPage,
+        filters: historyFilters
+      });
       console.error('Failed to load history:', err);
     } finally {
       setHistoryLoading(false);
@@ -71,6 +83,9 @@ export function JobManagerPage() {
   
   // WebSocket handlers (single source of truth pattern)
   useJobWebSocket({
+    onConnectionChange: (connected) => {
+      setWsConnected(connected);
+    },
     onJobStarted: (event) => {
       // Add to active jobs list (deduplication check)
       setActiveJobs(prev => {
@@ -134,7 +149,13 @@ export function JobManagerPage() {
         next.delete(jobRunId);
         return next;
       });
+      trackError(err, {
+        action: 'cancelJob',
+        component: 'JobManagerPage',
+        jobRunId
+      });
       console.error('Failed to cancel job:', err);
+      alert('Failed to cancel job. Please try again.');
     }
   };
   
@@ -145,6 +166,10 @@ export function JobManagerPage() {
       refreshStats();
       loadActiveJobs();
     } catch (err) {
+      trackError(err, {
+        action: 'cleanupStalled',
+        component: 'JobManagerPage'
+      });
       console.error('Failed to cleanup stalled jobs:', err);
       alert('Failed to cleanup stalled jobs');
     }
@@ -157,6 +182,12 @@ export function JobManagerPage() {
       refreshStats();
       loadActiveJobs(); // Will be updated by WS, but load immediately for instant feedback
     } catch (err) {
+      trackError(err, {
+        action: 'enqueueJob',
+        component: 'JobManagerPage',
+        jobName,
+        params
+      });
       // Error is handled in RunJobModal, just re-throw
       throw err;
     }
@@ -179,6 +210,7 @@ export function JobManagerPage() {
         loading={statsLoading}
         onRefresh={refreshStats}
         onCleanupStalled={handleCleanupStalled}
+        wsConnected={wsConnected}
       />
       
       <ActiveJobsMonitor
@@ -187,6 +219,7 @@ export function JobManagerPage() {
         cancelRequested={cancelRequested}
         onCancel={handleCancelJob}
         onViewDetails={setDetailsModalJobId}
+        onCleanupStalled={handleCleanupStalled}
       />
       
       <JobHistoryList

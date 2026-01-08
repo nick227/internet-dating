@@ -602,6 +602,48 @@
   margin: 0;
 }
 
+.job-stats-overview .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* WebSocket Connection Status */
+.ws-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.ws-status.connected {
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.ws-status.disconnected {
+  color: #F59E0B;
+  background: rgba(245, 158, 11, 0.1);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.ws-status .status-dot {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.ws-status .status-text {
+  font-size: 12px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .job-stats-overview .stats-content {
   display: flex;
   gap: 32px;
@@ -701,6 +743,50 @@
 .active-jobs-monitor .monitor-subtitle {
   font-size: 14px;
   color: var(--fg-muted);
+}
+
+/* Stalled Job Alert */
+.alert {
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid;
+}
+
+.alert-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: #FCD34D;
+  color: #92400E;
+}
+
+.alert-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.alert-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alert-text strong {
+  font-weight: 600;
+  color: #92400E;
+}
+
+.alert-detail {
+  font-size: 13px;
+  color: #B45309;
 }
 
 .active-jobs-monitor .jobs-list {
