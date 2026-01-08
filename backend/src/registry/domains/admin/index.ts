@@ -240,6 +240,58 @@ export const adminDomain: DomainRegistry = {
       }
     },
 
+    // Clean Up Stalled Jobs - Mark orphaned jobs as failed
+    {
+      id: 'admin.POST./admin/jobs/cleanup-stalled',
+      method: 'POST',
+      path: '/admin/jobs/cleanup-stalled',
+      auth: Auth.admin(),
+      summary: 'Clean up stalled/orphaned jobs',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        const STALLED_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+        const threshold = new Date(Date.now() - STALLED_THRESHOLD_MS);
+        
+        // Find stalled jobs (RUNNING with stale heartbeat or no heartbeat)
+        const stalledJobs = await prisma.jobRun.findMany({
+          where: {
+            status: 'RUNNING',
+            OR: [
+              { lastHeartbeatAt: { lt: threshold } },
+              { lastHeartbeatAt: null }
+            ]
+          },
+          select: { id: true, jobName: true, startedAt: true, lastHeartbeatAt: true }
+        });
+
+        // Mark them as FAILED
+        const now = new Date();
+        for (const job of stalledJobs) {
+          await prisma.jobRun.update({
+            where: { id: job.id },
+            data: {
+              status: 'FAILED',
+              finishedAt: now,
+              error: 'Job stalled: Manually cleaned up by admin (worker not running or crashed)',
+              durationMs: job.startedAt 
+                ? Math.max(0, now.getTime() - job.startedAt.getTime())
+                : null
+            }
+          });
+        }
+
+        return json(res, { 
+          cleaned: stalledJobs.length,
+          jobs: stalledJobs.map(j => ({
+            id: j.id.toString(),
+            jobName: j.jobName,
+            startedAt: j.startedAt?.toISOString(),
+            lastHeartbeatAt: j.lastHeartbeatAt?.toISOString()
+          }))
+        });
+      }
+    },
+
     // Job Details - Get single job run (MUST be after specific routes)
     {
       id: 'admin.GET./admin/jobs/:jobRunId',

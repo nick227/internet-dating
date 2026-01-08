@@ -24,12 +24,8 @@
 }
 
 .admin-navbar-content {
-  max-width: 1400px;
+  max-width: var(--page-width);
   margin: 0 auto;
-  padding: var(--space-4) var(--space-6);
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
 }
 
 .admin-navbar-brand {
@@ -74,6 +70,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
+  padding: var(--s-4);
+  background: var(--panel);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  margin-bottom: var(--s-4);
+  margin-top: var(--s-4);
+  justify-content: space-between;
 }
 
 .admin-nav-link {
@@ -157,6 +161,52 @@
 .dashboard-section h2 {
   margin-bottom: var(--space-4);
   font-size: var(--fs-4);
+  font-weight: 600;
+}
+
+/* Banners */
+.warning-banner {
+  padding: var(--space-4);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--r-2);
+  color: #f59e0b;
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-2);
+}
+
+.info-banner {
+  padding: var(--space-3);
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--r-2);
+  color: #3b82f6;
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-2);
+}
+
+.btn-warning {
+  background: #f59e0b;
+  color: white;
+  border: none;
+}
+
+.btn-warning:hover {
+  background: #d97706;
+}
+
+/* Stale job indicators */
+.stale-job {
+  background: rgba(251, 191, 36, 0.05) !important;
+}
+
+.stale-indicator {
+  margin-left: var(--space-2);
+  font-size: var(--fs-3);
+}
+
+.stale-heartbeat {
+  color: #f59e0b;
   font-weight: 600;
 }
 

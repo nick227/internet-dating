@@ -55,5 +55,18 @@ export const adminApi = {
   // Get available job definitions
   async getJobDefinitions(): Promise<JobDefinitionsResponse> {
     return http('/api/admin/jobs/definitions', 'GET');
+  },
+
+  // Clean up stalled jobs
+  async cleanupStalledJobs(): Promise<{
+    cleaned: number;
+    jobs: Array<{
+      id: string;
+      jobName: string;
+      startedAt?: string;
+      lastHeartbeatAt?: string;
+    }>;
+  }> {
+    return http('/api/admin/jobs/cleanup-stalled', 'POST', { body: {} });
   }
 };
