@@ -17,14 +17,44 @@ model JobRun {
   cancelRequestedAt   DateTime?
   cancelRequestedBy   BigInt?
   lastHeartbeatAt     DateTime?
+  
+  // Progress tracking
+  currentStage        String?      @db.VarChar(100)
+  progressCurrent     Int?
+  progressTotal       Int?
+  progressPercent     Int?
+  progressMessage     String?      @db.VarChar(500)
+  
+  // Outcome summary
+  entitiesProcessed   Int?
+  entitiesTotal       Int?
+  outcomeSummary      Json?        // { updates: 100, deletes: 5, errors: 2, warnings: 3, ... }
+  
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
+  
+  logs                JobLog[]
 
   @@index([jobName, status])
   @@index([jobName, queuedAt])
   @@index([status, queuedAt])
   @@index([triggeredBy])
   @@index([status, lastHeartbeatAt])
+}
+
+model JobLog {
+  id          BigInt   @id @default(autoincrement())
+  jobRunId    BigInt
+  level       String   @db.VarChar(20)  // debug, info, milestone, warning, error
+  stage       String?  @db.VarChar(100)
+  message     String   @db.Text
+  context     Json?    // Additional structured data
+  timestamp   DateTime @default(now())
+  
+  jobRun      JobRun   @relation(fields: [jobRunId], references: [id], onDelete: Cascade)
+  
+  @@index([jobRunId, timestamp])
+  @@index([level])
 }
 
 model WorkerInstance {
