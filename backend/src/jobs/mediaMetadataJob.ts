@@ -7,6 +7,7 @@
 import { prisma } from '../lib/prisma/client.js'
 import { MediaError } from '../services/media/mediaService.js'
 import { runJob } from '../lib/jobs/runJob.js'
+import { createJobLogger } from '../lib/jobs/jobLogger.js'
 import { LocalStorageProvider } from '../services/media/localStorageProvider.js'
 import { MEDIA_UPLOAD_ROOT } from '../services/media/config.js'
 
@@ -188,6 +189,8 @@ export async function runMediaMetadataJob(options: MediaMetadataJobOptions) {
 /**
  * Process batch of media for metadata extraction
  * Useful for backfilling existing media
+ * 
+ * ✨ Enhanced with JobLogger for live feedback
  */
 export async function runMediaMetadataBatchJob(options: {
   batchSize?: number
@@ -204,54 +207,126 @@ export async function runMediaMetadataBatchJob(options: {
       algorithmVersion: 'v1',
       metadata: { batchSize, maxAgeHours },
     },
-    async () => {
-      const cutoffTime = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000)
+    async (ctx) => {
+      // Create logger for live feedback
+      const logger = createJobLogger(ctx.jobRunId, ctx.jobName);
+      
+      try {
+        // ===== STAGE 1: Initialize =====
+        await logger.setStage('Initializing', 'Loading configuration');
+        await logger.info('Job started', { batchSize, maxAgeHours, pauseMs });
+        
+        // ===== STAGE 2: Scanning for media =====
+        await logger.setStage('Scanning for media');
+        const cutoffTime = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
 
-      // Find video/audio media that needs metadata extraction
-      const mediaToProcess = await prisma.media.findMany({
-        where: {
-          deletedAt: null,
-          type: { in: ['VIDEO', 'AUDIO'] },
-          status: { in: ['UPLOADED', 'READY'] },
-          createdAt: { gte: cutoffTime },
-          OR: [
-            { durationSec: null },
-            { width: null },
-            { height: null },
-          ],
-        },
-        select: { id: true },
-        take: batchSize,
-      })
+        // Find video/audio media that needs metadata extraction
+        const mediaToProcess = await prisma.media.findMany({
+          where: {
+            deletedAt: null,
+            type: { in: ['VIDEO', 'AUDIO'] },
+            status: { in: ['UPLOADED', 'READY'] },
+            createdAt: { gte: cutoffTime },
+            OR: [
+              { durationSec: null },
+              { width: null },
+              { height: null },
+            ],
+          },
+          select: { id: true, type: true },
+          take: batchSize,
+        });
+        
+        await logger.setTotal(mediaToProcess.length, 'media files');
+        await logger.milestone(`Found ${mediaToProcess.length} media files to process`, {
+          batchSize,
+          found: mediaToProcess.length
+        });
+        
+        if (mediaToProcess.length === 0) {
+          await logger.info('No media files need processing');
+          await logger.logSummary();
+          return { total: 0, processed: 0, rejected: 0, failed: 0 };
+        }
 
-      let processed = 0
-      let rejected = 0
-      let failed = 0
+        // ===== STAGE 3: Processing media files =====
+        await logger.setStage('Processing media');
+        
+        let processed = 0;
+        let rejected = 0;
+        let failed = 0;
 
-      for (const media of mediaToProcess) {
-        try {
-          const result = await runMediaMetadataJob({ mediaId: media.id })
-          if (result.rejected) {
-            rejected++
-          } else if (result.success) {
-            processed++
+        for (let i = 0; i < mediaToProcess.length; i++) {
+          const media = mediaToProcess[i];
+          
+          try {
+            const result = await runMediaMetadataJob({ mediaId: media.id });
+            
+            if (result.rejected) {
+              rejected++;
+              logger.addOutcome('rejected', 1);
+              await logger.warning(`Media ${media.id} rejected`, {
+                mediaId: media.id.toString(),
+                errors: result.errors
+              });
+            } else if (result.success) {
+              processed++;
+              logger.addOutcome('updates', 1);
+            } else if (result.skipped) {
+              logger.addOutcome('skipped', 1);
+            }
+          } catch (err) {
+            failed++;
+            logger.addOutcome('errors', 1);
+            await logger.error(`Failed to process media ${media.id}`, {
+              mediaId: media.id.toString(),
+              error: err instanceof Error ? err.message : String(err)
+            });
           }
-        } catch (err) {
-          failed++
-          console.error(`Failed to process media ${media.id}:`, err)
-        }
+          
+          // Update progress
+          await logger.incrementProgress();
+          
+          // Log batch milestones every 10 items
+          if ((i + 1) % 10 === 0) {
+            await logger.info(`Batch progress: ${i + 1}/${mediaToProcess.length}`, {
+              processed,
+              rejected,
+              failed
+            });
+          }
 
-        // Pause between items to avoid overwhelming system
-        if (pauseMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, pauseMs))
+          // Pause between items to avoid overwhelming system
+          if (pauseMs > 0 && i < mediaToProcess.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, pauseMs));
+          }
         }
-      }
+        
+        // ===== STAGE 4: Finalizing =====
+        await logger.setStage('Finalizing');
+        await logger.milestone('All media processed', {
+          total: mediaToProcess.length,
+          processed,
+          rejected,
+          failed
+        });
+        
+        // Log final summary
+        await logger.logSummary();
 
-      return {
-        total: mediaToProcess.length,
-        processed,
-        rejected,
-        failed,
+        return {
+          total: mediaToProcess.length,
+          processed,
+          rejected,
+          failed,
+        };
+        
+      } catch (err) {
+        await logger.error('Job failed with error', {
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined
+        });
+        throw err;
       }
     }
   )

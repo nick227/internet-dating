@@ -65,7 +65,12 @@ export async function checkCancellation(jobRunId: bigint): Promise<void> {
   }
 }
 
-export async function runJob<T>(options: RunJobOptions, handler: () => Promise<T>): Promise<T> {
+export interface JobContext {
+  jobRunId: bigint;
+  jobName: string;
+}
+
+export async function runJob<T>(options: RunJobOptions, handler: (ctx: JobContext) => Promise<T>): Promise<T> {
   let jobRun: { id: bigint };
 
   if (options.jobRunId) {
@@ -129,8 +134,14 @@ export async function runJob<T>(options: RunJobOptions, handler: () => Promise<T
     // Ignore WS errors
   }
 
+  // Create job context
+  const ctx: JobContext = {
+    jobRunId: jobRun.id,
+    jobName: options.jobName
+  };
+
   try {
-    const result = await handler();
+    const result = await handler(ctx);
     
     // Get startedAt to calculate accurate duration
     const run = await prisma.jobRun.findUnique({
