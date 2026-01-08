@@ -83,8 +83,11 @@ const schemas = {
   },
   AuthMeResponse: {
     type: 'object',
-    properties: { userId: ref('Id') },
-    required: ['userId']
+    properties: { 
+      userId: ref('Id'),
+      role: { type: 'string', enum: ['USER', 'ADMIN', 'SUPER_ADMIN'] }
+    },
+    required: ['userId', 'role']
   },
   Visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE'] },
   AccessStatus: { type: 'string', enum: ['NONE', 'PENDING', 'GRANTED', 'DENIED', 'REVOKED', 'CANCELED'] },

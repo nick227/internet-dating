@@ -47,5 +47,9 @@ export function useCurrentUser() {
     loading,
     error,
     isAuthenticated: auth.isAuthenticated,
+    // Expose role information from session
+    role: auth.role,
+    isAdmin: auth.isAdmin,
+    isSuperAdmin: auth.isSuperAdmin,
   }
 }

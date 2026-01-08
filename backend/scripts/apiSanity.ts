@@ -205,11 +205,16 @@ async function cleanup(params: {
       }
     });
 
+    const profileIds = (await prisma.profile.findMany({
+      where: { userId: { in: userIds } },
+      select: { id: true }
+    })).map(p => p.id);
+
     await prisma.profileRating.deleteMany({
       where: {
         OR: [
-          { raterUserId: { in: userIds } },
-          { targetUserId: { in: userIds } }
+          { raterProfileId: { in: profileIds } },
+          { targetProfileId: { in: profileIds } }
         ]
       }
     });

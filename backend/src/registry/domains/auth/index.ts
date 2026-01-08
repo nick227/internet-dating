@@ -154,15 +154,24 @@ export const authDomain: DomainRegistry = {
       method: 'GET',
       path: '/auth/me',
       auth: Auth.user(),
-      summary: 'Return current user id',
+      summary: 'Return current user id and role',
       tags: ['auth'],
       handler: async (req, res) => {
-        // req.userId should be set by requireAuth middleware, but ensure it exists
-        const userId = req.userId ?? req.ctx?.userId?.toString();
+        const userId = req.ctx?.userId;
         if (!userId) {
           return json(res, { error: 'User ID not found' }, 401);
         }
-        return json(res, { userId });
+        
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, role: true }
+        });
+        
+        if (!user) {
+          return json(res, { error: 'User not found' }, 404);
+        }
+        
+        return json(res, { userId: user.id, role: user.role });
       }
     }
   ]

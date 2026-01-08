@@ -2,6 +2,7 @@ model User {
   id           BigInt   @id @default(autoincrement())
   email        String   @unique
   passwordHash String
+  role         UserRole @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   deletedAt    DateTime?

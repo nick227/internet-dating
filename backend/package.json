@@ -14,7 +14,9 @@
     "prisma:studio": "prisma studio --schema prisma/schema",
     "migrate": "tsx scripts/runMigrations.ts",
     "openapi:emit": "tsx src/lib/openapi/emitOpenApi.ts",
-    "seed:all": "tsx scripts/seedAll.ts"
+    "seed:all": "tsx scripts/seedAll.ts",
+    "admin:create": "tsx scripts/createAdmin.ts",
+    "worker:jobs": "tsx src/workers/jobWorker.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

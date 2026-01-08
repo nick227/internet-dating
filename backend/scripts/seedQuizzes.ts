@@ -77,7 +77,7 @@ export async function seedQuizzes(options: {
             label: opt.label,
             value: opt.value,
             order: optIdx + 1,
-            traitValues: (opt.traitValues ?? null) as Prisma.InputJsonValue | null
+            traitValues: opt.traitValues ?? undefined
           }))
         }
       }

@@ -141,11 +141,31 @@ async function testMediaVolume() {
     const server = createServer(app);
     
     // Create WebSocket server
-    createWsServer(server);
+    const wss = createWsServer(server);
+
+    // Track all connections for proper cleanup
+    const connections = new Set<import('node:net').Socket>();
+    server.on('connection', (conn) => {
+      connections.add(conn);
+      conn.on('close', () => connections.delete(conn));
+    });
 
     // Handle graceful shutdown
     const shutdown = (signal: string) => {
       process.stdout.write(`[server] Received ${signal}, shutting down...\n`);
+      
+      // Close WebSocket server first
+      wss.close(() => {
+        process.stdout.write('[server] WebSocket server closed\n');
+      });
+      
+      // Destroy all active connections to free the port immediately
+      for (const conn of connections) {
+        conn.destroy();
+      }
+      connections.clear();
+      
+      // Close HTTP server
       server.close(() => {
         process.stdout.write('[server] Shutdown complete\n');
         process.exit(0);

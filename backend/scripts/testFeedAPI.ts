@@ -4,8 +4,6 @@
  * Usage: npm run test:feed-api
  */
 
-import { http } from '../src/lib/http/http.js'
-
 const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:4000'
 const TEST_USER_ID = process.env.TEST_USER_ID ?? '8'
 

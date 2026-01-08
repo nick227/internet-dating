@@ -23,6 +23,8 @@ import {
   recordActivity,
   tick as presenceTick
 } from './domains/presence.js'
+import { registerAdminSocket, unregisterAdminSocket } from './domains/admin.js'
+import { prisma } from '../lib/prisma/client.js'
 
 const CLIENT_EVENT_TYPES = new Set<ClientEventType>([
   'client.messenger.typing',
@@ -65,7 +67,7 @@ export function createWsServer(server: HttpServer) {
 
   wss.on('close', () => clearInterval(heartbeatTimer))
 
-  wss.on('connection', (socket: WebSocket, req: IncomingMessage) => {
+  wss.on('connection', async (socket: WebSocket, req: IncomingMessage) => {
     const userId = getUserId(req)
     if (!userId) {
       process.stdout.write(`[ws] Connection rejected: no valid token. Cookie header: ${req.headers?.cookie ? 'present' : 'missing'}\n`);
@@ -73,6 +75,20 @@ export function createWsServer(server: HttpServer) {
       return
     }
     process.stdout.write(`[ws] Connection accepted for user ${userId}\n`);
+
+    // Check if user is admin and register socket
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: BigInt(userId) },
+        select: { role: true }
+      });
+
+      if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
+        registerAdminSocket(socket);
+      }
+    } catch (err) {
+      console.error('[ws] Error checking admin status:', err);
+    }
 
     const socketId = randomUUID()
     const ctx: WsContext = {
@@ -117,6 +133,7 @@ export function createWsServer(server: HttpServer) {
     socket.on('close', (_code: number, reason: Buffer) => {
       missedPongs.delete(socket)
       contexts.delete(socketId)
+      unregisterAdminSocket(socket)
       const entry = presenceOnDisconnect(userId, socket)
       if (entry && entry.status === 'offline') {
         emitPresenceUpdate({

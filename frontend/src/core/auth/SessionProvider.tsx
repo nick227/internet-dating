@@ -17,7 +17,11 @@ const isAbortError = (error: unknown): boolean => {
   )
 }
 
-type SessionData = { userId: string } | null
+type SessionData = { 
+  userId: string;
+  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
+} | null
+
 type SessionContextValue = {
   data: SessionData
   error: unknown

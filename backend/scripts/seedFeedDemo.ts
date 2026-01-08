@@ -1138,17 +1138,17 @@ async function seedUserPreference(seed: SeedPersona, ctx: SeedContext) {
   await prisma.userPreference.upsert({
     where: { userId: user.userId },
     update: {
-      preferredAgeMin: seed.preferences.preferredAgeMin ?? null,
-      preferredAgeMax: seed.preferences.preferredAgeMax ?? null,
-      preferredDistanceKm: seed.preferences.preferredDistanceKm ?? null,
-      preferredGenders: seed.preferences.preferredGenders ?? null
+      preferredAgeMin: seed.preferences.preferredAgeMin,
+      preferredAgeMax: seed.preferences.preferredAgeMax,
+      preferredDistanceKm: seed.preferences.preferredDistanceKm,
+      preferredGenders: seed.preferences.preferredGenders
     },
     create: {
       userId: user.userId,
-      preferredAgeMin: seed.preferences.preferredAgeMin ?? null,
-      preferredAgeMax: seed.preferences.preferredAgeMax ?? null,
-      preferredDistanceKm: seed.preferences.preferredDistanceKm ?? null,
-      preferredGenders: seed.preferences.preferredGenders ?? null
+      preferredAgeMin: seed.preferences.preferredAgeMin,
+      preferredAgeMax: seed.preferences.preferredAgeMax,
+      preferredDistanceKm: seed.preferences.preferredDistanceKm,
+      preferredGenders: seed.preferences.preferredGenders
     }
   });
 }

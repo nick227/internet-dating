@@ -2,6 +2,7 @@ import type { Handler } from '../http/types.js';
 import type { AuthRule } from './rules.js';
 import { parsePositiveBigInt } from '../http/parse.js';
 import { verifyAccessToken } from './jwt.js';
+import { prisma } from '../prisma/client.js';
 
 function getAccessToken(req: any): string | null {
   const hdr = req.headers?.authorization;
@@ -30,7 +31,7 @@ function tokenToUserId(token: string): bigint | null {
 }
 
 export function requireAuth(rule: AuthRule): Handler {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     try {
       if (rule.kind === 'public') return next();
 
@@ -60,6 +61,30 @@ export function requireAuth(rule: AuthRule): Handler {
         const parsed = parsePositiveBigInt(v, rule.param);
         if (!parsed.ok) return res.status(400).json({ error: parsed.error });
         if (parsed.value !== req.ctx.userId) return res.status(403).json({ error: 'Forbidden' });
+        return next();
+      }
+
+      if (rule.kind === 'admin') {
+        const user = await prisma.user.findUnique({
+          where: { id: req.ctx.userId },
+          select: { role: true }
+        });
+        
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+          return res.status(403).json({ error: 'Forbidden: Admin access required' });
+        }
+        return next();
+      }
+
+      if (rule.kind === 'superAdmin') {
+        const user = await prisma.user.findUnique({
+          where: { id: req.ctx.userId },
+          select: { role: true }
+        });
+        
+        if (!user || user.role !== 'SUPER_ADMIN') {
+          return res.status(403).json({ error: 'Forbidden: Super admin access required' });
+        }
         return next();
       }
 

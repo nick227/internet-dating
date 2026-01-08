@@ -49,6 +49,26 @@ export type WsEvents = {
     socketId: string
     reason: WsInternalDisconnectReason
   }
+  'server.admin.job_started': {
+    jobRunId: string
+    jobName: string
+    startedAt: string
+    triggeredBy?: string
+  }
+  'server.admin.job_progress': {
+    jobRunId: string
+    jobName: string
+    progressPercent: number
+    progressMessage?: string
+  }
+  'server.admin.job_completed': {
+    jobRunId: string
+    jobName: string
+    status: 'SUCCESS' | 'FAILED' | 'CANCELLED'
+    finishedAt: string
+    durationMs: number
+    error?: string
+  }
 }
 
 export type WsEventType = keyof WsEvents

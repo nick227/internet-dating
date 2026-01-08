@@ -1,0 +1,399 @@
+/* Admin Interface Styles */
+
+.admin-dashboard,
+.admin-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.page-description {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+/* Job Status Badge */
+.job-status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.job-status-gray {
+  background: #e0e0e0;
+  color: #424242;
+}
+
+.job-status-blue {
+  background: #2196f3;
+  color: white;
+}
+
+.job-status-green {
+  background: #4caf50;
+  color: white;
+}
+
+.job-status-red {
+  background: #f44336;
+  color: white;
+}
+
+.job-status-orange {
+  background: #ff9800;
+  color: white;
+}
+
+/* Job Stats Card */
+.job-stats-card {
+  display: flex;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Job Run Table */
+.job-run-table {
+  overflow-x: auto;
+}
+
+.job-run-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.job-run-table th {
+  background: #f5f5f5;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.job-run-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.job-run-table tbody tr.clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.job-run-table tbody tr.clickable:hover {
+  background: #f9f9f9;
+}
+
+.job-run-table-loading,
+.job-run-table-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.filters select,
+.filters button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.filters button {
+  background: #2196f3;
+  color: white;
+  border: none;
+}
+
+.filters button:hover {
+  background: #1976d2;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+.pagination button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+/* Job Details */
+.job-details {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.detail-row {
+  display: flex;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row .label {
+  font-weight: 600;
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.detail-row .value {
+  flex: 1;
+}
+
+.detail-row.error .error-text {
+  color: #f44336;
+  background: #ffebee;
+  padding: 1rem;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.detail-row pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.form-group textarea {
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.job-description {
+  background: #f5f5f5;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.job-description details {
+  margin-top: 0.5rem;
+}
+
+.job-description summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.job-description code {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  background: white;
+  border-radius: 2px;
+  font-size: 0.875rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.modal-actions button {
+  padding: 0.5rem 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.modal-actions button[type="submit"] {
+  background: #2196f3;
+  color: white;
+  border: none;
+}
+
+.modal-actions button[type="submit"]:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dashboard */
+.dashboard-section {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.admin-nav {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  display: block;
+  padding: 1rem 1.5rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #333;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  border-color: #2196f3;
+  color: #2196f3;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+}
+
+/* Error and messages */
+.error-message {
+  padding: 1rem;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.no-jobs-message {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-danger {
+  background: #f44336;
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #d32f2f;
+}

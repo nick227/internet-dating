@@ -2,7 +2,7 @@
   position: relative;
   z-index: 40;
   background: var(--component-backdrop);
-  height: 100px;
+  height: auto;
   border-bottom: 1px solid var(--component-border-subtle);
   display: flex;
   justify-content: center;
@@ -10,9 +10,9 @@
 }
 .topBar__inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s-3);
   margin: 0 auto;
   height: 100%;
 }

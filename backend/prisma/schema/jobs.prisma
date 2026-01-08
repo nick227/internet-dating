@@ -1,19 +1,28 @@
 model JobRun {
-  id               BigInt       @id @default(autoincrement())
-  jobName          String
-  status           JobRunStatus
-  trigger          JobTrigger
-  scope            String?
-  algorithmVersion String?
-  attempt          Int          @default(1)
-  startedAt        DateTime     @default(now())
-  finishedAt       DateTime?
-  durationMs       Int?
-  error            String?      @db.Text
-  metadata         Json?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id                  BigInt       @id @default(autoincrement())
+  jobName             String
+  status              JobRunStatus @default(QUEUED)
+  trigger             JobTrigger
+  scope               String?
+  algorithmVersion    String?
+  attempt             Int          @default(1)
+  queuedAt            DateTime     @default(now())
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  durationMs          Int?
+  queueDelayMs        Int?
+  error               String?      @db.Text
+  metadata            Json?
+  triggeredBy         BigInt?
+  cancelRequestedAt   DateTime?
+  cancelRequestedBy   BigInt?
+  lastHeartbeatAt     DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([jobName, status])
-  @@index([jobName, startedAt])
+  @@index([jobName, queuedAt])
+  @@index([status, queuedAt])
+  @@index([triggeredBy])
+  @@index([status, lastHeartbeatAt])
 }

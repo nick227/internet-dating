@@ -6,13 +6,13 @@ Quick reference for running jobs that power matching, searching, and site feed f
 
 ```bash
 # Run a specific job
-tsx scripts/runJobs.ts <job-name> [options]
+pnpm tsx scripts/runJobs.ts <job-name> [options]
 
 # See all available jobs
-tsx scripts/runJobs.ts
+pnpm tsx scripts/runJobs.ts
 
 # Run all jobs
-tsx scripts/runJobs.ts all
+pnpm tsx scripts/runJobs.ts all
 ```
 
 ---
@@ -31,13 +31,13 @@ tsx scripts/runJobs.ts all
 **Examples**:
 ```bash
 # Compute scores for a specific user
-tsx scripts/runJobs.ts match-scores --userId=8
+pnpm tsx scripts/runJobs.ts match-scores --userId=8
 
 # Batch process with custom settings
-tsx scripts/runJobs.ts match-scores --batchSize=100 --candidateBatchSize=500 --pauseMs=50
+pnpm tsx scripts/runJobs.ts match-scores --batchSize=100 --candidateBatchSize=500 --pauseMs=50
 
 # Process all users (omit --userId)
-tsx scripts/runJobs.ts match-scores --batchSize=100
+pnpm tsx scripts/runJobs.ts match-scores --batchSize=100
 ```
 
 **Key Options**:
@@ -61,10 +61,10 @@ tsx scripts/runJobs.ts match-scores --batchSize=100
 **Examples**:
 ```bash
 # Compute compatibility for a specific user
-tsx scripts/runJobs.ts compatibility --userId=8
+pnpm tsx scripts/runJobs.ts compatibility --userId=8
 
 # Batch process
-tsx scripts/runJobs.ts compatibility --batchSize=100 --targetBatchSize=500
+pnpm tsx scripts/runJobs.ts compatibility --batchSize=100 --targetBatchSize=500
 ```
 
 **Key Options**:
@@ -89,10 +89,10 @@ tsx scripts/runJobs.ts compatibility --batchSize=100 --targetBatchSize=500
 **Examples**:
 ```bash
 # Rebuild index for a specific user
-tsx scripts/runJobs.ts profile-search-index --userId=8
+pnpm tsx scripts/runJobs.ts profile-search-index --userId=8
 
 # Full rebuild for all users
-tsx scripts/runJobs.ts profile-search-index --userBatchSize=100 --pauseMs=50
+pnpm tsx scripts/runJobs.ts profile-search-index --userBatchSize=100 --pauseMs=50
 ```
 
 **Key Options**:
@@ -115,7 +115,7 @@ tsx scripts/runJobs.ts profile-search-index --userBatchSize=100 --pauseMs=50
 **Examples**:
 ```bash
 # Update searchable status for all users
-tsx scripts/runJobs.ts searchable-user
+pnpm tsx scripts/runJobs.ts searchable-user
 ```
 
 ---
@@ -134,13 +134,13 @@ tsx scripts/runJobs.ts searchable-user
 **Examples**:
 ```bash
 # Presort feed for a specific user
-tsx scripts/runJobs.ts feed-presort --userId=8
+pnpm tsx scripts/runJobs.ts feed-presort --userId=8
 
 # Batch process with custom segment size
-tsx scripts/runJobs.ts feed-presort --batchSize=100 --segmentSize=20 --maxSegments=3
+pnpm tsx scripts/runJobs.ts feed-presort --batchSize=100 --segmentSize=20 --maxSegments=3
 
 # Incremental update (only new content)
-tsx scripts/runJobs.ts feed-presort --userId=8 --incremental
+pnpm tsx scripts/runJobs.ts feed-presort --userId=8 --incremental
 ```
 
 **Key Options**:
@@ -165,7 +165,7 @@ tsx scripts/runJobs.ts feed-presort --userId=8 --incremental
 **Examples**:
 ```bash
 # Cleanup stale segments
-tsx scripts/runJobs.ts feed-presort-cleanup
+pnpm tsx scripts/runJobs.ts feed-presort-cleanup
 ```
 
 ---
@@ -183,7 +183,7 @@ tsx scripts/runJobs.ts feed-presort-cleanup
 **Examples**:
 ```bash
 # Rebuild traits for all users
-tsx scripts/runJobs.ts build-user-traits
+pnpm tsx scripts/runJobs.ts build-user-traits
 ```
 
 ---
@@ -198,7 +198,7 @@ tsx scripts/runJobs.ts build-user-traits
 **Examples**:
 ```bash
 # Update interest sets
-tsx scripts/runJobs.ts user-interest-sets
+pnpm tsx scripts/runJobs.ts user-interest-sets
 ```
 
 ---
@@ -214,7 +214,7 @@ tsx scripts/runJobs.ts user-interest-sets
 **Examples**:
 ```bash
 # Compute content features
-tsx scripts/runJobs.ts content-features
+pnpm tsx scripts/runJobs.ts content-features
 ```
 
 ---
@@ -229,7 +229,7 @@ tsx scripts/runJobs.ts content-features
 **Examples**:
 ```bash
 # Compute trending scores
-tsx scripts/runJobs.ts trending
+pnpm tsx scripts/runJobs.ts trending
 ```
 
 ---
@@ -244,7 +244,7 @@ tsx scripts/runJobs.ts trending
 **Examples**:
 ```bash
 # Compute affinity scores
-tsx scripts/runJobs.ts affinity
+pnpm tsx scripts/runJobs.ts affinity
 ```
 
 ---
@@ -254,34 +254,34 @@ tsx scripts/runJobs.ts affinity
 ### New User Onboarding
 ```bash
 # 1. Build user traits
-tsx scripts/runJobs.ts build-user-traits --userId=<newUserId>
+pnpm tsx scripts/runJobs.ts build-user-traits --userId=<newUserId>
 
 # 2. Compute match scores
-tsx scripts/runJobs.ts match-scores --userId=<newUserId>
+pnpm tsx scripts/runJobs.ts match-scores --userId=<newUserId>
 
 # 3. Build search index
-tsx scripts/runJobs.ts profile-search-index --userId=<newUserId>
+pnpm tsx scripts/runJobs.ts profile-search-index --userId=<newUserId>
 
 # 4. Presort feed
-tsx scripts/runJobs.ts feed-presort --userId=<newUserId>
+pnpm tsx scripts/runJobs.ts feed-presort --userId=<newUserId>
 ```
 
 ### After Algorithm Update
 ```bash
 # 1. Recompute match scores for all users
-tsx scripts/runJobs.ts match-scores --batchSize=100
+pnpm tsx scripts/runJobs.ts match-scores --batchSize=100
 
 # 2. Rebuild search index
-tsx scripts/runJobs.ts profile-search-index --userBatchSize=100
+pnpm tsx scripts/runJobs.ts profile-search-index --userBatchSize=100
 
 # 3. Refresh feed presorts
-tsx scripts/runJobs.ts feed-presort --batchSize=100
+pnpm tsx scripts/runJobs.ts feed-presort --batchSize=100
 ```
 
 ### Daily Maintenance
 ```bash
 # Run all maintenance jobs
-tsx scripts/runJobs.ts all
+pnpm tsx scripts/runJobs.ts all
 ```
 
 ---

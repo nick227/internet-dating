@@ -5,6 +5,7 @@ import { ModalStateProvider } from './ui/shell/useModalState'
 import { SessionProvider } from './core/auth/SessionProvider'
 import { ProtectedRoute } from './core/routing/ProtectedRoute'
 import { PublicRoute } from './core/routing/PublicRoute'
+import { AdminRoute } from './core/routing/AdminRoute'
 import { PageTransition } from './core/routing/PageTransition'
 
 // Eager load FeedPage (initial route) - no lazy loading for fastest first paint
@@ -26,6 +27,12 @@ const PersonalityPortalPage = lazy(() => import('./ui/pages/PersonalityPortalPag
 const ProfileSearchPage = lazy(() => import('./ui/pages/ProfileSearchPage').then(m => ({ default: m.ProfileSearchPage })))
 const AuthPage = lazy(() => import('./ui/pages/AuthPage').then(m => ({ default: m.AuthPage })))
 const ConnectionsPage = lazy(() => import('./ui/pages/ConnectionsPage').then(m => ({ default: m.ConnectionsPage })))
+
+// Admin pages
+const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
+const JobHistoryPage = lazy(() => import('./admin/pages/JobHistoryPage').then(m => ({ default: m.JobHistoryPage })))
+const JobDetailsPage = lazy(() => import('./admin/pages/JobDetailsPage').then(m => ({ default: m.JobDetailsPage })))
+const JobMonitorPage = lazy(() => import('./admin/pages/JobMonitorPage').then(m => ({ default: m.JobMonitorPage })))
 
 // Minimal loading fallback for route transitions
 function RouteLoader() {
@@ -205,6 +212,50 @@ export default function App() {
                   <ProfileSearchPage />
                 </Suspense>
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={<Navigate to="/admin/dashboard" replace />}
+          />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminRoute>
+                <Suspense fallback={<RouteLoader />}>
+                  <AdminDashboard />
+                </Suspense>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/jobs/history"
+            element={
+              <AdminRoute>
+                <Suspense fallback={<RouteLoader />}>
+                  <JobHistoryPage />
+                </Suspense>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/jobs/monitor"
+            element={
+              <AdminRoute>
+                <Suspense fallback={<RouteLoader />}>
+                  <JobMonitorPage />
+                </Suspense>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/jobs/:jobRunId"
+            element={
+              <AdminRoute>
+                <Suspense fallback={<RouteLoader />}>
+                  <JobDetailsPage />
+                </Suspense>
+              </AdminRoute>
             }
           />
           <Route path="*" element={<Navigate to="/feed" replace />} />

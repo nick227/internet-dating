@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { api } from '../client'
 import type { FeedCard } from '../types'
 
+// Integration test - requires backend server running on localhost:4000
 describe('Feed API - Duplicate UserId Check', () => {
   it('should not have duplicate userIds in feed items', async () => {
     // Fetch initial feed page (home page view)

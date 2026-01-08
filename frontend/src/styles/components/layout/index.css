@@ -36,7 +36,7 @@
   max-width: 100%;
   margin-left: auto;
   margin-right: auto;
-  padding: calc(var(--safe-top) + var(--s-4)) var(--s-3) calc(var(--component-bottom-offset) + var(--safe-bot));
+  padding: calc(var(--s-3));
   width: var(--page-width);
 }
 .hidden {

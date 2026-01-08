@@ -78,7 +78,8 @@ async function main() {
   console.log(`   Trait distribution across all users:`);
   for (const trait of allTraits.slice(0, 10).sort((a, b) => b._count.userId - a._count.userId)) {
     const avg = trait._avg.value ?? 0;
-    const avgStr = avg >= 0 ? `+${avg.toFixed(2)}` : avg.toFixed(2);
+    const avgNum = typeof avg === 'number' ? avg : Number(avg);
+    const avgStr = avgNum >= 0 ? `+${avgNum.toFixed(2)}` : avgNum.toFixed(2);
     console.log(`      ${trait.traitKey.padEnd(30)} users: ${trait._count.userId.toString().padStart(3)}, avg: ${avgStr}`);
   }
   if (allTraits.length > 10) {

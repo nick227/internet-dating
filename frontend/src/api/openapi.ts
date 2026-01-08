@@ -76,7 +76,7 @@ export interface paths {
     };
   };
   "/api/auth/me": {
-    /** Return current user id */
+    /** Return current user id and role */
     get: {
       responses: {
         /** @description OK */
@@ -86,6 +86,51 @@ export interface paths {
           };
         };
       };
+    };
+  };
+  "/api/admin/jobs/history": {
+    /** Get job run history */
+    get: {
+    };
+  };
+  "/api/admin/jobs/{jobRunId}": {
+    /** Get job run details */
+    get: {
+      parameters: {
+        path: {
+          jobRunId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/admin/jobs/active": {
+    /** Get active job runs */
+    get: {
+    };
+  };
+  "/api/admin/jobs/stats": {
+    /** Get job statistics */
+    get: {
+    };
+  };
+  "/api/admin/jobs/enqueue": {
+    /** Enqueue a job for execution */
+    post: {
+    };
+  };
+  "/api/admin/jobs/{jobRunId}/cancel": {
+    /** Request job cancellation */
+    post: {
+      parameters: {
+        path: {
+          jobRunId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/admin/jobs/definitions": {
+    /** Get available job definitions */
+    get: {
     };
   };
   "/api/feed": {
@@ -527,6 +572,16 @@ export interface paths {
       };
     };
   };
+  "/api/conversations/with/{userId}": {
+    /** Get or create conversation with user */
+    post: {
+      parameters: {
+        path: {
+          userId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
   "/api/inbox": {
     /** Inbox conversations */
     get: {
@@ -753,6 +808,16 @@ export interface paths {
       };
     };
   };
+  "/api/quizzes/{quizId}/results": {
+    /** Get quiz results with demographic comparisons */
+    get: {
+      parameters: {
+        path: {
+          quizId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
   "/api/users/{userId}/block": {
     /** Block user */
     post: {
@@ -912,6 +977,8 @@ export interface components {
     };
     AuthMeResponse: {
       userId: components["schemas"]["Id"];
+      /** @enum {string} */
+      role: "USER" | "ADMIN" | "SUPER_ADMIN";
     };
     /** @enum {string} */
     Visibility: "PUBLIC" | "PRIVATE";

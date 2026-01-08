@@ -78,10 +78,18 @@ enum ProfileAccessSource {
      SYSTEM
 }
 
+enum UserRole {
+     USER
+     ADMIN
+     SUPER_ADMIN
+}
+
 enum JobRunStatus {
+     QUEUED
      RUNNING
      SUCCESS
      FAILED
+     CANCELLED
 }
 
 enum JobTrigger {
