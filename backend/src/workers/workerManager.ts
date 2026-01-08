@@ -1,75 +1,137 @@
 import { prisma } from '../lib/prisma/client.js';
 import { hostname } from 'os';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const HEARTBEAT_INTERVAL_MS = 10000; // 10 seconds
 const WORKER_TIMEOUT_MS = 30000; // 30 seconds (3 missed heartbeats)
+const STOPPING_TIMEOUT_MS = 60000; // 60 seconds max for graceful shutdown
 
 let currentWorkerId: string | null = null;
 let heartbeatTimer: NodeJS.Timeout | null = null;
 let isShuttingDown = false;
+let workerVersion: string | null = null;
 
 /**
- * Register a new worker instance in the database
+ * Get current worker version (git SHA or build ID)
+ */
+async function getWorkerVersion(): Promise<string> {
+  if (workerVersion) return workerVersion;
+  
+  try {
+    // Try to get git SHA
+    const { stdout } = await execAsync('git rev-parse --short HEAD');
+    workerVersion = stdout.trim();
+  } catch {
+    // Fallback to environment variable or timestamp
+    workerVersion = process.env.BUILD_ID || `build-${Date.now()}`;
+  }
+  
+  return workerVersion;
+}
+
+/**
+ * Register a new worker instance in the database (ATOMIC)
  * Returns the worker ID if successful, null if another worker is already running
  */
 export async function registerWorker(workerType: string = 'job_worker'): Promise<string | null> {
   try {
-    // Clean up stale workers (no heartbeat for > WORKER_TIMEOUT_MS)
-    const staleTreshold = new Date(Date.now() - WORKER_TIMEOUT_MS);
-    await prisma.$executeRaw`
-      UPDATE worker_instances 
-      SET status = 'STOPPED', stoppedAt = NOW()
-      WHERE status IN ('STARTING', 'RUNNING') 
-      AND lastHeartbeatAt < ${staleTreshold}
-      AND workerType = ${workerType}
-    `;
+    // Get worker version for drift detection
+    const version = await getWorkerVersion();
+    
+    // ATOMIC TRANSACTION - All or nothing
+    const worker = await prisma.$transaction(async (tx) => {
+      // 1. Clean up stale workers (no heartbeat for > WORKER_TIMEOUT_MS)
+      const staleThreshold = new Date(Date.now() - WORKER_TIMEOUT_MS);
+      await tx.$executeRaw`
+        UPDATE WorkerInstance 
+        SET status = 'STOPPED', stoppedAt = NOW()
+        WHERE status IN ('STARTING', 'RUNNING') 
+        AND lastHeartbeatAt < ${staleThreshold}
+        AND workerType = ${workerType}
+      `;
 
-    // Check if any worker is currently running
-    const activeWorker = await prisma.workerInstance.findFirst({
-      where: {
-        workerType,
-        status: { in: ['STARTING', 'RUNNING'] }
+      // 2. Clean up hung STOPPING workers (timeout exceeded)
+      const stoppingThreshold = new Date(Date.now() - STOPPING_TIMEOUT_MS);
+      await tx.$executeRaw`
+        UPDATE WorkerInstance 
+        SET status = 'STOPPED', stoppedAt = NOW()
+        WHERE status = 'STOPPING'
+        AND lastHeartbeatAt < ${stoppingThreshold}
+        AND workerType = ${workerType}
+      `;
+
+      // 3. Check if any worker is currently active
+      const activeWorker = await tx.workerInstance.findFirst({
+        where: {
+          workerType,
+          status: { in: ['STARTING', 'RUNNING', 'STOPPING'] }
+        },
+        select: { id: true, status: true, hostname: true }
+      });
+
+      if (activeWorker) {
+        console.log(`[worker] Another worker is already ${activeWorker.status} (ID: ${activeWorker.id}, host: ${activeWorker.hostname})`);
+        return null;
       }
+
+      // 4. Register this worker (DB-level unique index will prevent race conditions)
+      const newWorker = await tx.workerInstance.create({
+        data: {
+          workerType,
+          status: 'STARTING',
+          hostname: hostname(),
+          pid: process.pid,
+          startedAt: new Date(),
+          lastHeartbeatAt: new Date(),
+          metadata: {
+            version,
+            nodeVersion: process.version,
+            platform: process.platform,
+            arch: process.arch
+          }
+        }
+      });
+
+      console.log(`[worker] Registered worker instance: ${newWorker.id} (version: ${version})`);
+      return newWorker;
+    }, {
+      maxWait: 5000, // Wait up to 5s for transaction lock
+      timeout: 10000 // Transaction timeout 10s
     });
 
-    if (activeWorker) {
-      console.log(`[worker] Another worker is already running (ID: ${activeWorker.id})`);
+    if (!worker) {
       return null;
     }
 
-    // Register this worker
-    const worker = await prisma.workerInstance.create({
-      data: {
-        workerType,
-        status: 'STARTING',
-        hostname: hostname(),
-        pid: process.pid,
-        startedAt: new Date(),
-        lastHeartbeatAt: new Date()
-      }
-    });
-
     currentWorkerId = worker.id;
-    console.log(`[worker] Registered worker instance: ${worker.id}`);
 
-    // Update status to RUNNING
+    // 5. Update status to RUNNING (outside transaction for speed)
     await prisma.workerInstance.update({
       where: { id: worker.id },
       data: { status: 'RUNNING' }
     });
 
-    // Start heartbeat
+    // 6. Start heartbeat
     startHeartbeat();
 
     return worker.id;
   } catch (err) {
+    // Check if error is due to unique constraint violation
+    if (err instanceof Error && err.message.includes('Unique constraint')) {
+      console.log('[worker] Cannot register: Unique constraint violation (another worker already active)');
+      return null;
+    }
+    
     console.error('[worker] Failed to register worker:', err);
     return null;
   }
 }
 
 /**
- * Unregister the current worker instance
+ * Unregister the current worker instance (ATOMIC)
  */
 export async function unregisterWorker(): Promise<void> {
   if (!currentWorkerId) return;
@@ -78,6 +140,19 @@ export async function unregisterWorker(): Promise<void> {
   stopHeartbeat();
 
   try {
+    // First mark as STOPPING (releases DB lock for new workers)
+    await prisma.workerInstance.update({
+      where: { id: currentWorkerId },
+      data: {
+        status: 'STOPPING',
+        lastHeartbeatAt: new Date()
+      }
+    });
+
+    // Brief delay to allow any in-flight operations to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Then mark as STOPPED
     await prisma.workerInstance.update({
       where: { id: currentWorkerId },
       data: {
@@ -89,6 +164,14 @@ export async function unregisterWorker(): Promise<void> {
     console.log(`[worker] Unregistered worker instance: ${currentWorkerId}`);
   } catch (err) {
     console.error('[worker] Failed to unregister worker:', err);
+    // Force mark as stopped even if update fails
+    try {
+      await prisma.$executeRaw`
+        UPDATE WorkerInstance 
+        SET status = 'STOPPED', stoppedAt = NOW()
+        WHERE id = ${currentWorkerId}
+      `;
+    } catch {}
   } finally {
     currentWorkerId = null;
   }
@@ -177,12 +260,22 @@ export async function getWorkerInstances(workerType?: string) {
  */
 export async function getActiveWorkersCount(workerType: string = 'job_worker'): Promise<number> {
   // Clean up stale workers first
-  const staleTreshold = new Date(Date.now() - WORKER_TIMEOUT_MS);
+  const staleThreshold = new Date(Date.now() - WORKER_TIMEOUT_MS);
   await prisma.$executeRaw`
-    UPDATE worker_instances 
+    UPDATE WorkerInstance 
     SET status = 'STOPPED', stoppedAt = NOW()
     WHERE status IN ('STARTING', 'RUNNING') 
-    AND lastHeartbeatAt < ${staleTreshold}
+    AND lastHeartbeatAt < ${staleThreshold}
+    AND workerType = ${workerType}
+  `;
+
+  // Clean up hung STOPPING workers
+  const stoppingThreshold = new Date(Date.now() - STOPPING_TIMEOUT_MS);
+  await prisma.$executeRaw`
+    UPDATE WorkerInstance 
+    SET status = 'STOPPED', stoppedAt = NOW()
+    WHERE status = 'STOPPING'
+    AND lastHeartbeatAt < ${stoppingThreshold}
     AND workerType = ${workerType}
   `;
 

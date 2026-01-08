@@ -1360,6 +1360,15 @@
   font-family: 'Courier New', monospace;
 }
 
+.detail-row .value.version-badge {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .worker-stopped-message {
   padding: 12px;
   background: rgba(251, 146, 60, 0.1);

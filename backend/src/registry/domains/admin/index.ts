@@ -368,7 +368,8 @@ export const adminDomain: DomainRegistry = {
           startedAt: w.startedAt.toISOString(),
           lastHeartbeatAt: w.lastHeartbeatAt.toISOString(),
           jobsProcessed: w.jobsProcessed,
-          uptime: now - new Date(w.startedAt).getTime()
+          uptime: now - new Date(w.startedAt).getTime(),
+          metadata: w.metadata as any
         }));
 
       return json(res, {

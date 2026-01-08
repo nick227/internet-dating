@@ -172,6 +172,12 @@ export function WorkerControl({ onStatusChange }: WorkerControlProps) {
               <span className="value">{activeWorker.pid || 'Unknown'}</span>
             </div>
             <div className="detail-row">
+              <span className="label">Version:</span>
+              <span className="value version-badge">
+                {(activeWorker as any).version || (activeWorker as any).metadata?.version || 'Unknown'}
+              </span>
+            </div>
+            <div className="detail-row">
               <span className="label">Started:</span>
               <span className="value">{new Date(activeWorker.startedAt).toLocaleString()}</span>
             </div>

@@ -80,6 +80,13 @@ export interface WorkerInstance {
   lastHeartbeatAt: string;
   jobsProcessed: number;
   uptime: number;
+  version?: string;
+  metadata?: {
+    version?: string;
+    nodeVersion?: string;
+    platform?: string;
+    arch?: string;
+  };
 }
 
 export interface WorkerStatus {
