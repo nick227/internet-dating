@@ -1821,7 +1821,7 @@
   gap: 4px;
   padding: 0 24px;
   border-bottom: 2px solid var(--border);
-  background: var(--bg);
+  justify-content: space-between;
 }
 
 .help-tab {

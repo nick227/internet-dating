@@ -30,11 +30,8 @@ const ConnectionsPage = lazy(() => import('./ui/pages/ConnectionsPage').then(m =
 
 // Admin pages
 const AdminLayout = lazy(() => import('./admin/components/AdminLayout').then(m => ({ default: m.AdminLayout })))
-const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
 const JobManagerPage = lazy(() => import('./admin/pages/JobManagerPage').then(m => ({ default: m.JobManagerPage })))
-const JobHistoryPage = lazy(() => import('./admin/pages/JobHistoryPage').then(m => ({ default: m.JobHistoryPage })))
 const JobDetailsPage = lazy(() => import('./admin/pages/JobDetailsPage').then(m => ({ default: m.JobDetailsPage })))
-const JobMonitorPage = lazy(() => import('./admin/pages/JobMonitorPage').then(m => ({ default: m.JobMonitorPage })))
 
 // Minimal loading fallback for route transitions
 function RouteLoader() {
@@ -218,19 +215,7 @@ export default function App() {
           />
           <Route
             path="/admin"
-            element={<Navigate to="/admin/dashboard" replace />}
-          />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <AdminRoute>
-                <AdminLayout>
-                  <Suspense fallback={<RouteLoader />}>
-                    <AdminDashboard />
-                  </Suspense>
-                </AdminLayout>
-              </AdminRoute>
-            }
+            element={<Navigate to="/admin/jobs" replace />}
           />
           <Route
             path="/admin/jobs"
@@ -239,30 +224,6 @@ export default function App() {
                 <AdminLayout>
                   <Suspense fallback={<RouteLoader />}>
                     <JobManagerPage />
-                  </Suspense>
-                </AdminLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/jobs/history"
-            element={
-              <AdminRoute>
-                <AdminLayout>
-                  <Suspense fallback={<RouteLoader />}>
-                    <JobHistoryPage />
-                  </Suspense>
-                </AdminLayout>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/jobs/monitor"
-            element={
-              <AdminRoute>
-                <AdminLayout>
-                  <Suspense fallback={<RouteLoader />}>
-                    <JobMonitorPage />
                   </Suspense>
                 </AdminLayout>
               </AdminRoute>
