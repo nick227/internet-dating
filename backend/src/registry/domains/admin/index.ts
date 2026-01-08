@@ -173,7 +173,9 @@ export const adminDomain: DomainRegistry = {
               status: 'QUEUED',
               trigger: 'MANUAL',
               triggeredBy: req.ctx.userId,
-              metadata: parameters as any,
+              metadata: {
+                params: parameters ?? {}
+              } as any,
               queuedAt: new Date()
             }
           });
@@ -295,7 +297,9 @@ export const adminDomain: DomainRegistry = {
                 trigger: 'MANUAL',
                 scope: 'system',
                 algorithmVersion: 'v1',
-                metadata: (job.defaultParams || {}) as any,
+                metadata: {
+                  params: job.defaultParams ?? {}
+                } as any,
                 queuedAt: new Date(),
                 triggeredBy: req.ctx.userId
               }
@@ -358,7 +362,9 @@ export const adminDomain: DomainRegistry = {
                 trigger: 'MANUAL',
                 scope: 'system',
                 algorithmVersion: 'v1',
-                metadata: (job.defaultParams || {}) as any,
+                metadata: {
+                  params: job.defaultParams ?? {}
+                } as any,
                 queuedAt: new Date(),
                 triggeredBy: req.ctx.userId
               }
@@ -457,6 +463,114 @@ export const adminDomain: DomainRegistry = {
         }
 
         return json(res, run);
+      }
+    },
+
+    // Job Logs - Get structured logs for a job run
+    {
+      id: 'admin.GET./admin/jobs/:jobRunId/logs',
+      method: 'GET',
+      path: '/admin/jobs/:jobRunId/logs',
+      auth: Auth.admin(),
+      summary: 'Get job run logs',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        const jobRunId = BigInt(req.params.jobRunId);
+        const level = req.query.level as string | undefined;
+        const limit = parseInt(req.query.limit as string) || 100;
+
+        const where = {
+          jobRunId,
+          ...(level && { level })
+        };
+
+        const logs = await prisma.jobLog.findMany({
+          where,
+          orderBy: { timestamp: 'asc' },
+          take: limit,
+          select: {
+            id: true,
+            level: true,
+            stage: true,
+            message: true,
+            context: true,
+            timestamp: true
+          }
+        });
+
+        return json(res, { logs });
+      }
+    },
+
+    // Job Progress - Get current progress for a job run
+    {
+      id: 'admin.GET./admin/jobs/:jobRunId/progress',
+      method: 'GET',
+      path: '/admin/jobs/:jobRunId/progress',
+      auth: Auth.admin(),
+      summary: 'Get job run progress',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        const jobRunId = BigInt(req.params.jobRunId);
+        
+        const run = await prisma.jobRun.findUnique({
+          where: { id: jobRunId },
+          select: {
+            id: true,
+            jobName: true,
+            status: true,
+            currentStage: true,
+            progressCurrent: true,
+            progressTotal: true,
+            progressPercent: true,
+            progressMessage: true,
+            entitiesProcessed: true,
+            entitiesTotal: true,
+            startedAt: true,
+            finishedAt: true,
+            durationMs: true
+          }
+        });
+
+        if (!run) {
+          return json(res, { error: 'Job run not found' }, 404);
+        }
+
+        return json(res, { progress: run });
+      }
+    },
+
+    // Job Outcome - Get outcome summary for a job run
+    {
+      id: 'admin.GET./admin/jobs/:jobRunId/outcome',
+      method: 'GET',
+      path: '/admin/jobs/:jobRunId/outcome',
+      auth: Auth.admin(),
+      summary: 'Get job run outcome summary',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        const jobRunId = BigInt(req.params.jobRunId);
+        
+        const run = await prisma.jobRun.findUnique({
+          where: { id: jobRunId },
+          select: {
+            id: true,
+            jobName: true,
+            status: true,
+            outcomeSummary: true,
+            entitiesProcessed: true,
+            entitiesTotal: true,
+            durationMs: true,
+            finishedAt: true,
+            error: true
+          }
+        });
+
+        if (!run) {
+          return json(res, { error: 'Job run not found' }, 404);
+        }
+
+        return json(res, { outcome: run });
       }
     },
 
