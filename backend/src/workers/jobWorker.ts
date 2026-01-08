@@ -1,8 +1,17 @@
 import { prisma } from '../lib/prisma/client.js';
 import { runQueuedJob } from '../lib/jobs/runJob.js';
+import { 
+  registerWorker, 
+  unregisterWorker, 
+  incrementJobsProcessed,
+  isWorkerActive 
+} from './workerManager.js';
 
 const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
 const STALLED_JOB_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+let isRunning = false;
+let shouldStop = false;
 
 async function processNextJob(): Promise<boolean> {
   // Find oldest queued job and lock it atomically
@@ -44,6 +53,7 @@ async function processNextJob(): Promise<boolean> {
   try {
     console.log(`[worker] Processing job ${job.id} (${job.jobName})`);
     await runQueuedJob(job.id);
+    await incrementJobsProcessed();
     console.log(`[worker] Completed job ${job.id}`);
     return true;
   } catch (err) {
@@ -88,7 +98,17 @@ async function detectStalledJobs() {
 }
 
 export async function workerLoop() {
-  console.log('[worker] Job worker started');
+  // Register as singleton worker
+  const workerId = await registerWorker('job_worker');
+  if (!workerId) {
+    console.error('[worker] Cannot start: Another worker is already running');
+    throw new Error('Another worker instance is already running');
+  }
+
+  isRunning = true;
+  shouldStop = false;
+  
+  console.log(`[worker] Job worker started (ID: ${workerId})`);
   
   // Run stalled job detection on startup
   await detectStalledJobs();
@@ -96,20 +116,55 @@ export async function workerLoop() {
   // Schedule periodic stalled job detection
   const stalledCheckTimer = setInterval(detectStalledJobs, 60000); // Every 1 minute
 
-  while (true) {
-    try {
-      const processed = await processNextJob();
-      
-      if (!processed) {
-        // No jobs, wait before polling again
+  // Handle graceful shutdown
+  const shutdown = async () => {
+    console.log('[worker] Shutdown signal received, stopping worker...');
+    shouldStop = true;
+    clearInterval(stalledCheckTimer);
+    await unregisterWorker();
+    isRunning = false;
+    console.log('[worker] Worker stopped gracefully');
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+
+  try {
+    while (!shouldStop && isWorkerActive()) {
+      try {
+        const processed = await processNextJob();
+        
+        if (!processed) {
+          // No jobs, wait before polling again
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+        // If job was processed, immediately check for next one (no delay)
+      } catch (err) {
+        console.error('[worker] Worker loop error:', err);
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
       }
-      // If job was processed, immediately check for next one (no delay)
-    } catch (err) {
-      console.error('[worker] Worker loop error:', err);
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
     }
+  } finally {
+    clearInterval(stalledCheckTimer);
+    await unregisterWorker();
+    isRunning = false;
   }
+}
+
+export async function stopWorker() {
+  if (!isRunning) {
+    throw new Error('Worker is not running');
+  }
+  shouldStop = true;
+  console.log('[worker] Stop requested');
+}
+
+export function getWorkerStatus() {
+  return {
+    isRunning,
+    shouldStop,
+    isActive: isWorkerActive()
+  };
 }
 
 // Start worker if run directly

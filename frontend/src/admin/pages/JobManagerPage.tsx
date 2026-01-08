@@ -8,6 +8,7 @@ import { ActiveJobsMonitor } from '../components/jobs/ActiveJobsMonitor';
 import { JobHistoryList } from '../components/jobs/JobHistoryList';
 import { JobDetailsModal } from '../components/jobs/JobDetailsModal';
 import { RunJobModal } from '../components/jobs/RunJobModal';
+import { WorkerControl } from '../components/jobs/WorkerControl';
 import { trackError } from '../utils/errorTracking';
 import type { JobRun, JobRunStatus } from '../types';
 
@@ -205,6 +206,12 @@ export function JobManagerPage() {
       <div className="page-header">
         <h1>Job Manager</h1>
       </div>
+
+      <WorkerControl onStatusChange={() => {
+        // Refresh stats when worker status changes
+        refreshStats();
+        loadActiveJobs();
+      }} />
       
       <JobStatsOverview
         stats={stats}

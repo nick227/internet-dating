@@ -111,7 +111,7 @@ export function ActiveJobsMonitor({
                   <div className="job-actions">
                     <button 
                       onClick={() => onCancel(job.id)} 
-                      className="btn-secondary btn-small"
+                      className="btn-secondary actionBtn nowrap"
                       disabled={isCancelling || job.status !== 'RUNNING' && job.status !== 'QUEUED'}
                     >
                       {isCancelling ? '⏳ Stopping...' : 'Cancel'}

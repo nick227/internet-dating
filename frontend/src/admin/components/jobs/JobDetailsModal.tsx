@@ -63,6 +63,8 @@ export function JobDetailsModal({ jobRunId, onClose, onRerun, onCancel }: JobDet
   };
 
   const handleRerun = () => {
+    const confirm = window.confirm('Are you sure you want to re-run this job?');
+    if (!confirm) return;
     if (job && onRerun) {
       onRerun(job.jobName, job.metadata || {});
       onClose();
@@ -70,6 +72,8 @@ export function JobDetailsModal({ jobRunId, onClose, onRerun, onCancel }: JobDet
   };
 
   const handleCancel = () => {
+    const confirm = window.confirm('Are you sure you want to cancel this job?');
+    if (!confirm) return;
     if (onCancel) {
       onCancel(jobRunId);
     }

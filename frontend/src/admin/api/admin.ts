@@ -68,5 +68,18 @@ export const adminApi = {
     }>;
   }> {
     return http('/api/admin/jobs/cleanup-stalled', 'POST', { body: {} });
+  },
+
+  // Worker Management
+  async getWorkerStatus(): Promise<import('../types').WorkerStatus> {
+    return http('/api/admin/worker/status', 'GET');
+  },
+
+  async startWorker(): Promise<{ message: string }> {
+    return http('/api/admin/worker/start', 'POST', { body: {} });
+  },
+
+  async stopWorker(): Promise<{ message: string }> {
+    return http('/api/admin/worker/stop', 'POST', { body: {} });
   }
 };

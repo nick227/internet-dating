@@ -72,6 +72,31 @@ export interface ApiError {
   retryable?: boolean;
 }
 
+export interface WorkerInstance {
+  id: string;
+  hostname?: string;
+  pid?: number;
+  startedAt: string;
+  lastHeartbeatAt: string;
+  jobsProcessed: number;
+  uptime: number;
+}
+
+export interface WorkerStatus {
+  hasActiveWorker: boolean;
+  activeWorkersCount: number;
+  localWorkerRunning: boolean;
+  workers: WorkerInstance[];
+  recentInstances: Array<{
+    id: string;
+    status: string;
+    hostname?: string;
+    startedAt: string;
+    stoppedAt?: string;
+    jobsProcessed: number;
+  }>;
+}
+
 export interface JobWebSocketEvent {
   type: 'server.admin.job_started' | 'server.admin.job_progress' | 'server.admin.job_completed';
   data: {

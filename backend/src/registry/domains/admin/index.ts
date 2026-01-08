@@ -338,5 +338,127 @@ export const adminDomain: DomainRegistry = {
         return json(res, run);
       }
     }
-  ]
+  ],
+  // Worker Management
+  {
+    id: 'admin.GET./admin/worker/status',
+    method: 'GET',
+    path: '/admin/worker/status',
+    auth: Auth.admin(),
+    summary: 'Get worker status and health',
+    tags: ['admin'],
+    handler: async (req, res) => {
+      const { getWorkerInstances, getActiveWorkersCount } = await import('../../../workers/workerManager');
+      const { getWorkerStatus } = await import('../../../workers/jobWorker');
+      
+      const [instances, activeCount, localStatus] = await Promise.all([
+        getWorkerInstances('job_worker'),
+        getActiveWorkersCount('job_worker'),
+        Promise.resolve(getWorkerStatus())
+      ]);
+
+      // Get running workers (with recent heartbeat)
+      const now = Date.now();
+      const runningWorkers = instances
+        .filter(w => w.status === 'RUNNING' && (now - new Date(w.lastHeartbeatAt).getTime()) < 30000)
+        .map(w => ({
+          id: w.id,
+          hostname: w.hostname,
+          pid: w.pid,
+          startedAt: w.startedAt.toISOString(),
+          lastHeartbeatAt: w.lastHeartbeatAt.toISOString(),
+          jobsProcessed: w.jobsProcessed,
+          uptime: now - new Date(w.startedAt).getTime()
+        }));
+
+      return json(res, {
+        hasActiveWorker: activeCount > 0,
+        activeWorkersCount: activeCount,
+        localWorkerRunning: localStatus.isRunning,
+        workers: runningWorkers,
+        recentInstances: instances.slice(0, 10).map(w => ({
+          id: w.id,
+          status: w.status,
+          hostname: w.hostname,
+          startedAt: w.startedAt.toISOString(),
+          stoppedAt: w.stoppedAt?.toISOString(),
+          jobsProcessed: w.jobsProcessed
+        }))
+      });
+    }
+  },
+  {
+    id: 'admin.POST./admin/worker/start',
+    method: 'POST',
+    path: '/admin/worker/start',
+    auth: Auth.admin(),
+    summary: 'Start the job worker',
+    tags: ['admin'],
+    handler: async (req, res) => {
+      const { workerLoop, getWorkerStatus } = await import('../../../workers/jobWorker');
+      const { getActiveWorkersCount } = await import('../../../workers/workerManager');
+
+      // Check if already running locally
+      const localStatus = getWorkerStatus();
+      if (localStatus.isRunning) {
+        return json(res, { 
+          error: 'Worker is already running in this process',
+          localWorkerRunning: true
+        }, 400);
+      }
+
+      // Check if another worker is running elsewhere
+      const activeCount = await getActiveWorkersCount('job_worker');
+      if (activeCount > 0) {
+        return json(res, { 
+          error: 'Another worker instance is already running',
+          activeWorkersCount: activeCount
+        }, 400);
+      }
+
+      // Start worker in background (non-blocking)
+      workerLoop().catch(err => {
+        console.error('[admin] Worker crashed:', err);
+      });
+
+      // Wait a moment for worker to register
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      return json(res, { 
+        message: 'Worker started',
+        status: getWorkerStatus()
+      });
+    }
+  },
+  {
+    id: 'admin.POST./admin/worker/stop',
+    method: 'POST',
+    path: '/admin/worker/stop',
+    auth: Auth.admin(),
+    summary: 'Stop the job worker',
+    tags: ['admin'],
+    handler: async (req, res) => {
+      const { stopWorker, getWorkerStatus } = await import('../../../workers/jobWorker');
+
+      const localStatus = getWorkerStatus();
+      if (!localStatus.isRunning) {
+        return json(res, { 
+          error: 'Worker is not running in this process',
+          localWorkerRunning: false
+        }, 400);
+      }
+
+      try {
+        await stopWorker();
+        return json(res, { 
+          message: 'Worker stop signal sent',
+          status: getWorkerStatus()
+        });
+      } catch (err) {
+        return json(res, { 
+          error: err instanceof Error ? err.message : 'Failed to stop worker'
+        }, 500);
+      }
+    }
+  }]
 };

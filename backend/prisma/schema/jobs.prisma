@@ -26,3 +26,19 @@ model JobRun {
   @@index([triggeredBy])
   @@index([status, lastHeartbeatAt])
 }
+
+model WorkerInstance {
+  id              String    @id @default(uuid()) @db.VarChar(36)
+  workerType      String    @default("job_worker") @db.VarChar(50)
+  status          String    @default("STARTING") @db.VarChar(20) // STARTING, RUNNING, STOPPING, STOPPED
+  hostname        String?   @db.VarChar(255)
+  pid             Int?
+  startedAt       DateTime  @default(now())
+  lastHeartbeatAt DateTime  @default(now())
+  stoppedAt       DateTime?
+  jobsProcessed   Int       @default(0)
+  metadata        Json?
+
+  @@index([workerType, status])
+  @@index([lastHeartbeatAt])
+}
