@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { JobDefinition, JobRun, ApiError } from '../../types';
+import { getJobDescription, getJobPurpose, getJobImpact } from './JobDescriptions';
 
 interface RunJobModalProps {
   open: boolean;
@@ -127,17 +128,32 @@ export function RunJobModal({ open, onClose, onSubmit, definitions, activeJobs, 
 
           {selectedJob && (
             <>
-              <div className="job-description">
-                <h3>Description:</h3>
-                <p>{selectedJob.description}</p>
-              </div>
-
-              {selectedJob.examples.length > 0 && (
-                <div className="job-examples">
-                  <h3>Example Usage:</h3>
-                  <pre className="example-code">{selectedJob.examples[0]}</pre>
+              <div className="job-info-card">
+                <div className="job-info-header">
+                  <strong>{selectedJob.name}</strong>
+                  {selectedJob.group && (
+                    <span className="job-group-badge">{selectedJob.group}</span>
+                  )}
                 </div>
-              )}
+                <p className="job-short-desc">{getJobDescription(selectedJob.id)}</p>
+                
+                <div className="job-details">
+                  <div className="job-detail-row">
+                    <span className="detail-label">Purpose:</span>
+                    <span className="detail-value">{getJobPurpose(selectedJob.id) || selectedJob.description}</span>
+                  </div>
+                  <div className="job-detail-row">
+                    <span className="detail-label">Impact:</span>
+                    <span className="detail-value">{getJobImpact(selectedJob.id) || 'Improves system performance'}</span>
+                  </div>
+                  {selectedJob.dependencies && selectedJob.dependencies.length > 0 && (
+                    <div className="job-detail-row">
+                      <span className="detail-label">Depends on:</span>
+                      <span className="detail-value dep-list">{selectedJob.dependencies.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {isDuplicateRunning && (
                 <div className="warning-banner">

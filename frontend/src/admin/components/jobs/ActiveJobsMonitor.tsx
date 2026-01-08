@@ -1,4 +1,5 @@
 import type { JobRun, JobUIStatus } from '../../types';
+import { getJobDescription } from './JobDescriptions';
 
 interface ActiveJobsMonitorProps {
   jobs: JobRun[];
@@ -105,7 +106,12 @@ export function ActiveJobsMonitor({
                 <div className="job-header">
                   <div className="job-title">
                     <span className="status-icon">{getStatusIcon(uiStatus)}</span>
-                    <span className="job-name">{job.jobName}</span>
+                    <span 
+                      className="job-name job-name-with-tooltip" 
+                      title={getJobDescription(job.jobName)}
+                    >
+                      {job.jobName}
+                    </span>
                     <span className="job-id">(#{job.id})</span>
                   </div>
                   <div className="job-actions">

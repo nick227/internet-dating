@@ -1644,3 +1644,160 @@
   display: flex;
   gap: 8px;
 }
+
+/* User Guide Help Elements */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.help-link {
+  padding: 8px 16px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.help-link:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.help-banner {
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.help-banner strong {
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--primary);
+}
+
+.help-link-inline {
+  color: var(--primary);
+  text-decoration: underline;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.help-link-inline:hover {
+  text-decoration: none;
+}
+
+/* Enhanced Job Info Card in Run Job Modal */
+.job-info-card {
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.job-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.job-info-header strong {
+  font-size: 16px;
+  color: var(--fg);
+}
+
+.job-group-badge {
+  padding: 4px 10px;
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--primary);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.job-short-desc {
+  color: var(--fg-secondary);
+  font-size: 14px;
+  font-style: italic;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.job-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
+  padding-top: 12px;
+}
+
+.job-detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--fg);
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: var(--fg-secondary);
+  flex: 1;
+}
+
+.detail-value.dep-list {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--primary);
+}
+
+/* Group Info Enhancements */
+.group-when {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  margin: 8px 0 0 0;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+}
+
+.group-when strong {
+  color: var(--fg);
+}
+
+/* Job Name Tooltips in Tables */
+.job-name-with-tooltip {
+  cursor: help;
+  position: relative;
+}
+
+.job-name-with-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 8px;
+}

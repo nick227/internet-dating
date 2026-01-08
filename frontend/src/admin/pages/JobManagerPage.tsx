@@ -252,6 +252,22 @@ export function JobManagerPage() {
     <div className="job-manager-page">
       <div className="page-header">
         <h1>Job Manager</h1>
+        <a 
+          href="/docs/jobs-user-guide.md" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="help-link"
+          title="View user guide"
+        >
+          📖 User Guide
+        </a>
+      </div>
+      
+      <div className="help-banner">
+        <strong>💡 New to Job Manager?</strong> Jobs are automated tasks that keep your platform running smoothly. 
+        <a href="/docs/jobs-user-guide.md" target="_blank" rel="noopener noreferrer" className="help-link-inline">
+          Read the guide
+        </a> to learn what each job does.
       </div>
 
       <WorkerControl onStatusChange={() => {

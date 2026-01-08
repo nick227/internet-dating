@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { JobRun, JobRunStatus } from '../../types';
+import { getJobDescription } from './JobDescriptions';
 
 interface JobHistoryListProps {
   runs: JobRun[];
@@ -138,7 +139,12 @@ export function JobHistoryList({
                     <span className={`status-icon ${getStatusClass(run.status)}`}>
                       {getStatusIcon(run.status)}
                     </span>
-                    <span className="job-name">{run.jobName}</span>
+                    <span 
+                      className="job-name job-name-with-tooltip" 
+                      title={getJobDescription(run.jobName)}
+                    >
+                      {run.jobName}
+                    </span>
                     <span className="job-id">(#{run.id})</span>
                   </div>
                   <button onClick={() => onViewDetails(run.id)} className="btn-link">

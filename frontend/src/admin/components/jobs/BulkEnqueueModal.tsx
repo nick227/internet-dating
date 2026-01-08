@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { JobGroup, JobDefinition } from '../../types';
+import { GROUP_DESCRIPTIONS_DETAILED } from './JobDescriptions';
 
 interface BulkEnqueueModalProps {
   isOpen: boolean;
@@ -10,14 +11,6 @@ interface BulkEnqueueModalProps {
   totalJobs: number;
 }
 
-const GROUP_DESCRIPTIONS: Record<JobGroup, string> = {
-  matching: 'User traits and match scoring algorithms',
-  feed: 'Content features, trending, affinity, and feed presort',
-  search: 'Profile search index, interest sets, and searchable users',
-  maintenance: 'Cleanup, reconciliation, and system maintenance',
-  media: 'Media metadata extraction and processing',
-  quiz: 'Quiz answer statistics and aggregations'
-};
 
 export function BulkEnqueueModal({
   isOpen,
@@ -117,8 +110,9 @@ export function BulkEnqueueModal({
 
                 {selectedGroup && (
                   <div className="group-info">
-                    <h4>{selectedGroup} Group</h4>
-                    <p className="group-description">{GROUP_DESCRIPTIONS[selectedGroup as JobGroup]}</p>
+                    <h4>{GROUP_DESCRIPTIONS_DETAILED[selectedGroup as JobGroup]?.title || `${selectedGroup} Group`}</h4>
+                    <p className="group-description">{GROUP_DESCRIPTIONS_DETAILED[selectedGroup as JobGroup]?.purpose}</p>
+                    <p className="group-when"><strong>When to run:</strong> {GROUP_DESCRIPTIONS_DETAILED[selectedGroup as JobGroup]?.when}</p>
                     <div className="group-jobs">
                       <strong>Jobs to enqueue ({selectedGroupJobs.length}):</strong>
                       <ul>
