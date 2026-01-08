@@ -5,6 +5,8 @@ import { buildProfileSearchIndexForAll } from '../../src/jobs/profileSearchIndex
 export const profileSearchIndexJob: JobDefinition = {
   name: 'profile-search-index',
   description: 'Build profile search index (denormalized search surface)',
+  group: 'search',
+  dependencies: ['build-user-traits'],
   examples: [
     'tsx scripts/runJobs.ts profile-search-index --userId=8 --userBatchSize=100 --pauseMs=50',
     'tsx scripts/runJobs.ts profile-search-index --userBatchSize=100 --pauseMs=50'

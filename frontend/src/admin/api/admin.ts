@@ -6,7 +6,10 @@ import type {
   JobDefinitionsResponse,
   EnqueueJobResponse,
   CancelJobResponse,
-  JobRun
+  JobRun,
+  EnqueueAllJobsResponse,
+  EnqueueGroupJobsResponse,
+  JobGroup
 } from '../types';
 
 export const adminApi = {
@@ -55,6 +58,16 @@ export const adminApi = {
   // Get available job definitions
   async getJobDefinitions(): Promise<JobDefinitionsResponse> {
     return http('/api/admin/jobs/definitions', 'GET');
+  },
+
+  // Enqueue all jobs
+  async enqueueAllJobs(): Promise<EnqueueAllJobsResponse> {
+    return http('/api/admin/jobs/enqueue-all', 'POST', { body: {} });
+  },
+
+  // Enqueue jobs by group
+  async enqueueJobsByGroup(group: JobGroup): Promise<EnqueueGroupJobsResponse> {
+    return http('/api/admin/jobs/enqueue-group', 'POST', { body: { group } });
   },
 
   // Clean up stalled jobs

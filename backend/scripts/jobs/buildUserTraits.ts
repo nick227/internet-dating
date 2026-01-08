@@ -5,6 +5,8 @@ import { buildUserTraitsForAll } from '../../src/jobs/buildUserTraitsJob.js';
 export const buildUserTraitsJob: JobDefinition = {
   name: 'build-user-traits',
   description: 'Build user traits from quiz results',
+  group: 'matching',
+  dependencies: [], // Foundation job - no dependencies
   examples: [
     'tsx scripts/runJobs.ts build-user-traits --userId=8 --batchSize=100 --pauseMs=50'
   ],

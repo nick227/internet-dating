@@ -5,6 +5,8 @@ import { runTrendingJob } from '../../src/jobs/trendingJob.js';
 export const trendingJob: JobDefinition = {
   name: 'trending',
   description: 'Compute trending scores for posts',
+  group: 'feed',
+  dependencies: ['content-features'],
   examples: [
     'tsx scripts/runJobs.ts trending --windowHours=48 --minEngagements=5'
   ],

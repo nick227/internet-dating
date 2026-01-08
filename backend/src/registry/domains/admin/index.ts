@@ -250,18 +250,139 @@ export const adminDomain: DomainRegistry = {
       summary: 'Get available job definitions',
       tags: ['admin'],
       handler: async (req, res) => {
-        const { getAllJobs } = await import('../../../../scripts/jobs/registry');
+        const { getAllJobs, getJobGroups } = await import('../../../../scripts/jobs/registry');
         const jobs = getAllJobs();
+        const groups = getJobGroups();
         
         const definitions = Object.entries(jobs).map(([name, job]) => ({
           id: name,
           name: job.name,
           description: job.description,
           examples: job.examples,
-          defaultParams: job.defaultParams
+          defaultParams: job.defaultParams,
+          group: job.group,
+          dependencies: job.dependencies || []
         }));
 
-        return json(res, { jobs: definitions });
+        return json(res, { jobs: definitions, groups });
+      }
+    },
+
+    // Enqueue All Jobs - Enqueue all jobs with dependencies resolved
+    {
+      id: 'admin.POST./admin/jobs/enqueue-all',
+      method: 'POST',
+      path: '/admin/jobs/enqueue-all',
+      auth: Auth.admin(),
+      summary: 'Enqueue all jobs in dependency order',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        try {
+          const { getJobsMap } = await import('../../../../scripts/jobs/registry');
+          const { resolveJobDependencies } = await import('../../../../scripts/jobs/dependencyResolver');
+          
+          const jobsMap = getJobsMap();
+          const resolvedJobs = resolveJobDependencies(jobsMap);
+          
+          const enqueuedJobs: Array<{ jobName: string; jobRunId: string }> = [];
+          
+          // Enqueue all jobs in dependency order
+          for (const job of resolvedJobs) {
+            const jobRun = await prisma.jobRun.create({
+              data: {
+                jobName: job.name,
+                status: 'QUEUED',
+                trigger: 'MANUAL',
+                scope: 'system',
+                algorithmVersion: 'v1',
+                metadata: job.defaultParams || {},
+                queuedAt: new Date(),
+                triggeredBy: req.ctx.userId
+              }
+            });
+            
+            enqueuedJobs.push({
+              jobName: job.name,
+              jobRunId: jobRun.id.toString()
+            });
+          }
+          
+          return json(res, {
+            status: 'enqueued',
+            count: enqueuedJobs.length,
+            jobs: enqueuedJobs
+          }, 202);
+        } catch (err) {
+          return json(res, {
+            error: 'Failed to enqueue jobs',
+            details: err instanceof Error ? err.message : 'Unknown error'
+          }, 500);
+        }
+      }
+    },
+
+    // Enqueue Jobs by Group - Enqueue all jobs in a specific group with dependencies
+    {
+      id: 'admin.POST./admin/jobs/enqueue-group',
+      method: 'POST',
+      path: '/admin/jobs/enqueue-group',
+      auth: Auth.admin(),
+      summary: 'Enqueue all jobs in a specific group',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        try {
+          const group = req.body.group as string;
+          
+          if (!group) {
+            return json(res, { error: 'Group is required' }, 400);
+          }
+          
+          const { getJobsMap } = await import('../../../../scripts/jobs/registry');
+          const { resolveJobsByGroup } = await import('../../../../scripts/jobs/dependencyResolver');
+          
+          const jobsMap = getJobsMap();
+          const resolvedJobs = resolveJobsByGroup(jobsMap, group as any);
+          
+          if (resolvedJobs.length === 0) {
+            return json(res, { error: `No jobs found for group: ${group}` }, 404);
+          }
+          
+          const enqueuedJobs: Array<{ jobName: string; jobRunId: string; group?: string }> = [];
+          
+          // Enqueue all jobs in dependency order
+          for (const job of resolvedJobs) {
+            const jobRun = await prisma.jobRun.create({
+              data: {
+                jobName: job.name,
+                status: 'QUEUED',
+                trigger: 'MANUAL',
+                scope: 'system',
+                algorithmVersion: 'v1',
+                metadata: job.defaultParams || {},
+                queuedAt: new Date(),
+                triggeredBy: req.ctx.userId
+              }
+            });
+            
+            enqueuedJobs.push({
+              jobName: job.name,
+              jobRunId: jobRun.id.toString(),
+              group: job.group
+            });
+          }
+          
+          return json(res, {
+            status: 'enqueued',
+            group,
+            count: enqueuedJobs.length,
+            jobs: enqueuedJobs
+          }, 202);
+        } catch (err) {
+          return json(res, {
+            error: 'Failed to enqueue group jobs',
+            details: err instanceof Error ? err.message : 'Unknown error'
+          }, 500);
+        }
       }
     },
 

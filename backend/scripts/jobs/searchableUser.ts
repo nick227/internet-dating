@@ -5,6 +5,8 @@ import { buildSearchableUsersForAll } from '../../src/jobs/searchableUserJob.js'
 export const searchableUserJob: JobDefinition = {
   name: 'searchable-user',
   description: 'Build searchable user snapshot (viewer-agnostic base filter)',
+  group: 'search',
+  dependencies: ['build-user-traits'],
   examples: [
     'tsx scripts/runJobs.ts searchable-user --userBatchSize=100 --pauseMs=50'
   ],

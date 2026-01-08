@@ -1,4 +1,4 @@
-  import type { JobDefinition, JobRegistry } from './types.js';
+  import type { JobDefinition, JobRegistry, JobGroup } from './types.js';
   import { validateJobDefinition } from './types.js';
   import { matchScoresJob } from './matchScores.js';
   import { compatibilityJob } from './compatibility.js';
@@ -16,6 +16,7 @@
   import { userInterestSetsJob } from './userInterestSets.js';
   import { searchableUserJob } from './searchableUser.js';
   import { quizAnswerStatsJob } from './quizAnswerStats.js';
+  import { interestRelationshipsJob } from './interestRelationships.js';
 
   const jobs: JobRegistry = {
     'match-scores': matchScoresJob,
@@ -34,6 +35,7 @@
     'user-interest-sets': userInterestSetsJob,
     'searchable-user': searchableUserJob,
     'quiz-answer-stats': quizAnswerStatsJob,
+    'interest-relationships': interestRelationshipsJob,
   };
 
   // Validate all jobs at startup (fail fast)
@@ -51,6 +53,24 @@
 
   export function listJobNames(): string[] {
     return Object.keys(jobs);
+  }
+
+  export function getJobsByGroup(group: JobGroup): JobDefinition[] {
+    return Object.values(jobs).filter(job => job.group === group);
+  }
+
+  export function getJobGroups(): JobGroup[] {
+    const groups = new Set<JobGroup>();
+    for (const job of Object.values(jobs)) {
+      if (job.group) {
+        groups.add(job.group);
+      }
+    }
+    return Array.from(groups).sort();
+  }
+
+  export function getJobsMap(): Map<string, JobDefinition> {
+    return new Map(Object.entries(jobs));
   }
 
   export function printUsage() {

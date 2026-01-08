@@ -24,12 +24,16 @@ export interface JobRun {
   lastHeartbeatAt?: string;
 }
 
+export type JobGroup = 'matching' | 'feed' | 'search' | 'maintenance' | 'media' | 'quiz';
+
 export interface JobDefinition {
   id: string;
   name: string;
   description: string;
   examples: string[];
   defaultParams?: Record<string, unknown>;
+  group?: JobGroup;
+  dependencies?: string[];
 }
 
 export interface JobStats {
@@ -54,6 +58,27 @@ export interface ActiveJobsResponse {
 
 export interface JobDefinitionsResponse {
   jobs: JobDefinition[];
+  groups: JobGroup[];
+}
+
+export interface EnqueueAllJobsResponse {
+  status: string;
+  count: number;
+  jobs: Array<{
+    jobName: string;
+    jobRunId: string;
+  }>;
+}
+
+export interface EnqueueGroupJobsResponse {
+  status: string;
+  group: string;
+  count: number;
+  jobs: Array<{
+    jobName: string;
+    jobRunId: string;
+    group?: string;
+  }>;
 }
 
 export interface EnqueueJobResponse {

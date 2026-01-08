@@ -5,6 +5,8 @@ import { runUserAffinityJob } from '../../src/jobs/userAffinityJob.js';
 export const affinityJob: JobDefinition = {
   name: 'affinity',
   description: 'Compute user affinity profiles',
+  group: 'feed',
+  dependencies: [],
   examples: [
     'tsx scripts/runJobs.ts affinity --userId=8 --lookbackDays=90'
   ],

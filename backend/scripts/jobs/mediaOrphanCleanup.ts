@@ -5,6 +5,8 @@ import { runMediaOrphanCleanupJob } from '../../src/jobs/mediaOrphanCleanupJob.j
 export const mediaOrphanCleanupJob: JobDefinition = {
   name: 'media-orphan-cleanup',
   description: 'Cleanup orphaned media files',
+  group: 'maintenance',
+  dependencies: [],
   examples: [
     'tsx scripts/runJobs.ts media-orphan-cleanup --maxAgeHours=24'
   ],

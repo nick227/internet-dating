@@ -1480,3 +1480,167 @@
 .status-error {
   color: #ef4444;
 }
+
+/* Bulk Enqueue Modal Styles */
+.bulk-enqueue-modal {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.bulk-option {
+  margin-bottom: 20px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+
+.bulk-option:has(input:checked) {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.bulk-option-label {
+  display: flex;
+  gap: 12px;
+  cursor: pointer;
+  align-items: flex-start;
+}
+
+.bulk-option-label input[type="radio"] {
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.bulk-option-content {
+  flex: 1;
+}
+
+.bulk-option-content strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--fg);
+  font-size: 16px;
+}
+
+.bulk-option-content p {
+  color: var(--fg-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.group-selector {
+  margin-top: 12px;
+  padding-left: 28px;
+}
+
+.group-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.group-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.group-info {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.group-info h4 {
+  margin: 0 0 8px 0;
+  color: var(--fg);
+  font-size: 15px;
+  text-transform: capitalize;
+}
+
+.group-description {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.group-jobs {
+  margin-top: 12px;
+}
+
+.group-jobs strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.group-jobs ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.group-jobs li {
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.group-jobs code {
+  font-family: 'Courier New', monospace;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.job-deps {
+  color: var(--fg-secondary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.bulk-warning {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(251, 146, 60, 0.1);
+  border: 1px solid rgba(251, 146, 60, 0.3);
+  border-radius: 6px;
+}
+
+.bulk-warning strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #f59e0b;
+  font-size: 14px;
+}
+
+.bulk-warning ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.bulk-warning li {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+/* History Actions Container */
+.history-actions {
+  display: flex;
+  gap: 8px;
+}

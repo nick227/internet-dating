@@ -5,6 +5,8 @@ import { runContentFeatureJob } from '../../src/jobs/contentFeatureJob.js';
 export const contentFeaturesJob: JobDefinition = {
   name: 'content-features',
   description: 'Extract content features from posts',
+  group: 'feed',
+  dependencies: [],
   examples: [
     'tsx scripts/runJobs.ts content-features --batchSize=50'
   ],

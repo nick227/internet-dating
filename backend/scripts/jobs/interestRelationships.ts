@@ -13,7 +13,10 @@ const MIN_PAIR_COUNT = 2;
 export const interestRelationshipsJob: JobDefinition = {
   name: 'interest-relationships',
   description: 'Incrementally builds interest-to-interest relationships from user co-selections',
+  group: 'search',
+  dependencies: [],
   examples: ['tsx scripts/runJobs.ts interest-relationships'],
+  defaultParams: {},
   run: async () => {
     let processedInterests = 0;
     let relationshipsTouched = 0;

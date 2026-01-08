@@ -5,6 +5,8 @@ import { runFeedPresortJob } from '../../src/jobs/feedPresortJob.js';
 export const feedPresortJob: JobDefinition = {
   name: 'feed-presort',
   description: 'Presort feed segments for users',
+  group: 'feed',
+  dependencies: ['match-scores', 'affinity', 'content-features'],
   examples: [
     'tsx scripts/runJobs.ts feed-presort --userId=8 --batchSize=100 --segmentSize=20'
   ],

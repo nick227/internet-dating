@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { adminApi } from '../api/admin';
 import { useJobStats } from '../hooks/useJobStats';
 import { useJobWebSocket } from '../hooks/useJobWebSocket';
@@ -9,8 +9,9 @@ import { JobHistoryList } from '../components/jobs/JobHistoryList';
 import { JobDetailsModal } from '../components/jobs/JobDetailsModal';
 import { RunJobModal } from '../components/jobs/RunJobModal';
 import { WorkerControl } from '../components/jobs/WorkerControl';
+import { BulkEnqueueModal } from '../components/jobs/BulkEnqueueModal';
 import { trackError } from '../utils/errorTracking';
-import type { JobRun, JobRunStatus } from '../types';
+import type { JobRun, JobRunStatus, JobGroup } from '../types';
 
 export function JobManagerPage() {
   // State for active jobs (WS-driven, single source of truth)
@@ -29,10 +30,30 @@ export function JobManagerPage() {
   const [detailsModalJobId, setDetailsModalJobId] = useState<string | null>(null);
   const [runJobModalOpen, setRunJobModalOpen] = useState(false);
   const [prefillJob, setPrefillJob] = useState<{ jobName: string; params: Record<string, unknown> } | null>(null);
+  const [bulkEnqueueModalOpen, setBulkEnqueueModalOpen] = useState(false);
   
   // Hooks (API-driven)
   const { stats, loading: statsLoading, refresh: refreshStats } = useJobStats(false);
   const { definitions } = useJobDefinitions();
+  
+  // Group definitions by group for UI
+  const { jobsByGroup, groups } = useMemo(() => {
+    const byGroup = new Map<JobGroup, typeof definitions>();
+    const groupSet = new Set<JobGroup>();
+    
+    definitions.forEach(def => {
+      if (def.group) {
+        groupSet.add(def.group);
+        const existing = byGroup.get(def.group) || [];
+        byGroup.set(def.group, [...existing, def]);
+      }
+    });
+    
+    return {
+      jobsByGroup: byGroup,
+      groups: Array.from(groupSet).sort()
+    };
+  }, [definitions]);
   
   // Load initial active jobs from API on mount
   useEffect(() => {
@@ -200,6 +221,32 @@ export function JobManagerPage() {
     setRunJobModalOpen(true); // Open run modal
   };
   
+  const handleBulkEnqueue = async (type: 'all' | 'group', group?: JobGroup) => {
+    try {
+      if (type === 'all') {
+        const result = await adminApi.enqueueAllJobs();
+        alert(`✓ Successfully enqueued ${result.count} jobs in dependency order`);
+      } else if (group) {
+        const result = await adminApi.enqueueJobsByGroup(group);
+        alert(`✓ Successfully enqueued ${result.count} jobs in "${group}" group`);
+      }
+      
+      refreshStats();
+      loadActiveJobs();
+      setBulkEnqueueModalOpen(false);
+    } catch (err) {
+      trackError(err, {
+        action: 'bulkEnqueue',
+        component: 'JobManagerPage',
+        type,
+        group
+      });
+      console.error('Failed to enqueue jobs:', err);
+      alert('Failed to enqueue jobs. Please try again.');
+      throw err; // Re-throw so modal can handle
+    }
+  };
+  
   return (
     <>
     <div className="job-manager-page">
@@ -244,6 +291,7 @@ export function JobManagerPage() {
         }}
         onViewDetails={setDetailsModalJobId}
         onRunNewJob={() => setRunJobModalOpen(true)}
+        onBulkEnqueue={() => setBulkEnqueueModalOpen(true)}
       />
     </div>
       
@@ -266,6 +314,15 @@ export function JobManagerPage() {
         definitions={definitions}
         activeJobs={activeJobs}
         prefillJob={prefillJob}
+      />
+      
+      <BulkEnqueueModal
+        isOpen={bulkEnqueueModalOpen}
+        onClose={() => setBulkEnqueueModalOpen(false)}
+        onConfirm={handleBulkEnqueue}
+        groups={groups}
+        jobsByGroup={jobsByGroup}
+        totalJobs={definitions.length}
       />
     </>
   );

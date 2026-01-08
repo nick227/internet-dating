@@ -5,6 +5,8 @@ import { runStatsReconcileJob } from '../../src/jobs/statsReconcileJob.js';
 export const statsReconcileJob: JobDefinition = {
   name: 'stats-reconcile',
   description: 'Reconcile statistics counters',
+  group: 'maintenance',
+  dependencies: [],
   examples: [
     'tsx scripts/runJobs.ts stats-reconcile --lookbackHours=24 --batchSize=200 --pauseMs=50'
   ],

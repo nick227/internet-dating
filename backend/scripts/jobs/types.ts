@@ -1,8 +1,12 @@
+export type JobGroup = 'matching' | 'feed' | 'search' | 'maintenance' | 'media' | 'quiz';
+
 export interface JobDefinition {
   name: string;
   description: string;
   examples: string[];
   defaultParams?: Record<string, unknown>;
+  group?: JobGroup;
+  dependencies?: string[]; // Job names that must complete before this job
   run: () => Promise<void>;
 }
 

@@ -5,6 +5,8 @@ import { runQuizAnswerStatsJob } from '../../src/jobs/quizAnswerStatsJob.js';
 export const quizAnswerStatsJob: JobDefinition = {
   name: 'quiz-answer-stats',
   description: 'Aggregate quiz answer statistics by demographics',
+  group: 'quiz',
+  dependencies: [],
   examples: [
     'tsx scripts/runJobs.ts quiz-answer-stats',
     'tsx scripts/runJobs.ts quiz-answer-stats --quizId=1',

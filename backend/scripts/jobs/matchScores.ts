@@ -5,6 +5,8 @@ import { runMatchScoreJob } from '../../src/jobs/matchScoreJob.js';
 export const matchScoresJob: JobDefinition = {
   name: 'match-scores',
   description: 'Compute match scores between users',
+  group: 'matching',
+  dependencies: ['build-user-traits'],
   examples: [
     'tsx scripts/runJobs.ts match-scores --userId=8 --batchSize=100 --candidateBatchSize=500'
   ],

@@ -5,6 +5,8 @@ import { buildUserInterestSetsForAll } from '../../src/jobs/userInterestSetsJob.
 export const userInterestSetsJob: JobDefinition = {
   name: 'user-interest-sets',
   description: 'Build user interest sets (precompute interest → userId mappings)',
+  group: 'search',
+  dependencies: [],
   examples: [
     'tsx scripts/runJobs.ts user-interest-sets --batchSize=1000 --pauseMs=50'
   ],

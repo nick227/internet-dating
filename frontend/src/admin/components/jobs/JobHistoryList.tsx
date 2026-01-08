@@ -15,6 +15,7 @@ interface JobHistoryListProps {
   onFilterChange: (filters: { jobName?: string; status?: JobRunStatus }) => void;
   onViewDetails: (jobRunId: string) => void;
   onRunNewJob: () => void;
+  onBulkEnqueue?: () => void;
 }
 
 export function JobHistoryList({
@@ -27,7 +28,8 @@ export function JobHistoryList({
   onPageChange,
   onFilterChange,
   onViewDetails,
-  onRunNewJob
+  onRunNewJob,
+  onBulkEnqueue
 }: JobHistoryListProps) {
   const [jobNameFilter, setJobNameFilter] = useState(filters.jobName || '');
   const [statusFilter, setStatusFilter] = useState(filters.status || '');
@@ -78,9 +80,16 @@ export function JobHistoryList({
     <div className="job-history-list">
       <div className="history-header">
         <h2>Job History</h2>
-        <button onClick={onRunNewJob} className="btn-primary actionBtn">
-          Run New Job
-        </button>
+        <div className="history-actions">
+          {onBulkEnqueue && (
+            <button onClick={onBulkEnqueue} className="btn-secondary actionBtn">
+              Bulk Enqueue
+            </button>
+          )}
+          <button onClick={onRunNewJob} className="btn-primary actionBtn">
+            Run New Job
+          </button>
+        </div>
       </div>
       
       <div className="history-filters">
