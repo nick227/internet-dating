@@ -7,9 +7,10 @@ interface RunJobModalProps {
   onSubmit: (jobName: string, params: Record<string, unknown>) => Promise<void>;
   definitions: JobDefinition[];
   activeJobs: JobRun[];
+  prefillJob?: { jobName: string; params: Record<string, unknown> } | null;
 }
 
-export function RunJobModal({ open, onClose, onSubmit, definitions, activeJobs }: RunJobModalProps) {
+export function RunJobModal({ open, onClose, onSubmit, definitions, activeJobs, prefillJob }: RunJobModalProps) {
   const [selectedJobId, setSelectedJobId] = useState('');
   const [jsonParams, setJsonParams] = useState('{}');
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +22,19 @@ export function RunJobModal({ open, onClose, onSubmit, definitions, activeJobs }
   );
 
   useEffect(() => {
-    if (open && definitions.length > 0 && !selectedJobId) {
-      setSelectedJobId(definitions[0].id);
-      loadDefaults(definitions[0]);
+    if (open && definitions.length > 0) {
+      if (prefillJob) {
+        // Pre-fill with job from re-run
+        setSelectedJobId(prefillJob.jobName);
+        setJsonParams(JSON.stringify(prefillJob.params, null, 2));
+        setError(null);
+      } else if (!selectedJobId) {
+        // Default to first job
+        setSelectedJobId(definitions[0].id);
+        loadDefaults(definitions[0]);
+      }
     }
-  }, [open, definitions]);
+  }, [open, definitions, prefillJob, selectedJobId]);
 
   const loadDefaults = (job: JobDefinition) => {
     if (job.defaultParams) {

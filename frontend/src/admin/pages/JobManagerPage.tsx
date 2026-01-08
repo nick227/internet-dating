@@ -25,6 +25,7 @@ export function JobManagerPage() {
   // State for modals
   const [detailsModalJobId, setDetailsModalJobId] = useState<string | null>(null);
   const [runJobModalOpen, setRunJobModalOpen] = useState(false);
+  const [prefillJob, setPrefillJob] = useState<{ jobName: string; params: Record<string, unknown> } | null>(null);
   
   // Hooks (API-driven)
   const { stats, loading: statsLoading, refresh: refreshStats } = useJobStats(false);
@@ -38,6 +39,7 @@ export function JobManagerPage() {
   // Load history on page/filter change
   useEffect(() => {
     loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyPage, historyFilters]);
   
   const loadActiveJobs = async () => {
@@ -149,16 +151,21 @@ export function JobManagerPage() {
   };
   
   const handleEnqueueJob = async (jobName: string, params: Record<string, unknown>) => {
-    const result = await adminApi.enqueueJob(jobName, params);
-    alert(`Job enqueued: #${result.jobRunId}`);
-    refreshStats();
-    loadActiveJobs(); // Will be updated by WS, but load immediately for instant feedback
+    try {
+      const result = await adminApi.enqueueJob(jobName, params);
+      alert(`Job enqueued: #${result.jobRunId}`);
+      refreshStats();
+      loadActiveJobs(); // Will be updated by WS, but load immediately for instant feedback
+    } catch (err) {
+      // Error is handled in RunJobModal, just re-throw
+      throw err;
+    }
   };
   
   const handleRerunJob = (jobName: string, params: Record<string, unknown>) => {
     setDetailsModalJobId(null); // Close details modal
+    setPrefillJob({ jobName, params }); // Set prefill data
     setRunJobModalOpen(true); // Open run modal
-    // TODO: Pre-fill with job name and params
   };
   
   return (
@@ -209,10 +216,14 @@ export function JobManagerPage() {
       
       <RunJobModal
         open={runJobModalOpen}
-        onClose={() => setRunJobModalOpen(false)}
+        onClose={() => {
+          setRunJobModalOpen(false);
+          setPrefillJob(null); // Clear prefill on close
+        }}
         onSubmit={handleEnqueueJob}
         definitions={definitions}
         activeJobs={activeJobs}
+        prefillJob={prefillJob}
       />
     </div>
   );
