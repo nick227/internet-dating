@@ -1,4 +1,5 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { realtime } from '../../api/realtime';
 import type { JobWebSocketEvent } from '../types';
 
 interface UseJobWebSocketParams {
@@ -9,68 +10,35 @@ interface UseJobWebSocketParams {
 }
 
 export function useJobWebSocket(params: UseJobWebSocketParams) {
-  const [isConnected, setIsConnected] = useState(false);
-  const handleMessage = useCallback((event: MessageEvent) => {
-    try {
-      const message = JSON.parse(event.data) as JobWebSocketEvent;
-      
-      switch (message.type) {
-        case 'server.admin.job_started':
-          params.onJobStarted?.(message);
-          break;
-        case 'server.admin.job_progress':
-          params.onJobProgress?.(message);
-          break;
-        case 'server.admin.job_completed':
-          params.onJobCompleted?.(message);
-          break;
-      }
-    } catch (err) {
-      console.error('Failed to parse WebSocket message:', err);
-    }
-  }, [params]);
+  const [isConnected, setIsConnected] = useState(() => realtime.isConnected());
 
   useEffect(() => {
-    // WebSocket connection is managed globally
-    // Just add our message listener
-    const ws = (window as any).__ws__;
-    if (ws) {
-      // Check initial connection state
-      const initialState = ws.readyState === WebSocket.OPEN;
-      setIsConnected(initialState);
-      params.onConnectionChange?.(initialState);
+    // Subscribe to admin job events (broadcast to all admin WebSockets automatically)
+    const unsubscribeStarted = realtime.on('server.admin.job_started', (data) => {
+      params.onJobStarted?.({ type: 'server.admin.job_started', data });
+    });
 
-      // Add message listener
-      ws.addEventListener('message', handleMessage);
+    const unsubscribeProgress = realtime.on('server.admin.job_progress', (data) => {
+      params.onJobProgress?.({ type: 'server.admin.job_progress', data });
+    });
 
-      // Monitor connection state changes
-      const handleOpen = () => {
-        setIsConnected(true);
-        params.onConnectionChange?.(true);
-      };
+    const unsubscribeCompleted = realtime.on('server.admin.job_completed', (data) => {
+      params.onJobCompleted?.({ type: 'server.admin.job_completed', data });
+    });
 
-      const handleClose = () => {
-        setIsConnected(false);
-        params.onConnectionChange?.(false);
-      };
+    // Subscribe to connection status changes
+    const unsubscribeConnection = realtime.onConnectionChange((connected) => {
+      setIsConnected(connected);
+      params.onConnectionChange?.(connected);
+    });
 
-      const handleError = () => {
-        setIsConnected(false);
-        params.onConnectionChange?.(false);
-      };
-
-      ws.addEventListener('open', handleOpen);
-      ws.addEventListener('close', handleClose);
-      ws.addEventListener('error', handleError);
-
-      return () => {
-        ws.removeEventListener('message', handleMessage);
-        ws.removeEventListener('open', handleOpen);
-        ws.removeEventListener('close', handleClose);
-        ws.removeEventListener('error', handleError);
-      };
-    }
-  }, [handleMessage, params]);
+    return () => {
+      unsubscribeStarted();
+      unsubscribeProgress();
+      unsubscribeCompleted();
+      unsubscribeConnection();
+    };
+  }, [params]);
 
   return { isConnected };
 }

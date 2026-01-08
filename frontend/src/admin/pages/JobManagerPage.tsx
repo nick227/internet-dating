@@ -200,6 +200,7 @@ export function JobManagerPage() {
   };
   
   return (
+    <>
     <div className="job-manager-page">
       <div className="page-header">
         <h1>Job Manager</h1>
@@ -237,6 +238,7 @@ export function JobManagerPage() {
         onViewDetails={setDetailsModalJobId}
         onRunNewJob={() => setRunJobModalOpen(true)}
       />
+    </div>
       
       {detailsModalJobId && (
         <JobDetailsModal
@@ -258,6 +260,6 @@ export function JobManagerPage() {
         activeJobs={activeJobs}
         prefillJob={prefillJob}
       />
-    </div>
+    </>
   );
 }

@@ -18,6 +18,8 @@ export const realtime = {
   send: client.send,
   subscribe: (topics: WsSubscribeTopic[]) => client.subscribe(topics),
   on: <T extends ServerEventType>(type: T, handler: RealtimeHandler<T>) => client.on(type, handler),
+  isConnected: () => client.isConnected(),
+  onConnectionChange: (handler: (connected: boolean) => void) => client.onConnectionChange(handler),
 }
 
 function buildWsUrl(apiBaseUrl: string) {

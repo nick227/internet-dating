@@ -28,6 +28,7 @@ export function createWsClient(options: WsClientOptions) {
   let reconnectAttempts = 0
   let shouldReconnect = true
   let lastSubscribe: WsSubscribeTopic[] | null = null
+  const connectionChangeHandlers = new Set<(connected: boolean) => void>()
 
   function connect() {
     shouldReconnect = true
@@ -79,6 +80,7 @@ export function createWsClient(options: WsClientOptions) {
 
   function handleOpen() {
     reconnectAttempts = 0
+    notifyConnectionChange(true)
     if (lastSubscribe !== null) {
       sendNow({
         type: 'client.system.subscribe',
@@ -106,6 +108,7 @@ export function createWsClient(options: WsClientOptions) {
   }
 
   function handleClose(event: CloseEvent) {
+    notifyConnectionChange(false)
     if (!NORMAL_CLOSE_CODES.has(event.code) && DEBUG) {
       console.warn('[ws] close', {
         code: event.code,
@@ -153,11 +156,32 @@ export function createWsClient(options: WsClientOptions) {
     socket.send(JSON.stringify(msg))
   }
 
+  function isConnected() {
+    return socket?.readyState === WebSocket.OPEN
+  }
+
+  function onConnectionChange(handler: (connected: boolean) => void) {
+    connectionChangeHandlers.add(handler)
+    // Immediately notify of current state
+    handler(isConnected())
+    return () => {
+      connectionChangeHandlers.delete(handler)
+    }
+  }
+
+  function notifyConnectionChange(connected: boolean) {
+    for (const handler of connectionChangeHandlers) {
+      handler(connected)
+    }
+  }
+
   return {
     connect,
     disconnect,
     send,
     subscribe,
     on,
+    isConnected,
+    onConnectionChange,
   }
 }

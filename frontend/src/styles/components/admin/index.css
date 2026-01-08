@@ -406,7 +406,7 @@
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin: 1.5rem 0;
 }
 
 .form-group label {
@@ -1102,6 +1102,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: var(--s-4);
 }
 
 .run-job-modal .field-hint {
@@ -1132,11 +1133,19 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 1);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-content {
