@@ -295,7 +295,7 @@ export const adminDomain: DomainRegistry = {
                 trigger: 'MANUAL',
                 scope: 'system',
                 algorithmVersion: 'v1',
-                metadata: job.defaultParams || {},
+                metadata: (job.defaultParams || {}) as any,
                 queuedAt: new Date(),
                 triggeredBy: req.ctx.userId
               }
@@ -358,7 +358,7 @@ export const adminDomain: DomainRegistry = {
                 trigger: 'MANUAL',
                 scope: 'system',
                 algorithmVersion: 'v1',
-                metadata: job.defaultParams || {},
+                metadata: (job.defaultParams || {}) as any,
                 queuedAt: new Date(),
                 triggeredBy: req.ctx.userId
               }
@@ -582,5 +582,6 @@ export const adminDomain: DomainRegistry = {
         }, 500);
       }
     }
+  }
   ]
 };
