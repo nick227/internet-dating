@@ -55,28 +55,6 @@ export const adminDomain: DomainRegistry = {
       }
     },
 
-    // Job Details - Get single job run
-    {
-      id: 'admin.GET./admin/jobs/:jobRunId',
-      method: 'GET',
-      path: '/admin/jobs/:jobRunId',
-      auth: Auth.admin(),
-      summary: 'Get job run details',
-      tags: ['admin'],
-      handler: async (req, res) => {
-        const jobRunId = BigInt(req.params.jobRunId);
-        const run = await prisma.jobRun.findUnique({
-          where: { id: jobRunId }
-        });
-
-        if (!run) {
-          return json(res, { error: 'Job run not found' }, 404);
-        }
-
-        return json(res, run);
-      }
-    },
-
     // Active Jobs - List currently running jobs
     {
       id: 'admin.GET./admin/jobs/active',
@@ -259,6 +237,28 @@ export const adminDomain: DomainRegistry = {
         }));
 
         return json(res, { jobs: definitions });
+      }
+    },
+
+    // Job Details - Get single job run (MUST be after specific routes)
+    {
+      id: 'admin.GET./admin/jobs/:jobRunId',
+      method: 'GET',
+      path: '/admin/jobs/:jobRunId',
+      auth: Auth.admin(),
+      summary: 'Get job run details',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        const jobRunId = BigInt(req.params.jobRunId);
+        const run = await prisma.jobRun.findUnique({
+          where: { id: jobRunId }
+        });
+
+        if (!run) {
+          return json(res, { error: 'Job run not found' }, 404);
+        }
+
+        return json(res, run);
       }
     }
   ]
