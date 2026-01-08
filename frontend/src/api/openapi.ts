@@ -93,16 +93,6 @@ export interface paths {
     get: {
     };
   };
-  "/api/admin/jobs/{jobRunId}": {
-    /** Get job run details */
-    get: {
-      parameters: {
-        path: {
-          jobRunId: components["schemas"]["Id"];
-        };
-      };
-    };
-  };
   "/api/admin/jobs/active": {
     /** Get active job runs */
     get: {
@@ -131,6 +121,21 @@ export interface paths {
   "/api/admin/jobs/definitions": {
     /** Get available job definitions */
     get: {
+    };
+  };
+  "/api/admin/jobs/cleanup-stalled": {
+    /** Clean up stalled/orphaned jobs */
+    post: {
+    };
+  };
+  "/api/admin/jobs/{jobRunId}": {
+    /** Get job run details */
+    get: {
+      parameters: {
+        path: {
+          jobRunId: components["schemas"]["Id"];
+        };
+      };
     };
   };
   "/api/feed": {

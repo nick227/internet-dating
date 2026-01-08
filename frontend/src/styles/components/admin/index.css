@@ -7,10 +7,25 @@
   flex-direction: column;
   background: var(--bg);
 }
+.admin-layout button {
+  min-width: 136px;
+  max-width: 200px;
+  padding: var(--s-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg);
+  font-size: var(--fs-2);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
 .admin-content {
   flex: 1;
   width: 100%;
+  overflow-y: auto;
+  max-height: calc(90vh - 136px);
 }
 
 /* Admin Navigation Bar */
@@ -211,9 +226,6 @@
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 2rem;
 }
 
@@ -393,33 +405,6 @@
   font-size: 0.875rem;
 }
 
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  padding: 2rem;
-  border-radius: 8px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.modal-content h2 {
-  margin-top: 0;
-}
-
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -464,35 +449,6 @@
   padding: 0.25rem 0.5rem;
   border-radius: 2px;
   font-size: 0.875rem;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-}
-
-.modal-actions button {
-  padding: 0.5rem 1.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.modal-actions button[type="submit"] {
-  background: #2196f3;
-  color: white;
-  border: none;
-}
-
-.modal-actions button[type="submit"]:hover:not(:disabled) {
-  background: #1976d2;
-}
-
-.modal-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Dashboard */
@@ -585,14 +541,10 @@
   background: var(--glass-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: 24px 0;
 }
 
 .job-stats-overview .stats-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
 }
 
@@ -603,9 +555,7 @@
 }
 
 .job-stats-overview .header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  padding: var(--s-4) 0;
 }
 
 /* WebSocket Connection Status */
@@ -617,6 +567,7 @@
   padding: 4px 12px;
   border-radius: 12px;
   font-weight: 500;
+  margin-bottom: var(--s-4);
 }
 
 .ws-status.connected {
@@ -876,9 +827,6 @@
 }
 
 .job-history-list .history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
 }
 
@@ -1170,4 +1118,76 @@
   color: #DC2626;
   font-size: 14px;
   margin-top: 12px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-content {
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+
+.modal-content h2 {
+  margin-top: 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.modal-actions button {
+  padding: 0.5rem 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-actions button[type="submit"] {
+  background: #2196f3;
+  color: white;
+  border: none;
+}
+
+.modal-actions button[type="submit"]:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--border);
 }

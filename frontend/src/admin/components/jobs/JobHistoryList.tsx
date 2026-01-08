@@ -78,7 +78,7 @@ export function JobHistoryList({
     <div className="job-history-list">
       <div className="history-header">
         <h2>Job History</h2>
-        <button onClick={onRunNewJob} className="btn-primary">
+        <button onClick={onRunNewJob} className="btn-primary actionBtn">
           Run New Job
         </button>
       </div>

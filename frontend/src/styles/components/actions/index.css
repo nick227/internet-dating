@@ -5,7 +5,8 @@
   width: 100%;
   z-index: 100;
 }
-.actionBtn {
+.actionBtn,
+button {
   flex: 1;
   height: var(--component-height-action);
   border-radius: var(--r-16);
@@ -61,4 +62,11 @@
   width: 18px;
   height: 18px;
   display: block;
+}
+.btn-small {
+  font-size: var(--fs-1);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-8);
+  max-width: 100px;
+  white-space: nowrap;
 }

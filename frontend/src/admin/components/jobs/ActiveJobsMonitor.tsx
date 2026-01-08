@@ -86,7 +86,7 @@ export function ActiveJobsMonitor({
               </span>
             </div>
           </div>
-          <button onClick={onCleanupStalled} className="btn-secondary btn-small">
+          <button onClick={onCleanupStalled} className="btn-secondary btn-small nowrap">
             Clean Up Stalled
           </button>
         </div>
