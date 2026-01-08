@@ -10,6 +10,7 @@ import { JobDetailsModal } from '../components/jobs/JobDetailsModal';
 import { RunJobModal } from '../components/jobs/RunJobModal';
 import { WorkerControl } from '../components/jobs/WorkerControl';
 import { BulkEnqueueModal } from '../components/jobs/BulkEnqueueModal';
+import { JobHelpModal } from '../components/jobs/JobHelpModal';
 import { trackError } from '../utils/errorTracking';
 import type { JobRun, JobRunStatus, JobGroup } from '../types';
 
@@ -31,6 +32,7 @@ export function JobManagerPage() {
   const [runJobModalOpen, setRunJobModalOpen] = useState(false);
   const [prefillJob, setPrefillJob] = useState<{ jobName: string; params: Record<string, unknown> } | null>(null);
   const [bulkEnqueueModalOpen, setBulkEnqueueModalOpen] = useState(false);
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
   
   // Hooks (API-driven)
   const { stats, loading: statsLoading, refresh: refreshStats } = useJobStats(false);
@@ -252,22 +254,20 @@ export function JobManagerPage() {
     <div className="job-manager-page">
       <div className="page-header">
         <h1>Job Manager</h1>
-        <a 
-          href="/docs/jobs-user-guide.md" 
-          target="_blank" 
-          rel="noopener noreferrer"
+        <button 
+          onClick={() => setHelpModalOpen(true)}
           className="help-link"
           title="View user guide"
         >
           📖 User Guide
-        </a>
+        </button>
       </div>
       
       <div className="help-banner">
         <strong>💡 New to Job Manager?</strong> Jobs are automated tasks that keep your platform running smoothly. 
-        <a href="/docs/jobs-user-guide.md" target="_blank" rel="noopener noreferrer" className="help-link-inline">
-          Read the guide
-        </a> to learn what each job does.
+        <button onClick={() => setHelpModalOpen(true)} className="help-link-inline">
+          Click here for a guide
+        </button> to learn what each job does.
       </div>
 
       <WorkerControl onStatusChange={() => {
@@ -339,6 +339,13 @@ export function JobManagerPage() {
         groups={groups}
         jobsByGroup={jobsByGroup}
         totalJobs={definitions.length}
+      />
+      
+      <JobHelpModal
+        isOpen={helpModalOpen}
+        onClose={() => setHelpModalOpen(false)}
+        definitions={definitions}
+        groups={groups}
       />
     </>
   );

@@ -1657,10 +1657,11 @@
   padding: 8px 16px;
   background: rgba(99, 102, 241, 0.1);
   color: var(--primary);
+  border: none;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
-  text-decoration: none;
+  cursor: pointer;
   transition: background 0.2s;
 }
 
@@ -1685,10 +1686,15 @@
 }
 
 .help-link-inline {
+  background: none;
+  border: none;
   color: var(--primary);
   text-decoration: underline;
   font-weight: 500;
   margin-left: 4px;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
 }
 
 .help-link-inline:hover {
@@ -1800,4 +1806,247 @@
   white-space: nowrap;
   z-index: 1000;
   margin-bottom: 8px;
+}
+
+/* Job Help Modal */
+.job-help-modal {
+  max-width: 800px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.help-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg);
+}
+
+.help-tab {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.help-tab:hover {
+  color: var(--fg);
+}
+
+.help-tab.active {
+  color: var(--primary);
+}
+
+.help-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary);
+}
+
+.help-content {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.help-section {
+  padding: 24px;
+}
+
+.help-section h3 {
+  margin: 24px 0 12px 0;
+  color: var(--fg);
+  font-size: 18px;
+}
+
+.help-section h3:first-child {
+  margin-top: 0;
+}
+
+.help-section p {
+  color: var(--fg-secondary);
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.help-section ul,
+.help-section ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.help-section li {
+  color: var(--fg-secondary);
+  line-height: 1.8;
+  margin: 6px 0;
+}
+
+.help-info-box {
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.05);
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.help-info-box p {
+  margin: 8px 0;
+}
+
+.help-steps {
+  counter-reset: step-counter;
+  list-style: none;
+  padding: 0;
+}
+
+.help-steps li {
+  counter-increment: step-counter;
+  padding-left: 40px;
+  position: relative;
+  margin: 16px 0;
+}
+
+.help-steps li::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.help-group-card {
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.help-group-card h4 {
+  margin: 0 0 12px 0;
+  color: var(--fg);
+  font-size: 16px;
+}
+
+.help-group-purpose {
+  color: var(--fg-secondary);
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.help-group-when {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 4px;
+}
+
+.help-group-jobs {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-secondary);
+}
+
+.help-tip {
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  margin: 24px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.help-job-group {
+  margin: 32px 0;
+}
+
+.help-job-group h4 {
+  margin: 0 0 16px 0;
+  color: var(--fg);
+  font-size: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+}
+
+.help-job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.help-job-item {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.help-job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.help-job-header code {
+  font-family: 'Courier New', monospace;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.help-job-deps {
+  font-size: 11px;
+  color: var(--fg-secondary);
+  font-style: italic;
+}
+
+.help-job-desc {
+  color: var(--fg-secondary);
+  font-style: italic;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.help-job-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.help-job-details span {
+  color: var(--fg-secondary);
+  line-height: 1.5;
+}
+
+.help-job-details strong {
+  color: var(--fg);
 }
