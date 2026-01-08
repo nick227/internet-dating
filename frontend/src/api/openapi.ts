@@ -123,6 +123,16 @@ export interface paths {
     get: {
     };
   };
+  "/api/admin/jobs/enqueue-all": {
+    /** Enqueue all jobs in dependency order */
+    post: {
+    };
+  };
+  "/api/admin/jobs/enqueue-group": {
+    /** Enqueue all jobs in a specific group */
+    post: {
+    };
+  };
   "/api/admin/jobs/cleanup-stalled": {
     /** Clean up stalled/orphaned jobs */
     post: {
@@ -136,6 +146,51 @@ export interface paths {
           jobRunId: components["schemas"]["Id"];
         };
       };
+    };
+  };
+  "/api/admin/jobs/{jobRunId}/logs": {
+    /** Get job run logs */
+    get: {
+      parameters: {
+        path: {
+          jobRunId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/admin/jobs/{jobRunId}/progress": {
+    /** Get job run progress */
+    get: {
+      parameters: {
+        path: {
+          jobRunId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/admin/jobs/{jobRunId}/outcome": {
+    /** Get job run outcome summary */
+    get: {
+      parameters: {
+        path: {
+          jobRunId: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/admin/worker/status": {
+    /** Get worker status and health */
+    get: {
+    };
+  };
+  "/api/admin/worker/start": {
+    /** Start the job worker */
+    post: {
+    };
+  };
+  "/api/admin/worker/stop": {
+    /** Stop the job worker */
+    post: {
     };
   };
   "/api/feed": {
