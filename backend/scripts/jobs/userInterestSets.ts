@@ -8,6 +8,10 @@ export const userInterestSetsJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts user-interest-sets --batchSize=1000 --pauseMs=50'
   ],
+  defaultParams: {
+    batchSize: 1000,
+    pauseMs: 50
+  },
   run: async () => {
     const batchSize = parseIntArg('--batchSize', 1000);
     const pauseMs = parseIntArg('--pauseMs', 50);

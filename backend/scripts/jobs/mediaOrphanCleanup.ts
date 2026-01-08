@@ -8,6 +8,9 @@ export const mediaOrphanCleanupJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts media-orphan-cleanup --maxAgeHours=24'
   ],
+  defaultParams: {
+    maxAgeHours: 24
+  },
   run: async () => {
     const maxAgeHours = parseIntArg('--maxAgeHours', 24);
 

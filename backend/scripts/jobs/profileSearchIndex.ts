@@ -9,6 +9,10 @@ export const profileSearchIndexJob: JobDefinition = {
     'tsx scripts/runJobs.ts profile-search-index --userId=8 --userBatchSize=100 --pauseMs=50',
     'tsx scripts/runJobs.ts profile-search-index --userBatchSize=100 --pauseMs=50'
   ],
+  defaultParams: {
+    userBatchSize: 100,
+    pauseMs: 50
+  },
   run: async () => {
     const userId = parseBigIntArg('--userId');
     const userBatchSize = parseIntArg('--userBatchSize', 100);

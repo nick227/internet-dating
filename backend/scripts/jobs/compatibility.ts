@@ -8,6 +8,12 @@ export const compatibilityJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts compatibility --userId=8 --targetBatchSize=500'
   ],
+  defaultParams: {
+    batchSize: 100,
+    targetBatchSize: 500,
+    maxSuggestionTargets: 100,
+    pauseMs: 50
+  },
   run: async () => {
     const userId = parseBigIntArg('--userId');
     const userBatchSize = parseIntArg('--batchSize', 100);

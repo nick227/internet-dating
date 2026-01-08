@@ -8,6 +8,10 @@ export const buildUserTraitsJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts build-user-traits --userId=8 --batchSize=100 --pauseMs=50'
   ],
+  defaultParams: {
+    batchSize: 100,
+    pauseMs: 50
+  },
   run: async () => {
     const userId = parseBigIntArg('--userId');
     const userBatchSize = parseIntArg('--batchSize', 100);

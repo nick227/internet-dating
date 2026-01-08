@@ -147,22 +147,46 @@ export const adminDomain: DomainRegistry = {
         const { getJob } = await import('../../../../scripts/jobs/registry');
         const job = getJob(jobName);
         if (!job) {
-          return json(res, { error: 'Unknown job' }, 400);
+          return json(res, { 
+            error: 'Unknown job',
+            details: `Job "${jobName}" not found in registry`,
+            field: 'jobName',
+            retryable: true
+          }, 400);
         }
 
-        // Create job run in QUEUED state
-        const jobRun = await prisma.jobRun.create({
-          data: {
-            jobName,
-            status: 'QUEUED',
-            trigger: 'MANUAL',
-            triggeredBy: req.ctx.userId,
-            metadata: parameters as any,
-            queuedAt: new Date()
-          }
-        });
+        // Basic parameter validation
+        if (parameters && typeof parameters !== 'object') {
+          return json(res, {
+            error: 'Invalid parameters',
+            details: 'Parameters must be a JSON object',
+            field: 'parameters',
+            retryable: true
+          }, 400);
+        }
 
-        return json(res, { jobRunId: jobRun.id.toString(), status: 'queued' }, 202);
+        try {
+          // Create job run in QUEUED state
+          const jobRun = await prisma.jobRun.create({
+            data: {
+              jobName,
+              status: 'QUEUED',
+              trigger: 'MANUAL',
+              triggeredBy: req.ctx.userId,
+              metadata: parameters as any,
+              queuedAt: new Date()
+            }
+          });
+
+          return json(res, { jobRunId: jobRun.id.toString(), status: 'queued' }, 202);
+        } catch (err) {
+          return json(res, {
+            error: 'Failed to enqueue job',
+            details: err instanceof Error ? err.message : 'Unknown error',
+            field: 'parameters',
+            retryable: true
+          }, 500);
+        }
       }
     },
 
@@ -233,7 +257,8 @@ export const adminDomain: DomainRegistry = {
           id: name,
           name: job.name,
           description: job.description,
-          examples: job.examples
+          examples: job.examples,
+          defaultParams: job.defaultParams
         }));
 
         return json(res, { jobs: definitions });

@@ -8,6 +8,12 @@ export const feedPresortJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts feed-presort --userId=8 --batchSize=100 --segmentSize=20'
   ],
+  defaultParams: {
+    batchSize: 100,
+    segmentSize: 20,
+    maxSegments: 3,
+    incremental: false
+  },
   run: async () => {
     const userId = parseBigIntArg('--userId');
     const batchSize = parseIntArg('--batchSize', 100);

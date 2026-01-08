@@ -2,6 +2,8 @@ export type UserRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN';
 
 export type JobRunStatus = 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 
+export type JobUIStatus = JobRunStatus | 'CANCEL_REQUESTED';
+
 export type JobTrigger = 'CRON' | 'EVENT' | 'MANUAL';
 
 export interface JobRun {
@@ -27,6 +29,7 @@ export interface JobDefinition {
   name: string;
   description: string;
   examples: string[];
+  defaultParams?: Record<string, unknown>;
 }
 
 export interface JobStats {
@@ -60,6 +63,13 @@ export interface EnqueueJobResponse {
 
 export interface CancelJobResponse {
   status: string;
+}
+
+export interface ApiError {
+  error: string;
+  details?: string;
+  field?: string;
+  retryable?: boolean;
 }
 
 export interface JobWebSocketEvent {

@@ -8,6 +8,13 @@ export const affinityJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts affinity --userId=8 --lookbackDays=90'
   ],
+  defaultParams: {
+    batchSize: 100,
+    lookbackDays: 90,
+    topCreatorsCount: 20,
+    topTopicsCount: 30,
+    pauseMs: 50
+  },
   run: async () => {
     const userId = parseBigIntArg('--userId');
     const userBatchSize = parseIntArg('--batchSize', 100);

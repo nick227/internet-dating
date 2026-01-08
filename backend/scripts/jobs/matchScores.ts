@@ -8,6 +8,11 @@ export const matchScoresJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts match-scores --userId=8 --batchSize=100 --candidateBatchSize=500'
   ],
+  defaultParams: {
+    batchSize: 100,
+    candidateBatchSize: 500,
+    pauseMs: 50
+  },
   run: async () => {
     const userId = parseBigIntArg('--userId');
     const userBatchSize = parseIntArg('--batchSize', 100);

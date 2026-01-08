@@ -31,6 +31,7 @@ const ConnectionsPage = lazy(() => import('./ui/pages/ConnectionsPage').then(m =
 // Admin pages
 const AdminLayout = lazy(() => import('./admin/components/AdminLayout').then(m => ({ default: m.AdminLayout })))
 const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
+const JobManagerPage = lazy(() => import('./admin/pages/JobManagerPage').then(m => ({ default: m.JobManagerPage })))
 const JobHistoryPage = lazy(() => import('./admin/pages/JobHistoryPage').then(m => ({ default: m.JobHistoryPage })))
 const JobDetailsPage = lazy(() => import('./admin/pages/JobDetailsPage').then(m => ({ default: m.JobDetailsPage })))
 const JobMonitorPage = lazy(() => import('./admin/pages/JobMonitorPage').then(m => ({ default: m.JobMonitorPage })))
@@ -226,6 +227,18 @@ export default function App() {
                 <AdminLayout>
                   <Suspense fallback={<RouteLoader />}>
                     <AdminDashboard />
+                  </Suspense>
+                </AdminLayout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/jobs"
+            element={
+              <AdminRoute>
+                <AdminLayout>
+                  <Suspense fallback={<RouteLoader />}>
+                    <JobManagerPage />
                   </Suspense>
                 </AdminLayout>
               </AdminRoute>

@@ -8,6 +8,11 @@ export const mediaMetadataBatchJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts media-metadata-batch --batchSize=50 --maxAgeHours=24 --pauseMs=100'
   ],
+  defaultParams: {
+    batchSize: 50,
+    maxAgeHours: 24,
+    pauseMs: 100
+  },
   run: async () => {
     const batchSize = parseIntArg('--batchSize', 50);
     const maxAgeHours = parseIntArg('--maxAgeHours', 24);

@@ -8,6 +8,12 @@ export const statsReconcileJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts stats-reconcile --lookbackHours=24 --batchSize=200 --pauseMs=50'
   ],
+  defaultParams: {
+    full: false,
+    lookbackHours: 24,
+    batchSize: 200,
+    pauseMs: 50
+  },
   run: async () => {
     const full = parseFlag('--full');
     const lookbackHours = parseIntArg('--lookbackHours', 24);

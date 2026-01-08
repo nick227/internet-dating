@@ -33,9 +33,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="admin-navbar-links">
             <Link 
               to="/admin" 
-              className={`admin-nav-link ${isActive('/admin') && !isActive('/admin/jobs') ? 'active' : ''}`}
+              className={`admin-nav-link ${location.pathname === '/admin' || location.pathname === '/admin/dashboard' ? 'active' : ''}`}
             >
               Dashboard
+            </Link>
+            <Link 
+              to="/admin/jobs" 
+              className={`admin-nav-link ${location.pathname === '/admin/jobs' ? 'active' : ''}`}
+            >
+              Job Manager
             </Link>
             <Link 
               to="/admin/jobs/monitor" 
@@ -48,12 +54,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               className={`admin-nav-link ${isActive('/admin/jobs/history') ? 'active' : ''}`}
             >
               Job History
-            </Link>
-          </div>
-
-          <div className="admin-navbar-actions">
-            <Link to="/feed" className="admin-nav-link secondary">
-              Exit Admin
             </Link>
           </div>
         </div>

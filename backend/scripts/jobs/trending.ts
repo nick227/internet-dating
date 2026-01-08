@@ -8,6 +8,11 @@ export const trendingJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts trending --windowHours=48 --minEngagements=5'
   ],
+  defaultParams: {
+    windowHours: 48,
+    expiryHours: 48,
+    minEngagements: 5
+  },
   run: async () => {
     const windowHours = parseIntArg('--windowHours', 48);
     const expiryHours = parseIntArg('--expiryHours', 48);

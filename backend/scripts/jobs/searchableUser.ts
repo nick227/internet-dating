@@ -8,6 +8,10 @@ export const searchableUserJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts searchable-user --userBatchSize=100 --pauseMs=50'
   ],
+  defaultParams: {
+    userBatchSize: 100,
+    pauseMs: 50
+  },
   run: async () => {
     const userBatchSize = parseIntArg('--userBatchSize', 100);
     const pauseMs = parseIntArg('--pauseMs', 50);

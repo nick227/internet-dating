@@ -1,4 +1,5 @@
   import type { JobDefinition, JobRegistry } from './types.js';
+  import { validateJobDefinition } from './types.js';
   import { matchScoresJob } from './matchScores.js';
   import { compatibilityJob } from './compatibility.js';
   import { contentFeaturesJob } from './contentFeatures.js';
@@ -34,6 +35,11 @@
     'searchable-user': searchableUserJob,
     'quiz-answer-stats': quizAnswerStatsJob,
   };
+
+  // Validate all jobs at startup (fail fast)
+  for (const [name, job] of Object.entries(jobs)) {
+    validateJobDefinition(name, job);
+  }
 
   export function getJob(name: string): JobDefinition | undefined {
     return jobs[name];

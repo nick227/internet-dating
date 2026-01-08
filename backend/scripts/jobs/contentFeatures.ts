@@ -8,6 +8,12 @@ export const contentFeaturesJob: JobDefinition = {
   examples: [
     'tsx scripts/runJobs.ts content-features --batchSize=50'
   ],
+  defaultParams: {
+    batchSize: 50,
+    pauseMs: 50,
+    maxLookbackDays: 7,
+    maxTopics: 8
+  },
   run: async () => {
     const postId = parseBigIntArg('--postId');
     const batchSize = parseIntArg('--batchSize', 50);

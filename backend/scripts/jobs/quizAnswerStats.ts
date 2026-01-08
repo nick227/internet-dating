@@ -11,6 +11,9 @@ export const quizAnswerStatsJob: JobDefinition = {
     'tsx scripts/runJobs.ts quiz-answer-stats --quizId=1 --questionIds=1,2,3',
     'tsx scripts/runJobs.ts quiz-answer-stats --fullRefresh'
   ],
+  defaultParams: {
+    fullRefresh: false
+  },
   run: async () => {
     const quizId = parseBigIntArg('--quizId');
     const questionIds = parseIntArrayArg('--questionIds')?.map(id => BigInt(id));
