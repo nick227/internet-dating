@@ -29,6 +29,7 @@ const AuthPage = lazy(() => import('./ui/pages/AuthPage').then(m => ({ default: 
 const ConnectionsPage = lazy(() => import('./ui/pages/ConnectionsPage').then(m => ({ default: m.ConnectionsPage })))
 
 // Admin pages
+const AdminLayout = lazy(() => import('./admin/components/AdminLayout').then(m => ({ default: m.AdminLayout })))
 const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
 const JobHistoryPage = lazy(() => import('./admin/pages/JobHistoryPage').then(m => ({ default: m.JobHistoryPage })))
 const JobDetailsPage = lazy(() => import('./admin/pages/JobDetailsPage').then(m => ({ default: m.JobDetailsPage })))
@@ -222,9 +223,11 @@ export default function App() {
             path="/admin/dashboard"
             element={
               <AdminRoute>
-                <Suspense fallback={<RouteLoader />}>
-                  <AdminDashboard />
-                </Suspense>
+                <AdminLayout>
+                  <Suspense fallback={<RouteLoader />}>
+                    <AdminDashboard />
+                  </Suspense>
+                </AdminLayout>
               </AdminRoute>
             }
           />
@@ -232,9 +235,11 @@ export default function App() {
             path="/admin/jobs/history"
             element={
               <AdminRoute>
-                <Suspense fallback={<RouteLoader />}>
-                  <JobHistoryPage />
-                </Suspense>
+                <AdminLayout>
+                  <Suspense fallback={<RouteLoader />}>
+                    <JobHistoryPage />
+                  </Suspense>
+                </AdminLayout>
               </AdminRoute>
             }
           />
@@ -242,9 +247,11 @@ export default function App() {
             path="/admin/jobs/monitor"
             element={
               <AdminRoute>
-                <Suspense fallback={<RouteLoader />}>
-                  <JobMonitorPage />
-                </Suspense>
+                <AdminLayout>
+                  <Suspense fallback={<RouteLoader />}>
+                    <JobMonitorPage />
+                  </Suspense>
+                </AdminLayout>
               </AdminRoute>
             }
           />
@@ -252,9 +259,11 @@ export default function App() {
             path="/admin/jobs/:jobRunId"
             element={
               <AdminRoute>
-                <Suspense fallback={<RouteLoader />}>
-                  <JobDetailsPage />
-                </Suspense>
+                <AdminLayout>
+                  <Suspense fallback={<RouteLoader />}>
+                    <JobDetailsPage />
+                  </Suspense>
+                </AdminLayout>
               </AdminRoute>
             }
           />
