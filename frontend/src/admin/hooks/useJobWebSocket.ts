@@ -15,15 +15,15 @@ export function useJobWebSocket(params: UseJobWebSocketParams) {
   useEffect(() => {
     // Subscribe to admin job events (broadcast to all admin WebSockets automatically)
     const unsubscribeStarted = realtime.on('server.admin.job_started', (data) => {
-      params.onJobStarted?.({ type: 'server.admin.job_started', data });
+      params.onJobStarted?.({ type: 'server.admin.job_started', data, ts: Date.now() });
     });
 
     const unsubscribeProgress = realtime.on('server.admin.job_progress', (data) => {
-      params.onJobProgress?.({ type: 'server.admin.job_progress', data });
+      params.onJobProgress?.({ type: 'server.admin.job_progress', data, ts: Date.now() });
     });
 
     const unsubscribeCompleted = realtime.on('server.admin.job_completed', (data) => {
-      params.onJobCompleted?.({ type: 'server.admin.job_completed', data });
+      params.onJobCompleted?.({ type: 'server.admin.job_completed', data, ts: Date.now() });
     });
 
     // Subscribe to connection status changes
