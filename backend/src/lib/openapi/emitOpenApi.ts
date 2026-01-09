@@ -91,7 +91,7 @@ const schemas = {
   },
   Visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE'] },
   AccessStatus: { type: 'string', enum: ['NONE', 'PENDING', 'GRANTED', 'DENIED', 'REVOKED', 'CANCELED'] },
-  MediaType: { type: 'string', enum: ['IMAGE', 'VIDEO', 'AUDIO'] },
+  MediaType: { type: 'string', enum: ['IMAGE', 'VIDEO', 'AUDIO', 'EMBED'] },
   MediaStatus: { type: 'string', enum: ['PENDING', 'READY', 'FAILED'] },
   Gender: { type: 'string', enum: ['UNSPECIFIED', 'MALE', 'FEMALE', 'NONBINARY', 'OTHER'] },
   DatingIntent: { type: 'string', enum: ['UNSPECIFIED', 'FRIENDS', 'CASUAL', 'LONG_TERM', 'MARRIAGE'] },
@@ -329,6 +329,7 @@ const schemas = {
       text: { type: ['string', 'null'] },
       visibility: ref('Visibility'),
       mediaIds: { type: 'array', items: ref('Id') },
+      embedUrls: { type: 'array', items: { type: 'string' } },
       targetUserId: ref('Id')
     }
   },

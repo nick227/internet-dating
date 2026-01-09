@@ -14,6 +14,7 @@ type DraftData = {
   fileIds: string[]
   visibility: 'PUBLIC' | 'PRIVATE'
   tags: string[]
+  embedUrls: string[]
   timestamp: number
 }
 
@@ -23,7 +24,8 @@ export function usePostDraft(
   files: FileWithPreview[],
   visibility: 'PUBLIC' | 'PRIVATE',
   tags: string[],
-  onRestore: (draft: { text: string; visibility: 'PUBLIC' | 'PRIVATE'; tags: string[] }) => void
+  embedUrls: string[],
+  onRestore: (draft: { text: string; visibility: 'PUBLIC' | 'PRIVATE'; tags: string[]; embedUrls: string[] }) => void
 ) {
   const saveTimerRef = useRef<number | null>(null)
 
@@ -47,6 +49,7 @@ export function usePostDraft(
         text: draft.text,
         visibility: draft.visibility,
         tags: draft.tags,
+        embedUrls: draft.embedUrls ?? [],
       })
     } catch (error) {
       console.warn('[post-draft] Failed to parse draft data.', error)
@@ -63,7 +66,7 @@ export function usePostDraft(
       return
     }
 
-    const hasContent = Boolean(text.trim() || files.length > 0 || tags.length > 0)
+    const hasContent = Boolean(text.trim() || files.length > 0 || tags.length > 0 || embedUrls.length > 0)
     if (!hasContent) {
       if (saveTimerRef.current != null) {
         window.clearTimeout(saveTimerRef.current)
@@ -83,6 +86,7 @@ export function usePostDraft(
         fileIds: files.map(file => file.id),
         visibility,
         tags,
+        embedUrls,
         timestamp: Date.now(),
       }
       safeLocalStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
@@ -94,7 +98,7 @@ export function usePostDraft(
         saveTimerRef.current = null
       }
     }
-  }, [files, open, tags, text, visibility])
+  }, [files, open, tags, text, visibility, embedUrls])
 
   return { clearDraft }
 }

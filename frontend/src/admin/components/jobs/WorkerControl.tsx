@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '../../api/admin';
 import type { WorkerStatus } from '../../types';
 
@@ -13,7 +13,7 @@ export function WorkerControl({ onStatusChange }: WorkerControlProps) {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     try {
       const workerStatus = await adminApi.getWorkerStatus();
       setStatus(workerStatus);
@@ -25,18 +25,18 @@ export function WorkerControl({ onStatusChange }: WorkerControlProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [onStatusChange]);
 
   useEffect(() => {
     loadStatus();
-  }, []);
+  }, [loadStatus]);
 
   useEffect(() => {
     if (!autoRefresh) return;
 
     const timer = setInterval(loadStatus, 5000); // Refresh every 5 seconds
     return () => clearInterval(timer);
-  }, [autoRefresh]);
+  }, [autoRefresh, loadStatus]);
 
   const handleStart = async () => {
     setActionLoading(true);
@@ -174,7 +174,9 @@ export function WorkerControl({ onStatusChange }: WorkerControlProps) {
             <div className="detail-row">
               <span className="label">Version:</span>
               <span className="value version-badge">
-                {(activeWorker as any).version || (activeWorker as any).metadata?.version || 'Unknown'}
+                {('version' in activeWorker ? activeWorker.version : null) || 
+                 ('metadata' in activeWorker && activeWorker.metadata && typeof activeWorker.metadata === 'object' && 'version' in activeWorker.metadata ? activeWorker.metadata.version : null) || 
+                 'Unknown'}
               </span>
             </div>
             <div className="detail-row">

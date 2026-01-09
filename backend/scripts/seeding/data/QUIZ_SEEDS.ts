@@ -30,222 +30,110 @@ export type TraitValueMap = {
 
 export const QUIZ_SEEDS: Record<'core', QuizSeed> = {
   core: {
-    slug: 'seed-core-quiz',
-    title: 'Core Questions',
-    questions: [
+    "slug": "avant-garde-unicorn-dreams",
+    "title": "Avant-Garde Unicorn Dreams",
+    "questions": [
       {
-        prompt: 'Ideal Friday night?',
-        options: [
+        "prompt": "You find a talking pigeon in your bathtub. What do you do?",
+        "options": [
           {
-            label: 'Cozy movie at home',
-            value: 'cozy_movie',
-            traitValues: {
-              'personality.introverted': 5,
-              'lifestyle.homebody': 7,
-              'personality.funny': -2,
-              'lifestyle.active': -5
+            "label": "Offer it a crouton and ask for life advice.",
+            "value": "crouton_wisdom",
+            "traitValues": {
+              "personality.funny": 8,
+              "values.absurdism": 7,
+              "personality.outgoing": 3,
+              "interests.birds": 5
             }
           },
           {
-            label: 'Live music or comedy',
-            value: 'live_show',
-            traitValues: {
-              'personality.outgoing': 6,
-              'personality.funny': 5,
-              'lifestyle.social': 7,
-              'interests.music': 8,
-              'personality.introverted': -4
+            "label": "Challenge it to a game of chess.",
+            "value": "chess_duel",
+            "traitValues": {
+              "interests.games": 7,
+              "personality.introverted": 4,
+              "values.logic": 6,
+              "personality.quirky": 5
             }
           },
           {
-            label: 'Outdoor adventure',
-            value: 'adventure',
-            traitValues: {
-              'lifestyle.active': 8,
-              'values.adventure': 9,
-              'personality.outgoing': 4,
-              'interests.sports': 6,
-              'lifestyle.homebody': -7
+            "label": "Scream and relocate to Saturn immediately.",
+            "value": "saturn_escape",
+            "traitValues": {
+              "values.adventure": 10,
+              "personality.funny": 6,
+              "lifestyle.active": 3,
+              "values.absurdism": 9
             }
           }
         ]
       },
       {
-        prompt: 'Pick a travel style',
-        options: [
+        "prompt": "Pick a breakfast you’d eat during post-apocalyptic brunch hour.",
+        "options": [
           {
-            label: 'City weekends',
-            value: 'city',
-            traitValues: {
-              'lifestyle.social': 6,
-              'interests.culture': 7,
-              'values.materialistic': 3,
-              'lifestyle.active': 4
+            "label": "Radioactive avocado toast topped with existential dread.",
+            "value": "dread_toast",
+            "traitValues": {
+              "personality.introverted": 6,
+              "values.absurdism": 8,
+              "interests.food": 5,
+              "personality.funny": 4
             }
           },
           {
-            label: 'Nature retreats',
-            value: 'nature',
-            traitValues: {
-              'personality.introverted': 4,
-              'values.adventure': 6,
-              'lifestyle.active': 7,
-              'interests.nature': 8,
-              'lifestyle.social': -3
+            "label": "Canned unicorn tears with glitter granola.",
+            "value": "unicorn_breakfast",
+            "traitValues": {
+              "interests.fantasy": 9,
+              "values.creativity": 7,
+              "personality.quirky": 6,
+              "personality.outgoing": 4
             }
           },
           {
-            label: 'Beach reset',
-            value: 'beach',
-            traitValues: {
-              'personality.introverted': 3,
-              'lifestyle.homebody': 2,
-              'values.family': 5,
-              'lifestyle.active': -2,
-              'lifestyle.social': -1
+            "label": "Just eat time. Time is crunchy.",
+            "value": "eat_time",
+            "traitValues": {
+              "values.absurdism": 10,
+              "personality.funny": 3,
+              "interests.scifi": 6,
+              "personality.introverted": 5
             }
           }
         ]
       },
       {
-        prompt: 'How social are you?',
-        options: [
+        "prompt": "You're invited to a party hosted entirely by animated furniture. What's your move?",
+        "options": [
           {
-            label: 'Low-key and selective',
-            value: 'low_key',
-            traitValues: {
-              'personality.introverted': 7,
-              'lifestyle.homebody': 5,
-              'personality.outgoing': -6,
-              'lifestyle.social': -5
+            "label": "Chat up the lamp — it has illuminating opinions.",
+            "value": "lamp_convo",
+            "traitValues": {
+              "personality.outgoing": 7,
+              "values.creativity": 6,
+              "interests.design": 4,
+              "personality.funny": 5
             }
           },
           {
-            label: 'Balanced mix',
-            value: 'balanced',
-            traitValues: {
-              'personality.outgoing': 2,
-              'personality.introverted': 0,
-              'lifestyle.social': 2,
-              'lifestyle.homebody': 2
+            "label": "Become a recliner. Transcend the need for social small talk.",
+            "value": "become_furniture",
+            "traitValues": {
+              "personality.introverted": 9,
+              "values.philosophy": 7,
+              "lifestyle.homebody": 5,
+              "personality.quirky": 6
             }
           },
           {
-            label: 'Always up for plans',
-            value: 'social',
-            traitValues: {
-              'personality.outgoing': 8,
-              'lifestyle.social': 9,
-              'personality.introverted': -7,
-              'lifestyle.homebody': -6
-            }
-          }
-        ]
-      },
-      {
-        prompt: 'Choose a weekend activity',
-        options: [
-          {
-            label: 'Farmers market + brunch',
-            value: 'brunch',
-            traitValues: {
-              'lifestyle.homebody': 4,
-              'interests.food': 8,
-              'values.family': 5,
-              'lifestyle.social': 3,
-              'lifestyle.active': -2
-            }
-          },
-          {
-            label: 'Hike or workout',
-            value: 'active',
-            traitValues: {
-              'lifestyle.active': 9,
-              'interests.sports': 7,
-              'values.health': 6,
-              'personality.outgoing': 3,
-              'lifestyle.homebody': -5
-            }
-          },
-          {
-            label: 'Museum or gallery',
-            value: 'culture',
-            traitValues: {
-              'interests.culture': 8,
-              'interests.arts': 7,
-              'personality.analytical': 4,
-              'personality.introverted': 2,
-              'lifestyle.active': -3
-            }
-          }
-        ]
-      },
-      {
-        prompt: 'What makes you laugh?',
-        options: [
-          {
-            label: 'Dry wit and clever jokes',
-            value: 'dry_wit',
-            traitValues: {
-              'personality.funny': 6,
-              'personality.analytical': 5,
-              'personality.nice': -2,
-              'interests.culture': 3
-            }
-          },
-          {
-            label: 'Silly memes and physical comedy',
-            value: 'silly',
-            traitValues: {
-              'personality.funny': 8,
-              'personality.outgoing': 4,
-              'personality.analytical': -3,
-              'lifestyle.social': 3
-            }
-          },
-          {
-            label: 'Heartwarming stories',
-            value: 'heartwarming',
-            traitValues: {
-              'personality.nice': 7,
-              'values.family': 6,
-              'personality.funny': 2,
-              'personality.outgoing': -2
-            }
-          }
-        ]
-      },
-      {
-        prompt: 'Your approach to decisions?',
-        options: [
-          {
-            label: 'Trust my gut, act fast',
-            value: 'intuitive',
-            traitValues: {
-              'personality.analytical': -5,
-              'values.adventure': 4,
-              'personality.outgoing': 3,
-              'personality.introverted': -2
-            }
-          },
-          {
-            label: 'Weigh pros and cons carefully',
-            value: 'analytical',
-            traitValues: {
-              'personality.analytical': 8,
-              'personality.introverted': 3,
-              'personality.outgoing': -2,
-              'values.adventure': -3
-            }
-          },
-          {
-            label: 'Ask friends for input',
-            value: 'collaborative',
-            traitValues: {
-              'lifestyle.social': 6,
-              'values.family': 5,
-              'personality.outgoing': 4,
-              'personality.introverted': -4
+            "label": "Lead the couch in a synchronized interpretive dance.",
+            "value": "furniture_dance",
+            "traitValues": {
+              "lifestyle.active": 6,
+              "personality.outgoing": 8,
+              "values.absurdism": 9,
+              "personality.funny": 7
             }
           }
         ]

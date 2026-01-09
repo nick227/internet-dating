@@ -1,4 +1,5 @@
-import { client } from './client';
+import { http } from './http';
+import { API_BASE_URL } from '../config/env';
 
 export interface MatchPair {
   user1: {
@@ -86,8 +87,15 @@ export const scienceApi = {
     limit?: number;
     offset?: number;
   }): Promise<MatchSpectrumResponse> => {
-    const response = await client.get('/science/match-spectrum', { params });
-    return response.data;
+    const urlParams = new URLSearchParams();
+    if (params.range) urlParams.set('range', params.range);
+    if (params.limit) urlParams.set('limit', String(params.limit));
+    if (params.offset) urlParams.set('offset', String(params.offset));
+    const query = urlParams.toString() ? `?${urlParams.toString()}` : '';
+    return http<MatchSpectrumResponse>(
+      `${API_BASE_URL}/api/science/match-spectrum${query}`,
+      'GET'
+    );
   },
 
   getInterests: async (params: {
@@ -95,19 +103,26 @@ export const scienceApi = {
     limit?: number;
     withCorrelations?: boolean;
   }): Promise<InterestsResponse> => {
-    const response = await client.get('/science/interests', {
-      params: {
-        ...params,
-        withCorrelations: params.withCorrelations ? 'true' : 'false'
-      }
-    });
-    return response.data;
+    const urlParams = new URLSearchParams();
+    if (params.sortBy) urlParams.set('sortBy', params.sortBy);
+    if (params.limit) urlParams.set('limit', String(params.limit));
+    if (params.withCorrelations !== undefined) {
+      urlParams.set('withCorrelations', params.withCorrelations ? 'true' : 'false');
+    }
+    const query = urlParams.toString() ? `?${urlParams.toString()}` : '';
+    return http<InterestsResponse>(
+      `${API_BASE_URL}/api/science/interests${query}`,
+      'GET'
+    );
   },
 
   getStats: async (days: number = 30): Promise<StatsResponse> => {
-    const response = await client.get('/science/stats', {
-      params: { days }
-    });
-    return response.data;
+    const urlParams = new URLSearchParams();
+    urlParams.set('days', String(days));
+    const query = urlParams.toString() ? `?${urlParams.toString()}` : '';
+    return http<StatsResponse>(
+      `${API_BASE_URL}/api/science/stats${query}`,
+      'GET'
+    );
   }
 };

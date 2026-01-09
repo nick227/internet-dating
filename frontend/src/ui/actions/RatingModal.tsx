@@ -14,7 +14,7 @@ const LABELS: Record<RatingKey, string> = {
   interesting: 'Interesting',
 }
 
-const LEVELS = [1, 2, 3, 4, 5]
+const LEVELS = [1, 5]
 
 export function RatingModal({
   open,
@@ -43,7 +43,7 @@ export function RatingModal({
           <div className="u-row u-gap-3" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 'var(--fs-5)', fontWeight: 700 }}>Rate this profile</div>
             <button
-              className="topBar__btn"
+              className="topBar__btn btn-small"
               type="button"
               onClick={onClose}
               disabled={submitting}

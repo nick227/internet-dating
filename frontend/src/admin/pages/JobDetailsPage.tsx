@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminApi } from '../api/admin';
 import { JobStatusBadge } from '../components/JobStatusBadge';
@@ -12,7 +12,7 @@ export function JobDetailsPage() {
   const [error, setError] = useState<Error | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  const loadJob = async () => {
+  const loadJob = useCallback(async () => {
     if (!jobRunId) return;
     
     try {
@@ -25,11 +25,11 @@ export function JobDetailsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobRunId]);
 
   useEffect(() => {
     loadJob();
-  }, [jobRunId]);
+  }, [loadJob]);
 
   const handleCancel = async () => {
     if (!jobRunId || !job) return;

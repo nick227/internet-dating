@@ -90,39 +90,12 @@
 .interest-filter-bar__subject:hover {
   background: var(--panel-2);
   border-color: var(--accent);
-  transform: translateY(-1px);
 }
 
 .interest-filter-bar__subject--active {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
   box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
-}
-
-.interest-filter-bar__subject--active:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
-}
-
-/* Grid Section */
-.interests-portal__grid {
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  display: block;
-}
-
-/* Interest Card */
-.interest-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  cursor: pointer;
-  text-align: left;
-  outline: none;
-  font-family: inherit;
 }
 
 .interest-card__header {
@@ -181,6 +154,7 @@
 .interest-card__content {
   flex: 1;
   min-width: 0;
+  display: flex;
 }
 
 .interest-card__label {
@@ -240,16 +214,6 @@
   transition: all 0.2s ease;
   outline: none;
   padding: 0;
-}
-
-.interest-search-textarea__submit:hover:not(:disabled) {
-  background: #9333ea;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
-}
-
-.interest-search-textarea__submit:active:not(:disabled) {
-  transform: translateY(0);
 }
 
 .interest-search-textarea__submit:disabled {
@@ -408,26 +372,4 @@
 
 .interests-portal__error-retry:hover {
   background: #f43f5e;
-  transform: translateY(-1px);
-}
-
-/* Mobile Optimizations */
-@media (max-width: 639px) {
-  .interest-list {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .interest-card {
-    padding: 20px;
-  }
-
-  .interest-filter-bar__subjects {
-    gap: 8px;
-  }
-
-  .interest-filter-bar__subject {
-    padding: 8px 16px;
-    font-size: 13px;
-  }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '../api/admin';
 import type { JobRun } from '../types';
 
@@ -23,11 +23,13 @@ export function useJobHistory(params: UseJobHistoryParams = {}): UseJobHistoryRe
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchHistory = async () => {
+  const { limit, offset, jobName, status } = params;
+
+  const fetchHistory = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await adminApi.getJobHistory(params);
+      const response = await adminApi.getJobHistory({ limit, offset, jobName, status });
       setRuns(response.runs);
       setTotal(response.total);
     } catch (err) {
@@ -35,11 +37,11 @@ export function useJobHistory(params: UseJobHistoryParams = {}): UseJobHistoryRe
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, offset, jobName, status]);
 
   useEffect(() => {
     fetchHistory();
-  }, [params.limit, params.offset, params.jobName, params.status]);
+  }, [fetchHistory]);
 
   return {
     runs,

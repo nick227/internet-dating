@@ -119,7 +119,7 @@ export function BottomNav({ onPostClick }: Props) {
           </svg>
         </IconButton>
 
-        <IconButton active={is('/quizzes')} label="Quiz" onClick={() => nav('/profiles/search')}>
+        <IconButton active={is('/profiles/search')} label="Search" onClick={() => nav('/profiles/search')}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <rect
               x="4"
@@ -161,6 +161,7 @@ export function BottomNav({ onPostClick }: Props) {
               strokeWidth="2"
               strokeLinejoin="round"
             />
+            <circle cx="7" cy="17" r="1" fill="currentColor" />
           </svg>
         </IconButton>
       </div>

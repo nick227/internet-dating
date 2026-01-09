@@ -27,7 +27,7 @@ async function fetchPostMediaTypes(postIds: bigint[]) {
   const flagsByPostId = new Map<bigint, { hasImage: boolean; hasVideo: boolean }>();
   for (const row of rows) {
     const flags = flagsByPostId.get(row.postId) ?? { hasImage: false, hasVideo: false };
-    if (row.media.type === 'VIDEO') flags.hasVideo = true;
+    if (row.media.type === 'VIDEO' || row.media.type === 'EMBED') flags.hasVideo = true;
     if (row.media.type === 'IMAGE') flags.hasImage = true;
     flagsByPostId.set(row.postId, flags);
   }

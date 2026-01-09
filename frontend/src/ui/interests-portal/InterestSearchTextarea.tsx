@@ -128,7 +128,7 @@ export function InterestSearchTextarea({
         />
         <button
           type="button"
-          className={`interest-search-textarea__submit${submitting ? ' interest-search-textarea__submit--loading' : ''}`}
+          className={`btn-small interest-search-textarea__submit${submitting ? ' interest-search-textarea__submit--loading' : ''}`}
           onClick={handleSubmit}
           disabled={!value.trim() || submitting}
         >

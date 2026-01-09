@@ -522,7 +522,7 @@ function toFeedMedia(items?: ApiFeedMedia[] | null): FeedMedia[] | undefined {
   for (const item of items) {
     if (item?.url) {
       // Preserve media type (IMAGE, VIDEO, or AUDIO) or default to IMAGE
-      const mediaType: MediaType = (item.type === 'VIDEO' || item.type === 'AUDIO' || item.type === 'IMAGE')
+      const mediaType: MediaType = (item.type === 'VIDEO' || item.type === 'AUDIO' || item.type === 'IMAGE' || item.type === 'EMBED')
         ? item.type
         : 'IMAGE'
       result.push({
@@ -566,6 +566,7 @@ function flattenMedia(posts: { media: { media: ApiMedia }[] }[]): ProfileMedia[]
   for (const post of posts) {
     for (const entry of post.media) {
       const media = entry.media
+      if (media.type === 'EMBED') continue
       const id = String(media.id)
       if (seen.has(id)) continue
       seen.add(id)

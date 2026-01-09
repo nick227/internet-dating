@@ -13,6 +13,7 @@ export type PostFormState = {
   files: FileWithPreview[]
   detected: DetectedMedia[]
   tags: string[]
+  embedUrls: string[]
   linkPreviews: Record<string, LinkPreviewState>
   visibility: 'PUBLIC' | 'PRIVATE'
   feedTarget: FeedTarget
@@ -28,6 +29,7 @@ const initialState: PostFormState = {
   files: [],
   detected: [],
   tags: [],
+  embedUrls: [],
   linkPreviews: {},
   visibility: 'PUBLIC',
   feedTarget: 'both',
@@ -51,6 +53,21 @@ export function usePostFormState() {
 
   const setTags = useCallback((tags: string[]) => {
     setState(prev => ({ ...prev, tags }))
+  }, [])
+
+  const addEmbedUrl = useCallback((url: string) => {
+    setState(prev => {
+      if (prev.embedUrls.includes(url)) return prev
+      return { ...prev, embedUrls: [...prev.embedUrls, url] }
+    })
+  }, [])
+
+  const removeEmbedUrl = useCallback((url: string) => {
+    setState(prev => ({ ...prev, embedUrls: prev.embedUrls.filter(item => item !== url) }))
+  }, [])
+
+  const setEmbedUrls = useCallback((embedUrls: string[]) => {
+    setState(prev => ({ ...prev, embedUrls }))
   }, [])
 
   const setVisibility = useCallback((visibility: 'PUBLIC' | 'PRIVATE') => {
@@ -130,6 +147,9 @@ export function usePostFormState() {
     setText,
     setDetected,
     setTags,
+    addEmbedUrl,
+    removeEmbedUrl,
+    setEmbedUrls,
     setVisibility,
     setFeedTarget,
     setTargetUserId,

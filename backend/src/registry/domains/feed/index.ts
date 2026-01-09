@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma/client.js';
 import { json } from '../../../lib/http/json.js';
 import { parseOptionalPositiveBigIntList, parsePositiveBigInt } from '../../../lib/http/parse.js';
 import { mediaService, MediaError } from '../../../services/media/mediaService.js';
+import { parseEmbedUrl } from '../../../services/media/embed.js';
 import { buildViewerContext } from './context.js';
 import { getCandidates } from './candidates/index.js';
 import { getRelationshipPostCandidates } from './candidates/posts.js';
@@ -367,13 +368,33 @@ export const feedDomain: DomainRegistry = {
       tags: ['feed'],
       handler: async (req, res) => {
         const userId = req.ctx.userId!;
-        const { text, visibility, mediaIds, targetUserId } = (req.body ?? {}) as { text?: string; visibility?: 'PUBLIC'|'PRIVATE'; mediaIds?: Array<string|number>; targetUserId?: string | number };
+        const { text, visibility, mediaIds, embedUrls, targetUserId } = (req.body ?? {}) as { text?: string; visibility?: 'PUBLIC'|'PRIVATE'; mediaIds?: Array<string|number>; embedUrls?: unknown; targetUserId?: string | number };
 
         const mediaParsed = parseOptionalPositiveBigIntList(mediaIds, 'mediaIds');
         if (!mediaParsed.ok) return json(res, { error: mediaParsed.error }, 400);
         const parsedMediaIds = mediaParsed.value ?? [];
 
-        if (!text && parsedMediaIds.length === 0) return json(res, { error: 'Provide text or mediaIds' }, 400);
+        const embedInputs = Array.isArray(embedUrls) ? embedUrls : [];
+        const embedInfos: Array<NonNullable<ReturnType<typeof parseEmbedUrl>>> = [];
+        const seenEmbeds = new Set<string>();
+        for (const input of embedInputs) {
+          if (typeof input !== 'string') {
+            return json(res, { error: 'embedUrls must be an array of URLs' }, 400);
+          }
+          const trimmed = input.trim();
+          if (!trimmed) continue;
+          if (seenEmbeds.has(trimmed)) continue;
+          const parsed = parseEmbedUrl(trimmed);
+          if (!parsed) {
+            return json(res, { error: 'Only YouTube or SoundCloud URLs are supported for embeds' }, 400);
+          }
+          seenEmbeds.add(trimmed);
+          embedInfos.push(parsed);
+        }
+
+        if (!text && parsedMediaIds.length === 0 && embedInfos.length === 0) {
+          return json(res, { error: 'Provide text, mediaIds, or embedUrls' }, 400);
+        }
 
         const vis = visibility ?? 'PUBLIC';
         if (vis !== 'PUBLIC' && vis !== 'PRIVATE') {
@@ -419,15 +440,34 @@ export const feedDomain: DomainRegistry = {
         // Transaction: Create post and attach media atomically
         // This prevents orphaned media if post creation fails
         const post = await prisma.$transaction(async (tx) => {
+          const embedMedia = embedInfos.length
+            ? await Promise.all(
+                embedInfos.map(info =>
+                  tx.media.create({
+                    data: {
+                      userId,
+                      ownerUserId: userId,
+                      type: 'EMBED',
+                      status: 'READY',
+                      visibility: vis,
+                      url: info.url,
+                      thumbUrl: info.thumbUrl ?? null,
+                    },
+                    select: { id: true }
+                  })
+                )
+              )
+            : [];
+          const combinedMediaIds = [...parsedMediaIds, ...embedMedia.map(m => m.id)];
           const created = await tx.post.create({
             data: {
               userId,
               targetProfileUserId: parsedTargetUserId,
               visibility: vis,
               text: text ?? null,
-              media: parsedMediaIds.length
+              media: combinedMediaIds.length
                 ? {
-                    create: parsedMediaIds.map((id, idx) => ({
+                    create: combinedMediaIds.map((id, idx) => ({
                       order: idx,
                       mediaId: id
                     }))

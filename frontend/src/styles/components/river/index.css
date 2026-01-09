@@ -27,7 +27,7 @@
   padding: var(--s-3) 0 var(--s-4);
 }
 .riverCard {
-  scroll-snap-align: start;
+  scroll-snap-align: center;
   border-radius: var(--r-4);
   overflow: hidden;
   min-height: 80vh;
@@ -39,6 +39,7 @@
   /* Browser skips layout, paint, style until needed - huge for long feeds */
   content-visibility: auto;
   contain-intrinsic-size: 600px;
+  margin: var(--s-10) auto;
 }
 /* First card (position 0) should NOT use content-visibility */
 .riverCard:first-child {
@@ -51,6 +52,20 @@
 }
 .riverCard--static {
   cursor: default;
+}
+.riverCard--noMedia {
+  background: var(--bg-secondary);
+}
+.riverCard--noMedia .riverCard__meta {
+  justify-content: center;
+}
+.riverCard--noMedia .riverCard__meta > .u-stack {
+  justify-content: center;
+}
+.riverCard--noMedia .riverCard__question {
+  flex: 1;
+  justify-content: center;
+  max-width: 100%;
 }
 .riverCard__media {
   position: absolute;
@@ -85,6 +100,10 @@
   object-fit: cover;
   transform: scale(1.02);
   filter: saturate(1.06) contrast(1.05);
+}
+.riverCard__mediaEmbed {
+  width: 100%;
+  height: 100%;
 }
 .riverCard__mediaItem--error {
   display: grid;
@@ -220,7 +239,7 @@
   justify-content: flex-end;
   pointer-events: none;
 }
-.riverCard__meta > .u-stack {
+.riverCard__meta > .u-stack { 
   width: 100%;
   height: 100%;
   pointer-events: auto;
@@ -241,6 +260,7 @@
   letter-spacing: -0.02em;
   text-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
   font-weight: 700;
+  cursor: pointer;
 }
 .riverCard__name span {
   font-size: var(--fs-4);
@@ -370,6 +390,11 @@
 .riverCard__questionPrompt {
   font-size: var(--fs-3);
   font-weight: 600;
+  height: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 .riverCard__questionOptions {
   display: grid;

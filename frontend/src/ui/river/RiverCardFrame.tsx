@@ -13,6 +13,7 @@ type RiverCardFrameProps = {
   onOpenProfile?: (userId: string | number) => void
   children: ReactNode
   commentWidgetOpen?: boolean // NEW: Track if comment widget is open
+  showMedia?: boolean // Controls whether to show RiverCardMedia
 }
 
 function isInteractiveTarget(target: EventTarget | null | undefined) {
@@ -33,6 +34,7 @@ export function RiverCardFrame({
   onOpenProfile,
   children,
   commentWidgetOpen = false, // NEW: Default to false
+  showMedia = true, // Default to true for backwards compatibility
 }: RiverCardFrameProps) {
   // Memoize expensive string computations
   const title = useMemo(() => {
@@ -57,10 +59,12 @@ export function RiverCardFrame({
   const accent = presentation?.accent ?? (card.kind === 'match' ? 'match' : null)
 
   // Memoize className to avoid string concatenation
-  const cardClassName = useMemo(
-    () => (canNavigate ? 'riverCard' : 'riverCard riverCard--static'),
-    [canNavigate]
-  )
+  const cardClassName = useMemo(() => {
+    const classes = ['riverCard']
+    if (!canNavigate) classes.push('riverCard--static')
+    if (!showMedia) classes.push('riverCard--noMedia')
+    return classes.join(' ')
+  }, [canNavigate, showMedia])
 
   const handleOpen = useCallback(() => {
     if (!actorId || !onOpenProfile) return
@@ -105,12 +109,14 @@ export function RiverCardFrame({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
     >
-      <RiverCardMedia
-        hero={hero}
-        media={card.media}
-        presentation={presentation}
-        isCardIntersecting={cardIsIntersecting}
-      />
+      {showMedia && (
+        <RiverCardMedia
+          hero={hero}
+          media={card.media}
+          presentation={presentation}
+          isCardIntersecting={cardIsIntersecting}
+        />
+      )}
       <div className="riverCard__scrim" />
 
       <div className="riverCard__meta">

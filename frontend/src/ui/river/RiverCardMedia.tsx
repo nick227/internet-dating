@@ -5,6 +5,8 @@ import { useVideoPlayback } from '../../core/feed/useVideoPlayback'
 import { videoPlaybackManager } from '../../core/feed/videoPlaybackManager'
 import { useMediaPreferences } from '../../core/feed/useMediaPreferences'
 import { useIntersectionThreshold } from '../../core/feed/useIntersectionThreshold'
+import { parseEmbedUrl } from '../../core/media/embedMedia'
+import { EmbedMedia } from '../ui/EmbedMedia'
 
 const SWIPE_THRESHOLD = 48
 const SWIPE_VELOCITY_THRESHOLD = 0.3
@@ -323,6 +325,7 @@ function MediaItem({
 }) {
   const preview = item.thumbUrl ?? item.url
   const isVideo = item.type === 'VIDEO' || isVideoUrl(item.url)
+  const embedInfo = item.type === 'EMBED' ? parseEmbedUrl(item.url) : null
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [showControls, setShowControls] = useState(false)
@@ -434,6 +437,10 @@ function MediaItem({
     },
     [isVideo]
   )
+
+  if (embedInfo) {
+    return <EmbedMedia url={item.url} embed={embedInfo} className="riverCard__mediaEmbed" />
+  }
 
   if (isVideo) {
     if (hasError) {
@@ -678,7 +685,9 @@ function isVideoUrl(url: string) {
 }
 
 function preferVideo(items: FeedMedia[]) {
-  const index = items.findIndex(item => item.type === 'VIDEO' || isVideoUrl(item.url))
+  const index = items.findIndex(
+    item => item.type === 'VIDEO' || item.type === 'EMBED' || isVideoUrl(item.url)
+  )
   if (index <= 0) return items
   return moveToFront(items, index)
 }

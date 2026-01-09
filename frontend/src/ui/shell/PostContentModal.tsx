@@ -47,6 +47,9 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
     setText,
     setDetected,
     setTags,
+    addEmbedUrl,
+    removeEmbedUrl,
+    setEmbedUrls,
     setVisibility,
     setFeedTarget,
     setTargetUserId,
@@ -60,7 +63,7 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
     reset,
   } = usePostFormState()
 
-  const { text, files, detected, tags, linkPreviews, visibility, feedTarget, targetUserId, busy, capturing, uploadProgress } = state
+  const { text, files, detected, tags, embedUrls, linkPreviews, visibility, feedTarget, targetUserId, busy, capturing, uploadProgress } = state
 
   // Unified error state (single source of truth)
   const { error, setError, clearError } = usePostErrorState()
@@ -75,13 +78,15 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
     files,
     visibility,
     tags,
+    embedUrls,
     useCallback(
       draft => {
         setText(draft.text)
         setVisibility(draft.visibility)
         setTags(draft.tags)
+        setEmbedUrls(draft.embedUrls ?? [])
       },
-      [setText, setVisibility, setTags]
+      [setText, setVisibility, setTags, setEmbedUrls]
     )
   )
 
@@ -182,7 +187,7 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
     if (busy) return
 
     const trimmedText = text.trim()
-    const hasUnsaved = !!(trimmedText || files.length > 0 || tags.length > 0)
+    const hasUnsaved = !!(trimmedText || files.length > 0 || tags.length > 0 || embedUrls.length > 0)
 
     if (hasUnsaved) {
       // Non-blocking: use Promise to avoid blocking render
@@ -201,12 +206,13 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
       text: trimmedText,
       files,
       tags,
+      embedUrls,
       visibility,
       feedTarget,
       targetUserId,
       isOnline,
     })
-  }, [orchestrator, text, files, tags, visibility, feedTarget, targetUserId, isOnline])
+  }, [orchestrator, text, files, tags, embedUrls, visibility, feedTarget, targetUserId, isOnline])
 
   // Focus first input when the sheet opens (no focus trap for sheets)
   useEffect(() => {
@@ -450,6 +456,9 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
             tags={tags}
             onTagsChange={handleTagsChange}
             tagSuggestions={TAG_SUGGESTIONS}
+            embedUrls={embedUrls}
+            onAddEmbedUrl={addEmbedUrl}
+            onRemoveEmbedUrl={removeEmbedUrl}
             linkPreviews={linkPreviews}
             capturing={capturing}
             onCaptureCamera={handleCaptureCamera}

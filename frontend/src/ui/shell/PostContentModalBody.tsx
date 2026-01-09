@@ -1,8 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { RefObject } from 'react'
 import { SmartTextarea, type DetectedMedia } from '../form/SmartTextarea'
 import { Media } from '../ui/Media'
 import { TagInput } from '../form/TagInput'
+import { parseEmbedUrl } from '../../core/media/embedMedia'
+import { EmbedMedia } from '../ui/EmbedMedia'
 import type { FileWithPreview, LinkPreviewState, UploadProgress } from './postComposerState'
 import type { FeedTarget } from './usePostFormState'
 
@@ -33,6 +35,9 @@ type Props = {
   tags: string[]
   onTagsChange: (tags: string[]) => void
   tagSuggestions: string[]
+  embedUrls: string[]
+  onAddEmbedUrl: (url: string) => void
+  onRemoveEmbedUrl: (url: string) => void
   linkPreviews: Record<string, LinkPreviewState>
   capturing: 'camera' | 'audio' | null
   onCaptureCamera: () => void
@@ -67,6 +72,9 @@ export function PostContentModalBody({
   tags,
   onTagsChange,
   tagSuggestions,
+  embedUrls,
+  onAddEmbedUrl,
+  onRemoveEmbedUrl,
   linkPreviews,
   capturing,
   onCaptureCamera,
@@ -88,7 +96,7 @@ export function PostContentModalBody({
 
   return (
     <div className="modal__body">
-      <MediaPreview
+      <MediaPreview 
         files={files}
         uploadProgress={uploadProgress}
         progressMeta={progressMeta}
@@ -137,6 +145,13 @@ export function PostContentModalBody({
         isOnline={isOnline}
         hasUploadErrors={progressMeta.hasErrors}
         onOpenFileDialog={() => fileRef.current?.click()}
+      />
+
+      <EmbedSection
+        busy={busy}
+        embedUrls={embedUrls}
+        onAddEmbedUrl={onAddEmbedUrl}
+        onRemoveEmbedUrl={onRemoveEmbedUrl}
       />
 
       {detectedCount > 0 && (
@@ -601,3 +616,109 @@ function UploadControls({
   )
 }
 
+type EmbedSectionProps = {
+  busy: boolean
+  embedUrls: string[]
+  onAddEmbedUrl: (url: string) => void
+  onRemoveEmbedUrl: (url: string) => void
+}
+
+function EmbedSection({ busy, embedUrls, onAddEmbedUrl, onRemoveEmbedUrl }: EmbedSectionProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [value, setValue] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const handleAdd = () => {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    const embed = parseEmbedUrl(trimmed)
+    if (!embed) {
+      setError('Paste a YouTube or SoundCloud link.')
+      return
+    }
+    onAddEmbedUrl(embed.url)
+    setValue('')
+    setError(null)
+  }
+
+  return (
+    <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
+      <div className="u-row u-gap-3 u-wrap" style={{ alignItems: 'center' }}>
+        <button
+          className="topBar__btn"
+          type="button"
+          onClick={() => {
+            setIsOpen(prev => !prev)
+            setError(null)
+          }}
+          disabled={busy}
+          data-testid="post-content-add-embed"
+        >
+          {isOpen ? 'Close embed' : 'Embed media'}
+        </button>
+        {embedUrls.length > 0 && (
+          <span className="profile__meta">
+            {embedUrls.length} embed{embedUrls.length > 1 ? 's' : ''} added
+          </span>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="u-row u-gap-2 u-wrap" style={{ alignItems: 'center' }}>
+          <input
+            className="u-input"
+            type="url"
+            inputMode="url"
+            placeholder="https://youtube.com/… or https://soundcloud.com/…"
+            value={value}
+            onChange={event => setValue(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                handleAdd()
+              }
+            }}
+            aria-label="Embed media URL"
+            disabled={busy}
+            style={{ flex: 1, minWidth: '240px' }}
+          />
+          <button
+            className="topBar__btn topBar__btn--primary"
+            type="button"
+            onClick={handleAdd}
+            disabled={busy || !value.trim()}
+          >
+            Add embed
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="profile__meta" style={{ color: 'var(--danger)' }}>
+          {error}
+        </div>
+      )}
+
+      {embedUrls.length > 0 && (
+        <div className="u-stack" style={{ gap: 'var(--s-2)' }}>
+          {embedUrls.map(url => {
+            const info = parseEmbedUrl(url)
+            return (
+              <div key={url} className="u-stack" style={{ gap: 'var(--s-2)' }}>
+                <EmbedMedia url={url} embed={info} className="embedMedia--compact" />
+                <button
+                  className="topBar__btn"
+                  type="button"
+                  onClick={() => onRemoveEmbedUrl(url)}
+                  disabled={busy}
+                >
+                  Remove embed
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

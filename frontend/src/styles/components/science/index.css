@@ -1,20 +1,28 @@
 /* Science Page Styles */
 
 .science-page {
-  padding: var(--spacing-lg);
+  padding: var(--s-8);
   max-width: 1400px;
   margin: 0 auto;
   padding-bottom: 80px;
+  height: 88vh;
+  overflow-y: auto;
+  width: var(--page-width);
 }
 
 .science-header {
-  margin-bottom: var(--spacing-xl);
+  width: var(--page-width);
+  margin: var(--s-8) auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .science-header h1 {
   font-size: var(--fs-4);
   font-weight: var(--fw-bold);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--s-2);
 }
 
 .science-subtitle {
@@ -23,24 +31,21 @@
 }
 
 .science-section {
-  background: var(--color-surface, #fff);
-  border-radius: var(--radius-lg, 12px);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: var(--s-8);
+  margin-bottom: var(--s-8);
 }
 
 .science-section h2 {
   font-size: var(--fs-3);
   font-weight: var(--fw-semibold);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--s-4);
 }
 
 .science-section h3 {
   font-size: var(--fs-2);
   font-weight: var(--fw-semibold);
-  margin-top: var(--spacing-lg);
-  margin-bottom: var(--spacing-sm);
+  margin-top: var(--s-8);
+  margin-bottom: var(--s-4);
 }
 
 /* Loading & Error States */
@@ -48,13 +53,13 @@
 .science-loading,
 .science-error {
   text-align: center;
-  padding: var(--spacing-xl);
+  padding: var(--s-8);
   color: var(--text-muted);
 }
 
 .science-error h2 {
   color: var(--color-error, #dc2626);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--s-4);
 }
 
 /* Platform Overview */
@@ -62,22 +67,20 @@
 .science-stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
+  gap: var(--s-4);
+  margin-bottom: var(--s-8);
 }
 
 .science-stat-card {
-  background: var(--color-bg-alt, #f9fafb);
-  border-radius: var(--radius-md, 8px);
-  padding: var(--spacing-md);
+  border-radius: var(--r-4, 8px);
+  padding: var(--s-4);
   text-align: center;
 }
 
 .science-stat-value {
   font-size: var(--fs-4);
-  font-weight: var(--fw-bold);
   color: var(--color-primary, #3b82f6);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--s-2);
 }
 
 .science-stat-label {
@@ -89,18 +92,16 @@
 /* Match Score Distribution Histogram */
 
 .science-distribution {
-  margin-top: var(--spacing-lg);
+  margin-top: var(--s-8);
 }
 
 .science-histogram {
   display: flex;
   align-items: flex-end;
   justify-content: space-around;
-  height: 200px;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  background: var(--color-bg-alt, #f9fafb);
-  border-radius: var(--radius-md, 8px);
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-4, 8px);
 }
 
 .science-histogram-bar {
@@ -108,7 +109,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: var(--s-2);
 }
 
 .science-histogram-fill {
@@ -133,29 +134,17 @@
 
 .science-range-filter {
   display: flex;
-  gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-lg);
+  gap: var(--s-2);
+  margin-bottom: var(--s-8);
   flex-wrap: wrap;
 }
 
 .science-range-filter button {
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface, #fff);
-  border-radius: var(--radius-md, 8px);
+  padding: var(--s-4) var(--s-4);
+  border-radius: var(--r-4, 8px);
   cursor: pointer;
   font-weight: var(--fw-medium);
   transition: all 0.2s;
-}
-
-.science-range-filter button:hover {
-  background: var(--color-bg-alt, #f9fafb);
-}
-
-.science-range-filter button.active {
-  background: var(--color-primary, #3b82f6);
-  color: white;
-  border-color: var(--color-primary, #3b82f6);
 }
 
 /* Match Pairs List */
@@ -163,19 +152,17 @@
 .science-pairs-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--s-4);
 }
 
 .science-empty {
   text-align: center;
-  padding: var(--spacing-xl);
+  padding: var(--s-8);
   color: var(--text-muted);
 }
 
 .science-pair-card {
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: var(--radius-md, 8px);
-  padding: var(--spacing-md);
+  padding: var(--s-4);
   transition: box-shadow 0.2s;
 }
 
@@ -195,13 +182,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--s-4);
 }
 
 .science-pair-users {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--s-4);
 }
 
 .science-user {
@@ -218,7 +205,7 @@
   color: var(--color-primary, #3b82f6);
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--s-4);
 }
 
 .science-matched-badge {
@@ -234,15 +221,15 @@
 
 .science-pair-breakdown {
   display: grid;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
 }
 
 .science-breakdown-item {
   display: grid;
   grid-template-columns: 80px 1fr 50px;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--s-4);
 }
 
 .science-breakdown-label {
@@ -253,7 +240,6 @@
 
 .science-breakdown-bar {
   height: 20px;
-  background: var(--color-bg-alt, #f9fafb);
   border-radius: var(--radius-sm, 4px);
   overflow: hidden;
 }
@@ -289,11 +275,11 @@
 /* Shared Interests */
 
 .science-pair-interests {
-  padding: var(--spacing-sm);
-  background: var(--color-bg-alt, #f9fafb);
+  padding: var(--s-4);
+  background: var(--color-bg-alt, #1f1f20);
   border-radius: var(--radius-sm, 4px);
   font-size: var(--fs-0);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--s-2);
 }
 
 .science-pair-meta {
@@ -306,13 +292,12 @@
 .science-interests-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: var(--spacing-md);
+  gap: var(--s-4);
 }
 
 .science-interest-card {
-  background: var(--color-bg-alt, #f9fafb);
-  border-radius: var(--radius-md, 8px);
-  padding: var(--spacing-md);
+  border-radius: var(--r-4, 8px);
+  padding: var(--s-4);
   transition: transform 0.2s;
 }
 
@@ -323,7 +308,7 @@
 
 .science-interest-name {
   font-weight: var(--fw-semibold);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--s-2);
 }
 
 .science-interest-stats {
@@ -343,7 +328,7 @@
 
 @media (max-width: 768px) {
   .science-page {
-    padding: var(--spacing-md);
+    padding: var(--s-4);
   }
 
   .science-stat-grid {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { adminApi } from '../../api/admin';
 import { trackError } from '../../utils/errorTracking';
 import type { JobRun } from '../../types';
@@ -15,11 +15,7 @@ export function JobDetailsModal({ jobRunId, onClose, onRerun, onCancel }: JobDet
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadJobDetails();
-  }, [jobRunId]);
-
-  const loadJobDetails = async () => {
+  const loadJobDetails = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -36,7 +32,11 @@ export function JobDetailsModal({ jobRunId, onClose, onRerun, onCancel }: JobDet
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobRunId]);
+
+  useEffect(() => {
+    loadJobDetails();
+  }, [loadJobDetails]);
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { scienceApi, type MatchPair, type Interest, type DailyStats } from '../../api/science';
+import { useNavigate } from 'react-router-dom';
 
 type RangeFilter = 'best' | 'middle' | 'worst' | 'all';
 
@@ -10,12 +11,9 @@ export function SciencePage() {
   const [stats, setStats] = useState<DailyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const nav = useNavigate();
 
-  useEffect(() => {
-    loadData();
-  }, [range]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -35,7 +33,11 @@ export function SciencePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [range]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   if (loading) {
     return (
@@ -60,21 +62,18 @@ export function SciencePage() {
   const latestStats = stats[0];
 
   return (
+    <>
+    <header className="science-header">
+      <button className="actionBtn btn-small" onClick={() => nav('/profiles/search')}>Back</button>
+    </header>
     <div className="science-page">
-      <header className="science-header">
-        <h1>Science - Match Insights</h1>
-        <p className="science-subtitle">
-          Algorithm analysis and platform statistics
-        </p>
-      </header>
-
       {latestStats && (
         <section className="science-section science-overview">
           <h2>Platform Overview</h2>
           <div className="science-stat-grid">
             <div className="science-stat-card">
               <div className="science-stat-value">
-                {latestStats.avgMatchScore?.toFixed(1) ?? 'N/A'}
+                {latestStats.avgMatchScore != null ? Number(latestStats.avgMatchScore).toFixed(1) : 'N/A'}
               </div>
               <div className="science-stat-label">Avg Match Score</div>
             </div>
@@ -92,7 +91,7 @@ export function SciencePage() {
             </div>
             <div className="science-stat-card">
               <div className="science-stat-value">
-                {latestStats.matchRate?.toFixed(1) ?? 'N/A'}%
+                {latestStats.matchRate != null ? Number(latestStats.matchRate).toFixed(1) : 'N/A'}%
               </div>
               <div className="science-stat-label">Match Rate</div>
             </div>
@@ -153,7 +152,7 @@ export function SciencePage() {
           {pairs.length === 0 ? (
             <div className="science-empty">No match pairs found for this range</div>
           ) : (
-            pairs.map((pair, idx) => (
+            pairs.map((pair) => (
               <div
                 key={`${pair.user1.id}-${pair.user2.id}`}
                 className={`science-pair-card ${range === 'best' ? 'best' : range === 'worst' ? 'worst' : ''}`}
@@ -244,9 +243,9 @@ export function SciencePage() {
               <div className="science-interest-name">{interest.name}</div>
               <div className="science-interest-stats">
                 <span>{interest.totalUsers.toLocaleString()} users</span>
-                {interest.percentage !== null && (
+                {interest.percentage != null && (
                   <span className="science-interest-percentage">
-                    {interest.percentage.toFixed(1)}%
+                    {Number(interest.percentage).toFixed(1)}%
                   </span>
                 )}
               </div>
@@ -255,5 +254,6 @@ export function SciencePage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

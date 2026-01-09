@@ -25,6 +25,7 @@ type SubmitOptions = {
   text: string
   files: FileWithPreview[]
   tags: string[]
+  embedUrls: string[]
   visibility: 'PUBLIC' | 'PRIVATE'
   feedTarget: FeedTarget
   targetUserId: string | null
@@ -38,10 +39,10 @@ export function usePostOrchestrator(callbacks: OrchestratorCallbacks) {
 
   const executeSubmit = useCallback(
     async (options: SubmitOptions): Promise<{ success: boolean; error?: string }> => {
-      const { text, files, tags, visibility, feedTarget, targetUserId, isOnline } = options
+      const { text, files, tags, embedUrls, visibility, feedTarget, targetUserId, isOnline } = options
 
       // Early validation
-      const contentValidation = validatePostContent(text, files.length)
+      const contentValidation = validatePostContent(text, files.length, embedUrls.length)
       if (!contentValidation.valid) {
         const error = contentValidation.error || 'Invalid content'
         callbacks.onError(error)
@@ -79,6 +80,7 @@ export function usePostOrchestrator(callbacks: OrchestratorCallbacks) {
           text,
           files,
           tags,
+          embedUrls,
           visibility,
           feedTarget,
           targetUserId,

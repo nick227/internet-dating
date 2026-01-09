@@ -11,6 +11,10 @@
   margin: 0;
 }
 
+.quiz-portal .portal-grid {
+  grid-template-columns: 1fr;
+}
+
 /* --- Filter Bar --- */
 .quiz-filter-bar {
   display: flex;

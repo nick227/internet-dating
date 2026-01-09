@@ -1001,6 +1001,21 @@ export interface paths {
     post: {
     };
   };
+  "/api/science/match-spectrum": {
+    /** Get sampled match pairs with live explanations */
+    get: {
+    };
+  };
+  "/api/science/interests": {
+    /** Get interest popularity and correlations */
+    get: {
+    };
+  };
+  "/api/science/stats": {
+    /** Get platform-wide daily statistics */
+    get: {
+    };
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -1045,7 +1060,7 @@ export interface components {
     /** @enum {string} */
     AccessStatus: "NONE" | "PENDING" | "GRANTED" | "DENIED" | "REVOKED" | "CANCELED";
     /** @enum {string} */
-    MediaType: "IMAGE" | "VIDEO" | "AUDIO";
+    MediaType: "IMAGE" | "VIDEO" | "AUDIO" | "EMBED";
     /** @enum {string} */
     MediaStatus: "PENDING" | "READY" | "FAILED";
     /** @enum {string} */
@@ -1207,6 +1222,7 @@ export interface components {
       text?: string | null;
       visibility?: components["schemas"]["Visibility"];
       mediaIds?: components["schemas"]["Id"][];
+      embedUrls?: string[];
       targetUserId?: components["schemas"]["Id"];
     };
     PostCreateResponse: {

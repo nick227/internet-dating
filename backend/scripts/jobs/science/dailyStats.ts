@@ -11,8 +11,9 @@ export const scienceDailyStatsJob: JobDefinition = {
   run: async () => {
     console.log('[science-daily-stats] Starting...');
 
-    const statDate = new Date();
-    statDate.setHours(0, 0, 0, 0);
+    // Format date as YYYY-MM-DD for MySQL DATE column
+    const now = new Date();
+    const statDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Calculate match score distribution
     const scoreDistribution = await prisma.$queryRaw<Array<{
@@ -50,19 +51,35 @@ export const scienceDailyStatsJob: JobDefinition = {
       _count: { userId: true }
     });
 
-    // Calculate median (approximate)
-    const medianResult = await prisma.$queryRaw<Array<{ median: number }>>`
-      SELECT AVG(score) as median
-      FROM (
-        SELECT score
-        FROM MatchScore
-        ORDER BY score
-        LIMIT 2 - (SELECT COUNT(*) FROM MatchScore) % 2
-        OFFSET (SELECT (COUNT(*) - 1) / 2 FROM MatchScore)
-      ) as median_calc
-    `;
-
-    const median = medianResult[0]?.median ?? null;
+  // Calculate median using a simpler MySQL-compatible approach
+  const totalCount = await prisma.matchScore.count();
+  
+  let median: number | null = null;
+  if (totalCount > 0) {
+    const middleIndex = Math.floor(totalCount / 2);
+    
+    if (totalCount % 2 === 0) {
+      // Even number: average of two middle values
+      const middleScores = await prisma.matchScore.findMany({
+        select: { score: true },
+        orderBy: { score: 'asc' },
+        skip: middleIndex - 1,
+        take: 2
+      });
+      median = middleScores.length === 2 
+        ? (middleScores[0].score + middleScores[1].score) / 2 
+        : null;
+    } else {
+      // Odd number: single middle value
+      const middleScore = await prisma.matchScore.findMany({
+        select: { score: true },
+        orderBy: { score: 'asc' },
+        skip: middleIndex,
+        take: 1
+      });
+      median = middleScore[0]?.score ?? null;
+    }
+  }
 
     // Calculate match metrics
     const totalMatches = await prisma.match.count({
@@ -123,42 +140,51 @@ export const scienceDailyStatsJob: JobDefinition = {
       count: i._count.userId
     }));
 
-    // Upsert daily stats
-    await prisma.scienceDailyStats.upsert({
-      where: { statDate },
-      create: {
-        statDate,
-        scoreDist0to20: dist['0-20'],
-        scoreDist20to40: dist['20-40'],
-        scoreDist40to60: dist['40-60'],
-        scoreDist60to80: dist['60-80'],
-        scoreDist80to100: dist['80-100'],
-        avgMatchScore: matchStats._avg.score ?? null,
-        medianMatchScore: median,
-        totalMatchPairs,
-        totalMatches,
-        matchRate,
-        avgDaysToMatch,
-        avgInterestsPerUser,
-        mostPopularInterests: JSON.stringify(mostPopularInterests),
-        createdAt: new Date()
-      },
-      update: {
-        scoreDist0to20: dist['0-20'],
-        scoreDist20to40: dist['20-40'],
-        scoreDist40to60: dist['40-60'],
-        scoreDist60to80: dist['60-80'],
-        scoreDist80to100: dist['80-100'],
-        avgMatchScore: matchStats._avg.score ?? null,
-        medianMatchScore: median,
-        totalMatchPairs,
-        totalMatches,
-        matchRate,
-        avgDaysToMatch,
-        avgInterestsPerUser,
-        mostPopularInterests: JSON.stringify(mostPopularInterests)
-      }
-    });
+    // Use raw SQL to avoid Prisma issues with DATE columns
+    const dateString = statDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    // Check if record exists
+    const existing = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count FROM science_daily_stats WHERE statDate = ${dateString}
+    `;
+    
+    if (Number(existing[0].count) > 0) {
+      // Update existing record
+      await prisma.$executeRaw`
+        UPDATE science_daily_stats SET
+          scoreDist0to20 = ${dist['0-20']},
+          scoreDist20to40 = ${dist['20-40']},
+          scoreDist40to60 = ${dist['40-60']},
+          scoreDist60to80 = ${dist['60-80']},
+          scoreDist80to100 = ${dist['80-100']},
+          avgMatchScore = ${matchStats._avg.score},
+          medianMatchScore = ${median},
+          totalMatchPairs = ${totalMatchPairs},
+          totalMatches = ${totalMatches},
+          matchRate = ${matchRate},
+          avgDaysToMatch = ${avgDaysToMatch},
+          avgInterestsPerUser = ${avgInterestsPerUser},
+          mostPopularInterests = ${JSON.stringify(mostPopularInterests)}
+        WHERE statDate = ${dateString}
+      `;
+      console.log('[science-daily-stats] Updated existing record');
+    } else {
+      // Insert new record
+      await prisma.$executeRaw`
+        INSERT INTO science_daily_stats (
+          statDate, scoreDist0to20, scoreDist20to40, scoreDist40to60, 
+          scoreDist60to80, scoreDist80to100, avgMatchScore, medianMatchScore,
+          totalMatchPairs, totalMatches, matchRate, avgDaysToMatch,
+          avgInterestsPerUser, mostPopularInterests, createdAt
+        ) VALUES (
+          ${dateString}, ${dist['0-20']}, ${dist['20-40']}, ${dist['40-60']},
+          ${dist['60-80']}, ${dist['80-100']}, ${matchStats._avg.score}, ${median},
+          ${totalMatchPairs}, ${totalMatches}, ${matchRate}, ${avgDaysToMatch},
+          ${avgInterestsPerUser}, ${JSON.stringify(mostPopularInterests)}, NOW()
+        )
+      `;
+      console.log('[science-daily-stats] Created new record');
+    }
 
     console.log(`[science-daily-stats] Complete. Stats for ${statDate.toISOString().split('T')[0]}`);
     console.log(`  - Avg match score: ${matchStats._avg.score?.toFixed(2)}`);

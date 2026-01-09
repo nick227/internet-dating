@@ -2,9 +2,11 @@ import { useState, useMemo, createContext, useContext, useCallback } from 'react
 import type { ProfilePost, ProfileMedia } from '../../api/types'
 import { api } from '../../api/client'
 import { Media } from '../ui/Media'
+import { EmbedMedia } from '../ui/EmbedMedia'
 import { Avatar } from '../ui/Avatar'
 import { CommentWidget } from '../river/CommentWidget'
 import { useCurrentUser } from '../../core/auth/useCurrentUser'
+import { parseEmbedUrl } from '../../core/media/embedMedia'
 
 type Props = {
   posts: ProfilePost[]
@@ -117,6 +119,18 @@ function PostItem({ post }: { post: ProfilePost }) {
 
   const dateInfo = useMemo(() => getDateInfo(post.createdAt), [post.createdAt])
   const mediaItems = useMemo(() => post.media ?? [], [post.media])
+  const { embedItems, visualItems } = useMemo(() => {
+    const embeds: ProfileMedia[] = []
+    const visuals: ProfileMedia[] = []
+    for (const media of mediaItems) {
+      if (isEmbedMedia(media)) {
+        embeds.push(media)
+      } else {
+        visuals.push(media)
+      }
+    }
+    return { embedItems: embeds, visualItems: visuals }
+  }, [mediaItems])
   
   const handleToggleComments = useCallback(() => {
     setCommentOpen(prev => !prev)
@@ -132,13 +146,13 @@ function PostItem({ post }: { post: ProfilePost }) {
 
   const gallery = useMemo(
     () =>
-      mediaItems.map(m => ({
+      visualItems.map(m => ({
         src: m.url,
         alt: 'Post media',
         type: (isVideoMedia(m) ? 'video' : 'image') as 'video' | 'image',
         poster: m.thumbUrl ?? m.url,
       })),
-    [mediaItems]
+    [visualItems]
   )
 
   const handleDeletePost = async () => {
@@ -171,9 +185,9 @@ function PostItem({ post }: { post: ProfilePost }) {
         )}
 
         {/* Media Grid */}
-        {mediaItems.length > 0 && (
-          <div className={`profile__mediaGrid profile__mediaGrid--${Math.min(mediaItems.length, 4)}`}>
-            {mediaItems.map((media, index) => {
+        {visualItems.length > 0 && (
+          <div className={`profile__mediaGrid profile__mediaGrid--${Math.min(visualItems.length, 4)}`}>
+            {visualItems.map((media, index) => {
               const preview = media.thumbUrl ?? media.url
               const isVideo = isVideoMedia(media)
               const mediaSrc = isVideo ? media.url : preview
@@ -193,6 +207,22 @@ function PostItem({ post }: { post: ProfilePost }) {
                     className="u-obj-cover u-full-size u-rounded"
                   />
                 </div>
+              )
+            })}
+          </div>
+        )}
+
+        {embedItems.length > 0 && (
+          <div className="profile__embedList u-stack" style={{ gap: 'var(--s-2)' }}>
+            {embedItems.map(media => {
+              const info = parseEmbedUrl(media.url)
+              return (
+                <EmbedMedia
+                  key={media.id}
+                  url={media.url}
+                  embed={info}
+                  className="embedMedia--compact"
+                />
               )
             })}
           </div>
@@ -259,4 +289,11 @@ function isVideoMedia(media: ProfileMedia) {
     return true
   }
   return VIDEO_EXTENSIONS.test(media.url)
+}
+
+function isEmbedMedia(media: ProfileMedia) {
+  if (typeof media.type === 'string' && media.type.toUpperCase() === 'EMBED') {
+    return true
+  }
+  return Boolean(parseEmbedUrl(media.url))
 }

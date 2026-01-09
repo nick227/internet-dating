@@ -67,7 +67,7 @@ export function RunJobModal({ open, onClose, onSubmit, definitions, activeJobs, 
     let params: Record<string, unknown>;
     try {
       params = JSON.parse(jsonParams);
-    } catch (err) {
+    } catch {
       setError('Invalid JSON syntax');
       return;
     }

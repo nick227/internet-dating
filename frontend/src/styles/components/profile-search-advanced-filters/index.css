@@ -91,7 +91,7 @@
 }
 
 .profile-search-advanced-filters__close-btn {
-  width: var(--component-size-touch);
+  max-width: var(--component-size-touch);
   height: var(--component-size-touch);
   border-radius: var(--r-12);
   border: 1px solid var(--component-border);

@@ -41,6 +41,7 @@ function QuestionCardComponent({
       presenceStatus={presenceStatus}
       position={position}
       onOpenProfile={onOpenProfile}
+      showMedia={false}
     >
       <RiverCardBody content={card.content} />
       {card.question && (

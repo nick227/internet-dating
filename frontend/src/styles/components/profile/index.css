@@ -309,3 +309,6 @@
 .profile__mediaGrid--3 {
   grid-template-columns: repeat(3, 1fr);
 }
+.profile__embedList .embedMedia {
+  border-radius: var(--r-2);
+}

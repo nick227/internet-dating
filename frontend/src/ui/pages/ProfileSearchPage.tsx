@@ -5,10 +5,12 @@ import { ProfileSearchQuickFilters } from '../profile/search/ProfileSearchQuickF
 import { ProfileSearchResults } from '../profile/search/ProfileSearchResults'
 import { getErrorMessage } from '../../core/utils/errors'
 import type { SearchFilters } from '../../core/profile/search/types'
+import { useNavigate } from 'react-router-dom'
 
 export function ProfileSearchPage() {
   const { filters, setFilters, results, loading, error, hasMore, loadMore, isShowingRecommendations } = useProfileSearch()
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
+  const nav = useNavigate()
   const hasActiveFilters = useMemo(() => {
     return !!(
       filters.q ||
@@ -75,6 +77,7 @@ export function ProfileSearchPage() {
           <a href="#" className="profiles-portal__section-link" onClick={(e) => e.preventDefault()}>
             VIEW ALL
           </a>
+          <button className="actionBtn btn-small" onClick={() => nav('/science')}>Site View</button>
         </div>
 
         <div className="profiles-portal__content">

@@ -124,7 +124,7 @@ export async function runUserAffinityJob(options: UserAffinityJobOptions = {}) {
         for (const row of mediaRows) {
           const entry = mediaByPostId.get(row.postId) ?? { hasImage: false, hasVideo: false };
           if (row.media.type === 'IMAGE') entry.hasImage = true;
-          if (row.media.type === 'VIDEO') entry.hasVideo = true;
+          if (row.media.type === 'VIDEO' || row.media.type === 'EMBED') entry.hasVideo = true;
           mediaByPostId.set(row.postId, entry);
         }
 

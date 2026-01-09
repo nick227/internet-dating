@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type { FeedCard } from '../../api/types'
 import { useCurrentUser } from '../auth/useCurrentUser'
+import { parseEmbedUrl } from '../media/embedMedia'
 
 export function useOptimisticFeed() {
   const currentUser = useCurrentUser()
@@ -9,6 +10,7 @@ export function useOptimisticFeed() {
     (
       text: string | null,
       media: Array<{ url: string; thumbUrl?: string | null }>,
+      embedUrls: string[],
       _visibility: 'PUBLIC' | 'PRIVATE'
     ): FeedCard => {
       // Use stable UUID-based ID prefix to avoid collisions
@@ -16,6 +18,36 @@ export function useOptimisticFeed() {
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
       const optimisticId = `optimistic:post:${uuid}`
+      const embedMedia = embedUrls
+        .map((url, idx) => {
+          const info = parseEmbedUrl(url)
+          if (!info) return null
+          return {
+            id: `optimistic-embed-${idx}`,
+            type: 'EMBED' as const,
+            url: info.url,
+            thumbUrl: info.thumbUrl ?? null,
+          }
+        })
+        .filter(Boolean) as Array<{ id: string; type: 'EMBED'; url: string; thumbUrl?: string | null }>
+
+      const fileMedia =
+        media.length > 0
+          ? media.map((m, idx) => ({
+              id: `optimistic-media-${idx}`,
+              type: 'IMAGE' as const,
+              url: m.url,
+              thumbUrl: m.thumbUrl ?? m.url,
+            }))
+          : []
+
+      const optimisticMedia = [...fileMedia, ...embedMedia]
+      const heroUrl =
+        fileMedia[0]?.url ??
+        fileMedia[0]?.thumbUrl ??
+        embedMedia[0]?.thumbUrl ??
+        undefined
+
       return {
         id: optimisticId,
         kind: 'post',
@@ -29,18 +61,10 @@ export function useOptimisticFeed() {
           body: text ?? undefined,
           createdAt: new Date().toISOString(),
         },
-        heroUrl: media[0]?.url ?? media[0]?.thumbUrl ?? undefined,
-        media:
-          media.length > 0
-            ? media.map((m, idx) => ({
-                id: `optimistic-media-${idx}`,
-                type: 'IMAGE' as const,
-                url: m.url,
-                thumbUrl: m.thumbUrl ?? m.url,
-              }))
-            : undefined,
+        heroUrl,
+        media: optimisticMedia.length > 0 ? optimisticMedia : undefined,
         presentation: {
-          mode: media.length > 1 ? 'mosaic' : 'single',
+          mode: optimisticMedia.length > 1 ? 'mosaic' : 'single',
           heroIndex: 0,
         },
         stats: {

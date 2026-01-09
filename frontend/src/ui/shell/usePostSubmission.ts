@@ -21,6 +21,7 @@ type SubmissionOptions = {
   text: string
   files: FileWithPreview[]
   tags: string[]
+  embedUrls: string[]
   visibility: 'PUBLIC' | 'PRIVATE'
   feedTarget: FeedTarget
   targetUserId: string | null
@@ -43,10 +44,10 @@ export function usePostSubmission() {
 
   const submit = useCallback(
     async (options: SubmissionOptions): Promise<SubmissionResult> => {
-      const { text, files, tags, visibility, feedTarget, targetUserId, isOnline, onProgressUpdate, onError, onSuccess } = options
+      const { text, files, tags, embedUrls, visibility, feedTarget, targetUserId, isOnline, onProgressUpdate, onError, onSuccess } = options
 
       // Validate content
-      const contentValidation = validatePostContent(text, files.length)
+      const contentValidation = validatePostContent(text, files.length, embedUrls.length)
       if (!contentValidation.valid) {
         onError(contentValidation.error || 'Invalid content')
         return { success: false, error: contentValidation.error }
@@ -136,6 +137,7 @@ export function usePostSubmission() {
         optimisticCard = createOptimisticPost(
           text.trim() || null,
           files.map(f => ({ url: f.preview, thumbUrl: f.preview })),
+          embedUrls,
           visibility
         )
 
@@ -160,6 +162,7 @@ export function usePostSubmission() {
             text: text.trim() || null,
             visibility,
             mediaIds: results.length ? results.map(r => r.mediaId) : undefined,
+            embedUrls: embedUrls.length ? embedUrls : undefined,
             tags: normalizedTags.length ? normalizedTags : undefined,
             targetUserId: finalTargetUserId || undefined,
           },

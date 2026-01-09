@@ -130,14 +130,13 @@
   padding: var(--s-4);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
-  height: 250px;
+  cursor: pointer;
+  padding-left: var(--s-10);
 }
 
 .portal-item:hover {
   background: var(--panel-2);
   border-color: var(--accent);
-  transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
@@ -148,26 +147,6 @@
   box-shadow: none;
   transform: none;
   cursor: not-allowed;
-}
-
-.portal-item--accent::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
-}
-
-.portal-item--accent:hover::before {
-  transform: scaleX(1);
-}
-
-.portal-item--accent.interest-card--selected::before {
-  transform: scaleX(1);
 }
 
 .portal-item__meta {

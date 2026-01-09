@@ -8,12 +8,16 @@ export type ValidationResult = {
   error?: string
 }
 
-export function validatePostContent(text: string, filesCount: number): ValidationResult {
+export function validatePostContent(
+  text: string,
+  filesCount: number,
+  embedCount = 0
+): ValidationResult {
   const trimmedText = text.trim()
-  if (!trimmedText && filesCount === 0) {
+  if (!trimmedText && filesCount === 0 && embedCount === 0) {
     return {
       valid: false,
-      error: 'Add text or at least one photo.',
+      error: 'Add text, media, or an embed.',
     }
   }
   return { valid: true }
