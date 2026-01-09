@@ -17,6 +17,9 @@ import { userInterestSetsJob } from '../core/userInterestSets.js';
 import { searchableUserJob } from '../core/searchableUser.js';
 import { quizAnswerStatsJob } from '../core/quizAnswerStats.js';
 import { interestRelationshipsJob } from '../core/interestRelationships.js';
+import { scienceSamplePairsJob } from '../science/samplePairs.js';
+import { scienceDailyStatsJob } from '../science/dailyStats.js';
+import { scienceInterestCorrelationsJob } from '../science/interestCorrelations.js';
 
   const jobs: JobRegistry = {
     'match-scores': matchScoresJob,
@@ -36,6 +39,9 @@ import { interestRelationshipsJob } from '../core/interestRelationships.js';
     'searchable-user': searchableUserJob,
     'quiz-answer-stats': quizAnswerStatsJob,
     'interest-relationships': interestRelationshipsJob,
+    'science-sample-pairs': scienceSamplePairsJob,
+    'science-daily-stats': scienceDailyStatsJob,
+    'science-interest-correlations': scienceInterestCorrelationsJob,
   };
 
   // Validate all jobs at startup (fail fast)

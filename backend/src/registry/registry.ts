@@ -12,6 +12,7 @@ import { quizzesDomain } from './domains/quizzes/index.js';
 import { safetyDomain } from './domains/safety/index.js';
 import { mediaDomain } from './domains/media/index.js';
 import { interestsDomain } from './domains/interests/index.js';
+import { scienceDomain } from './domains/science/index.js';
 
 export const registry: DomainRegistry[] = [
   systemDomain,
@@ -26,4 +27,5 @@ export const registry: DomainRegistry[] = [
   safetyDomain,
   mediaDomain,
   interestsDomain,
+  scienceDomain,
 ];

@@ -32,6 +32,7 @@ const ConnectionsPage = lazy(() => import('./ui/pages/ConnectionsPage').then(m =
 const AdminLayout = lazy(() => import('./admin/components/AdminLayout').then(m => ({ default: m.AdminLayout })))
 const JobManagerPage = lazy(() => import('./admin/pages/JobManagerPage').then(m => ({ default: m.JobManagerPage })))
 const JobDetailsPage = lazy(() => import('./admin/pages/JobDetailsPage').then(m => ({ default: m.JobDetailsPage })))
+const SciencePage = lazy(() => import('./ui/pages/SciencePage').then(m => ({ default: m.SciencePage })))
 
 // Minimal loading fallback for route transitions
 function RouteLoader() {
@@ -238,6 +239,16 @@ export default function App() {
                     <JobDetailsPage />
                   </Suspense>
                 </AdminLayout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/science"
+            element={
+              <AdminRoute>
+                <Suspense fallback={<RouteLoader />}>
+                  <SciencePage />
+                </Suspense>
               </AdminRoute>
             }
           />
