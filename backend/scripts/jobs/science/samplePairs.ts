@@ -31,7 +31,7 @@ export const scienceSamplePairsJob: JobDefinition = {
     });
 
     if (bestMatches.length > 0) {
-      await prisma.science_sample_pairs.createMany({
+      await prisma.scienceSamplePair.createMany({
         data: bestMatches.map(m => ({
           user1Id: m.userId,
           user2Id: m.candidateUserId,
@@ -57,7 +57,7 @@ export const scienceSamplePairsJob: JobDefinition = {
     `;
 
     if (middleMatches.length > 0) {
-      await prisma.science_sample_pairs.createMany({
+      await prisma.scienceSamplePair.createMany({
         data: middleMatches.map(m => ({
           user1Id: m.userId,
           user2Id: m.candidateUserId,
@@ -81,7 +81,7 @@ export const scienceSamplePairsJob: JobDefinition = {
     });
 
     if (worstMatches.length > 0) {
-      await prisma.science_sample_pairs.createMany({
+      await prisma.scienceSamplePair.createMany({
         data: worstMatches.map(m => ({
           user1Id: m.userId,
           user2Id: m.candidateUserId,

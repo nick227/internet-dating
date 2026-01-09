@@ -2,6 +2,7 @@ import { Auth } from '../../../../lib/auth/rules.js';
 import { json } from '../../../../lib/http/json.js';
 import { prisma } from '../../../../lib/prisma/client.js';
 import type { RouteDef } from '../../../types.js';
+import type { Decimal } from '@prisma/client/runtime/library.js';
 
 export const statsRoute: RouteDef = {
   id: 'science.GET./science/stats',
@@ -27,7 +28,7 @@ export const statsRoute: RouteDef = {
     startDate.setDate(startDate.getDate() - daysNum);
 
     // Query daily stats
-    const stats = await prisma.science_daily_stats.findMany({
+    const stats = await prisma.scienceDailyStats.findMany({
       where: {
         statDate: {
           gte: startDate,
@@ -38,7 +39,23 @@ export const statsRoute: RouteDef = {
     });
 
     // Format response
-    const formattedStats = stats.map(s => {
+    const formattedStats = stats.map((s: {
+      statDate: Date;
+      scoreDist0to20: number;
+      scoreDist20to40: number;
+      scoreDist40to60: number;
+      scoreDist60to80: number;
+      scoreDist80to100: number;
+      avgMatchScore: Decimal | null;
+      medianMatchScore: Decimal | null;
+      totalMatchPairs: number;
+      totalMatches: number;
+      matchRate: Decimal | null;
+      avgDaysToMatch: Decimal | null;
+      avgInterestsPerUser: Decimal | null;
+      mostPopularInterests: unknown;
+      createdAt: Date;
+    }) => {
       let mostPopularInterests: Array<{ id: number; name: string; count: number }> = [];
       
       if (s.mostPopularInterests) {

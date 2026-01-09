@@ -60,6 +60,10 @@ model User {
   interestSubjectUserSets InterestSubjectUserSet[]
   searchableUser        SearchableUser?
 
+  // Science page relations
+  scienceSamplePairsAsUser1 ScienceSamplePair[] @relation("ScienceSamplePair_User1")
+  scienceSamplePairsAsUser2 ScienceSamplePair[] @relation("ScienceSamplePair_User2")
+
   @@index([createdAt])
   @@index([deletedAt])
 }

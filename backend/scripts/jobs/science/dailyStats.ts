@@ -124,7 +124,7 @@ export const scienceDailyStatsJob: JobDefinition = {
     }));
 
     // Upsert daily stats
-    await prisma.science_daily_stats.upsert({
+    await prisma.scienceDailyStats.upsert({
       where: { statDate },
       create: {
         statDate,

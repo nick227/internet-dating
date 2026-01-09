@@ -42,14 +42,12 @@ export const interestsRoute: RouteDef = {
       subject_name: string;
       total_users: bigint;
       percentage: number | null;
-    }>>`
-      SELECT * FROM v_interest_popularity
-      ORDER BY ${orderByClause}
-      LIMIT ${take}
-    `;
+    }>>(
+      `SELECT * FROM v_interest_popularity ORDER BY ${orderByClause} LIMIT ${take}`
+    );
 
     // Get latest update time from correlations table
-    const latestCorrelation = await prisma.science_interest_correlations.findFirst({
+    const latestCorrelation = await prisma.scienceInterestCorrelation.findFirst({
       orderBy: { updatedAt: 'desc' },
       select: { updatedAt: true }
     });
@@ -65,7 +63,7 @@ export const interestsRoute: RouteDef = {
       const interestIds = popularityData.map(i => i.interest_id);
       
       // Get top 10 correlations for each interest
-      const correlations = await prisma.science_interest_correlations.findMany({
+      const correlations = await prisma.scienceInterestCorrelation.findMany({
         where: {
           OR: [
             { interestAId: { in: interestIds } },
@@ -80,13 +78,13 @@ export const interestsRoute: RouteDef = {
       for (const corr of correlations) {
         const forInterestA = {
           interestId: Number(corr.interestBId),
-          correlationScore: corr.correlationScore ?? 0,
+          correlationScore: corr.correlationScore ? Number(corr.correlationScore) : 0,
           sharedUsers: corr.sharedUserCount
         };
         
         const forInterestB = {
           interestId: Number(corr.interestAId),
-          correlationScore: corr.correlationScore ?? 0,
+          correlationScore: corr.correlationScore ? Number(corr.correlationScore) : 0,
           sharedUsers: corr.sharedUserCount
         };
 

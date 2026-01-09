@@ -107,3 +107,9 @@ enum FeedItemType {
      POST
      SUGGESTION
 }
+
+enum SampleCategory {
+     BEST
+     MIDDLE
+     WORST
+}

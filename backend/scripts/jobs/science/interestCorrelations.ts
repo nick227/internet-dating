@@ -82,7 +82,7 @@ export const scienceInterestCorrelationsJob: JobDefinition = {
           const avgMatchScore = avgMatchScoreResult[0]?.avgScore ?? null;
 
           // Upsert correlation
-          const result = await prisma.science_interest_correlations.upsert({
+          const result = await prisma.scienceInterestCorrelation.upsert({
             where: {
               interestAId_interestBId: {
                 interestAId: interestA.id,

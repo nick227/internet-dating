@@ -1,0 +1,68 @@
+// Science Page Tables
+// Analytics and statistics for the /science admin page
+
+model ScienceSamplePair {
+  id              BigInt   @id @default(autoincrement())
+  user1Id         BigInt
+  user2Id         BigInt
+  matchScore      Decimal  @db.Decimal(5, 2)
+  sampleCategory  SampleCategory
+  sampledAt       DateTime @default(now())
+
+  user1           User     @relation("ScienceSamplePair_User1", fields: [user1Id], references: [id], onDelete: Restrict)
+  user2           User     @relation("ScienceSamplePair_User2", fields: [user2Id], references: [id], onDelete: Restrict)
+
+  @@unique([user1Id, user2Id], map: "science_sample_pairs_users_key")
+  @@index([sampleCategory, matchScore(sort: Desc)], map: "science_sample_pairs_category_score_idx")
+  @@index([sampledAt(sort: Desc)], map: "science_sample_pairs_sampled_idx")
+  @@map("science_sample_pairs")
+}
+
+model ScienceDailyStats {
+  statDate              DateTime @id @db.Date
+  
+  // Match score distribution (histogram buckets)
+  scoreDist0to20        Int      @default(0)
+  scoreDist20to40       Int      @default(0)
+  scoreDist40to60       Int      @default(0)
+  scoreDist60to80       Int      @default(0)
+  scoreDist80to100      Int      @default(0)
+  
+  avgMatchScore         Decimal? @db.Decimal(5, 2)
+  medianMatchScore      Decimal? @db.Decimal(5, 2)
+  totalMatchPairs       Int      @default(0)
+  
+  // Connection metrics
+  totalMatches          Int      @default(0)
+  matchRate             Decimal? @db.Decimal(5, 2)
+  avgDaysToMatch        Decimal? @db.Decimal(5, 2)
+  
+  // Interest metrics
+  avgInterestsPerUser   Decimal? @db.Decimal(5, 2)
+  mostPopularInterests  Json?
+  
+  createdAt             DateTime @default(now())
+
+  @@index([statDate(sort: Desc)], map: "science_daily_stats_date_idx")
+  @@map("science_daily_stats")
+}
+
+model ScienceInterestCorrelation {
+  interestAId       BigInt
+  interestBId       BigInt
+  
+  // Correlation metrics
+  sharedUserCount   Int      @default(0)
+  correlationScore  Decimal? @db.Decimal(5, 4)
+  avgMatchScore     Decimal? @db.Decimal(5, 2)
+  
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
+
+  interestA         Interest @relation("InterestCorrelation_A", fields: [interestAId], references: [id], onDelete: Restrict)
+  interestB         Interest @relation("InterestCorrelation_B", fields: [interestBId], references: [id], onDelete: Restrict)
+
+  @@id([interestAId, interestBId])
+  @@index([correlationScore(sort: Desc)], map: "science_interest_correlations_score_idx")
+  @@map("science_interest_correlations")
+}

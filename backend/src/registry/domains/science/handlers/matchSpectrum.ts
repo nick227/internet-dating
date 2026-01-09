@@ -45,7 +45,7 @@ export const matchSpectrumRoute: RouteDef = {
     const category = categoryMap[range];
 
     // Get sampled pair IDs
-    const samplePairs = await prisma.science_sample_pairs.findMany({
+    const samplePairs = await prisma.scienceSamplePair.findMany({
       where: category ? { sampleCategory: category } : undefined,
       orderBy: { matchScore: range === 'worst' ? 'asc' : 'desc' },
       take,
@@ -66,12 +66,12 @@ export const matchSpectrumRoute: RouteDef = {
     }
 
     // Get total count for pagination
-    const total = await prisma.science_sample_pairs.count({
+    const total = await prisma.scienceSamplePair.count({
       where: category ? { sampleCategory: category } : undefined
     });
 
     // Query v_match_explainer view for live explanations
-    const pairConditions = samplePairs.map(p => 
+    const pairConditions = samplePairs.map((p: { user1Id: bigint; user2Id: bigint }) => 
       `(user1_id = ${p.user1Id} AND user2_id = ${p.user2Id})`
     ).join(' OR ');
 
@@ -92,10 +92,9 @@ export const matchSpectrumRoute: RouteDef = {
       is_matched: number;
       match_state: string | null;
       matched_at: Date | null;
-    }>>`
-      SELECT * FROM v_match_explainer
-      WHERE ${pairConditions}
-    `;
+    }>>(
+      `SELECT * FROM v_match_explainer WHERE ${pairConditions}`
+    );
 
     // Get interest details for shared interests
     const allInterestIds = new Set<bigint>();
