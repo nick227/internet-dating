@@ -28,7 +28,7 @@ These are non-negotiable to prevent drift and feedback loops.
 ## Job 1: Match Score Job ✅
 
 **Status:** Implemented  
-**Entry Point:** `backend/scripts/recomputeMatchScores.ts`  
+**Entry Point:** `backend/scripts/jobs/runners/recomputeMatchScores.ts`  
 **Core Logic:** `backend/src/jobs/matchScoreJob.ts`
 
 ### Purpose

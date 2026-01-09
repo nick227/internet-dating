@@ -78,6 +78,7 @@ body {
   background: #0b0b10;
   /* Freeze dimensions - prevent layout shift */
   width: 100%;
+  min-height: 80vh;
   /* GPU promotion - isolate paints, reduce repaint cost on hydration */
   will-change: transform;
   contain: layout paint;

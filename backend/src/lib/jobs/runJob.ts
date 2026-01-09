@@ -245,7 +245,7 @@ export async function runQueuedJob(jobRunId: bigint): Promise<void> {
   }
 
   // Import and execute the job
-  const { getJob } = await import('../../../scripts/jobs/registry');
+  const { getJob } = await import('../../../scripts/jobs/lib/registry');
   const job = getJob(jobRun.jobName);
   
   if (!job) {

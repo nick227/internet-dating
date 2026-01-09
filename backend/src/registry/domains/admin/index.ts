@@ -144,7 +144,7 @@ export const adminDomain: DomainRegistry = {
         };
 
         // Validate job exists
-        const { getJob } = await import('../../../../scripts/jobs/registry');
+        const { getJob } = await import('../../../../scripts/jobs/lib/registry');
         const job = getJob(jobName);
         if (!job) {
           return json(res, { 
@@ -252,7 +252,7 @@ export const adminDomain: DomainRegistry = {
       summary: 'Get available job definitions',
       tags: ['admin'],
       handler: async (req, res) => {
-        const { getAllJobs, getJobGroups } = await import('../../../../scripts/jobs/registry');
+        const { getAllJobs, getJobGroups } = await import('../../../../scripts/jobs/lib/registry');
         const jobs = getAllJobs();
         const groups = getJobGroups();
         
@@ -280,8 +280,8 @@ export const adminDomain: DomainRegistry = {
       tags: ['admin'],
       handler: async (req, res) => {
         try {
-          const { getJobsMap } = await import('../../../../scripts/jobs/registry');
-          const { resolveJobDependencies } = await import('../../../../scripts/jobs/dependencyResolver');
+          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry');
+          const { resolveJobDependencies } = await import('../../../../scripts/jobs/lib/dependencyResolver');
           
           const jobsMap = getJobsMap();
           const resolvedJobs = resolveJobDependencies(jobsMap);
@@ -341,8 +341,8 @@ export const adminDomain: DomainRegistry = {
             return json(res, { error: 'Group is required' }, 400);
           }
           
-          const { getJobsMap } = await import('../../../../scripts/jobs/registry');
-          const { resolveJobsByGroup } = await import('../../../../scripts/jobs/dependencyResolver');
+          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry');
+          const { resolveJobsByGroup } = await import('../../../../scripts/jobs/lib/dependencyResolver');
           
           const jobsMap = getJobsMap();
           const resolvedJobs = resolveJobsByGroup(jobsMap, group as any);

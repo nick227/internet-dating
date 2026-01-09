@@ -12,10 +12,15 @@
     "prisma:migrate": "prisma migrate dev --schema prisma/schema",
     "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema",
     "prisma:studio": "prisma studio --schema prisma/schema",
-    "migrate": "tsx scripts/runMigrations.ts",
+    "migrate": "tsx scripts/admin/runMigrations.ts",
     "openapi:emit": "tsx src/lib/openapi/emitOpenApi.ts",
-    "seed:all": "tsx scripts/seedAll.ts",
-    "admin:create": "tsx scripts/createAdmin.ts",
+    "seed:all": "tsx scripts/seeding/core/seedAll.ts",
+    "seed:mass": "tsx scripts/seeding/core/seedMassProfiles.ts",
+    "seed:activity": "tsx scripts/seeding/core/seedActivity.ts",
+    "seed:validate": "tsx scripts/seeding/validation/validateSeeding.ts",
+    "seed:reset": "tsx scripts/seeding/core/resetDatabase.ts",
+    "admin:create": "tsx scripts/admin/createAdmin.ts",
+    "jobs:run": "tsx scripts/jobs/runners/runJobs.ts",
     "worker:jobs": "tsx src/workers/jobWorker.ts"
   },
   "dependencies": {

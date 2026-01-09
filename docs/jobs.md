@@ -2,7 +2,7 @@
 
 ## Current Jobs (in repo)
 ### Match Scoring Job
-- Script: `backend/scripts/recomputeMatchScores.ts`
+- Script: `backend/scripts/jobs/runners/recomputeMatchScores.ts`
 - Purpose: Precompute suggestion scores and reasons for each user.
 - Signals: quiz similarity, interest overlap, rating quality, rating fit, newness, proximity.
 - Output: `MatchScore` rows for `(userId, candidateUserId)`.
