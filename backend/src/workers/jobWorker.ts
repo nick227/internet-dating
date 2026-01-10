@@ -7,7 +7,11 @@ import {
   isWorkerActive 
 } from './workerManager.js';
 
-const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
+// Configurable via environment variable
+const POLL_INTERVAL_MS = parseInt(
+  process.env.JOB_WORKER_POLL_INTERVAL_MS || '5000',
+  10
+);
 const STALLED_JOB_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 let isRunning = false;
@@ -167,10 +171,25 @@ export function getWorkerStatus() {
   };
 }
 
-// Start worker if run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * Start the job worker (for embedding in web server)
+ */
+export function startJobWorker() {
+  console.log(`[worker] Starting job worker (poll interval: ${POLL_INTERVAL_MS}ms)`);
+  
   workerLoop().catch(err => {
     console.error('[worker] Fatal error:', err);
-    process.exit(1);
+    
+    // If embedded in web server, don't exit process
+    if (process.env.EMBEDDED_JOB_WORKER === 'true') {
+      console.error('[worker] Job worker crashed but web server continues');
+    } else {
+      process.exit(1);
+    }
   });
+}
+
+// Start worker if run directly (not embedded)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  startJobWorker();
 }

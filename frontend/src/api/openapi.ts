@@ -198,6 +198,49 @@ export interface paths {
     post: {
     };
   };
+  "/api/admin/schedules": {
+    /** List all job schedules */
+    get: {
+    };
+  };
+  "/api/admin/schedules/{id}": {
+    /** Get schedule details */
+    get: {
+      parameters: {
+        path: {
+          id: components["schemas"]["Id"];
+        };
+      };
+    };
+    /** Update schedule (enable/disable) */
+    put: {
+      parameters: {
+        path: {
+          id: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/admin/schedules/{id}/trigger": {
+    /** Manually trigger schedule (run now) */
+    post: {
+      parameters: {
+        path: {
+          id: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
+  "/api/admin/schedules/{id}/history": {
+    /** Get schedule run history */
+    get: {
+      parameters: {
+        path: {
+          id: components["schemas"]["Id"];
+        };
+      };
+    };
+  };
   "/api/feed": {
     /** Homepage feed (posts + match suggestions) */
     get: {

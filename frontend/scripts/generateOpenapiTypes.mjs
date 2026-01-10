@@ -84,7 +84,7 @@ try {
   
   writeFileSync(outputPath, types)
   console.log(`Wrote ${outputPath}`)
-  console.log('⚠️  After regenerating OpenAPI types:')
+  console.log('Yay!')
   console.log('   1. Run TypeScript compiler to catch type errors')
   console.log('   2. Review api/adapters.ts for compatibility')
   console.log('   3. Check for new Api* types that need domain type equivalents in api/types.ts')

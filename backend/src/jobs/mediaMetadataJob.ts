@@ -16,6 +16,7 @@ const storage = new LocalStorageProvider(MEDIA_UPLOAD_ROOT)
 const MAX_DURATION_SEC = 180
 const MAX_WIDTH = 3840
 const MAX_HEIGHT = 2160
+const MEDIA_METADATA_BATCH_SIZE = 200
 
 export type MediaMetadataJobOptions = {
   mediaId: bigint
@@ -55,6 +56,19 @@ async function extractMetadataWithFFProbe(filePath: string): Promise<{
     durationSec: null,
     width: null,
     height: null,
+  }
+}
+
+function buildUncheckedMediaWhere(options?: {
+  cutoffTime?: Date
+  includeReady?: boolean
+}) {
+  const { cutoffTime, includeReady } = options ?? {}
+  return {
+    deletedAt: null,
+    type: { in: ['VIDEO', 'AUDIO'] },
+    status: { in: includeReady ? ['UPLOADED', 'READY'] : ['UPLOADED'] },
+    ...(cutoffTime ? { createdAt: { gte: cutoffTime } } : {}),
   }
 }
 
@@ -222,17 +236,7 @@ export async function runMediaMetadataBatchJob(options: {
 
         // Find video/audio media that needs metadata extraction
         const mediaToProcess = await prisma.media.findMany({
-          where: {
-            deletedAt: null,
-            type: { in: ['VIDEO', 'AUDIO'] },
-            status: { in: ['UPLOADED', 'READY'] },
-            createdAt: { gte: cutoffTime },
-            OR: [
-              { durationSec: null },
-              { width: null },
-              { height: null },
-            ],
-          },
+          where: buildUncheckedMediaWhere({ cutoffTime }),
           select: { id: true, type: true },
           take: batchSize,
         });
@@ -328,6 +332,112 @@ export async function runMediaMetadataBatchJob(options: {
         });
         throw err;
       }
+    }
+  )
+}
+
+/**
+ * Process all unchecked media for metadata extraction
+ * Useful for full backfills without age limits
+ */
+export async function runMediaMetadataAllJob() {
+  return runJob(
+    {
+      jobName: 'media-metadata-all',
+      trigger: 'MANUAL',
+      scope: 'processing',
+      algorithmVersion: 'v1',
+      metadata: { batchSize: MEDIA_METADATA_BATCH_SIZE },
+    },
+    async (ctx) => {
+      const logger = createJobLogger(ctx.jobRunId, ctx.jobName);
+
+      await logger.setStage('Initializing', 'Scanning unchecked media');
+
+      const total = await prisma.media.count({
+        where: buildUncheckedMediaWhere(),
+      });
+
+      await logger.setTotal(total, 'media files');
+      await logger.milestone(`Found ${total} media files to process`, { total });
+
+      if (total === 0) {
+        await logger.info('No media files need processing');
+        await logger.logSummary();
+        return { total: 0, processed: 0, rejected: 0, failed: 0 };
+      }
+
+      await logger.setStage('Processing media');
+
+      let processed = 0;
+      let rejected = 0;
+      let failed = 0;
+      let lastId: bigint | null = null;
+
+      while (true) {
+        const where = {
+          ...buildUncheckedMediaWhere(),
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        };
+
+        const mediaToProcess = await prisma.media.findMany({
+          where,
+          select: { id: true },
+          orderBy: { id: 'asc' },
+          take: MEDIA_METADATA_BATCH_SIZE,
+        });
+
+        if (mediaToProcess.length === 0) {
+          break;
+        }
+
+        for (const media of mediaToProcess) {
+          lastId = media.id;
+          try {
+            const result = await runMediaMetadataJob({ mediaId: media.id });
+
+            if (result.rejected) {
+              rejected++;
+              logger.addOutcome('rejected', 1);
+              await logger.warning(`Media ${media.id} rejected`, {
+                mediaId: media.id.toString(),
+                errors: result.errors
+              });
+            } else if (result.success) {
+              processed++;
+              logger.addOutcome('updates', 1);
+            } else if (result.skipped) {
+              logger.addOutcome('skipped', 1);
+            }
+          } catch (err) {
+            failed++;
+            logger.addOutcome('errors', 1);
+            await logger.error(`Failed to process media ${media.id}`, {
+              mediaId: media.id.toString(),
+              error: err instanceof Error ? err.message : String(err)
+            });
+          }
+
+          await logger.incrementProgress();
+        }
+      }
+
+      await logger.setStage('Finalizing');
+      await logger.milestone('All media processed', {
+        total,
+        processed,
+        rejected,
+        failed
+      });
+
+      await logger.logSummary();
+
+      return {
+        total,
+        processed,
+        rejected,
+        failed,
+      };
     }
   )
 }

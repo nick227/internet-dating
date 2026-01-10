@@ -252,7 +252,7 @@ pnpm tsx scripts/jobs/runners/runJobs.ts affinity
 ## Media Jobs
 
 ### `media-metadata`
-**What it does**: Extracts metadata for a single media record.
+**What it does**: Extracts and stores metadata for a single media record (duration, dimensions, codec/format, and any other file-derived attributes your pipeline uses for rendering, validation, or ranking).
 
 **When to run**:
 - After uploading a specific media item
@@ -269,8 +269,26 @@ pnpm tsx scripts/jobs/runners/runJobs.ts media-metadata --mediaId=123
 
 ---
 
+### `media-metadata-all`
+**What it does**: Finds every unchecked media record (no age filter) and runs the same extraction/validation as `media-metadata`, processing one item at a time.
+
+**When to run**:
+- Full backfills after adding new metadata fields
+- One-off maintenance when many records are missing metadata
+
+**Examples**:
+```bash
+# Extract metadata for all unchecked media
+pnpm tsx scripts/jobs/runners/runJobs.ts media-metadata-all
+```
+
+**Key Options**:
+- None
+
+---
+
 ### `media-metadata-batch`
-**What it does**: Extracts metadata for multiple recent media records.
+**What it does**: Scans for recent media records and processes them in batches using the same extraction logic as `media-metadata`, but optimized for backfills and maintenance runs.
 
 **When to run**:
 - Periodic backfill of recent uploads

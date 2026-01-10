@@ -231,6 +231,29 @@ async function testMediaVolume() {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
 
+    // Start embedded job worker if enabled
+    const ENABLE_EMBEDDED_WORKER = process.env.EMBEDDED_JOB_WORKER === 'true';
+    if (ENABLE_EMBEDDED_WORKER) {
+      process.stdout.write('[server] 🔄 Starting embedded job worker\n');
+      const pollInterval = process.env.JOB_WORKER_POLL_INTERVAL_MS || '5000';
+      process.stdout.write(`[server] Job worker poll interval: ${pollInterval}ms\n`);
+      
+      // Dynamic import to avoid issues if worker module has errors
+      import('./workers/jobWorker.js')
+        .then(module => {
+          module.startJobWorker();
+          process.stdout.write('[server] ✓ Job worker started\n');
+        })
+        .catch(err => {
+          process.stderr.write(`[server] ❌ Failed to start job worker: ${String(err)}\n`);
+          if (err instanceof Error && err.stack) {
+            process.stderr.write(`[server] ${err.stack}\n`);
+          }
+        });
+    } else {
+      process.stdout.write('[server] ⏭️  Job worker disabled (EMBEDDED_JOB_WORKER not set to true)\n');
+    }
+
     // Start server - bind to 0.0.0.0 for Railway
     // Wrap in Promise to handle async errors properly
     await new Promise<void>((resolve, reject) => {
