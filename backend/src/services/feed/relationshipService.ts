@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma/client.js';
+import { invalidateAllSegmentsForUser } from './presortedFeedService.js';
 
 type RelationshipIds = {
   followingIds: bigint[];
@@ -34,4 +35,27 @@ export async function getRelationshipIds(userId: bigint): Promise<RelationshipId
     followingIds,
     followerIds: filteredFollowers
   };
+}
+
+/**
+ * Invalidate feed segments for multiple users in batch
+ * Prevents N+1 queries when invalidating for followers
+ */
+export async function batchInvalidateSegments(userIds: bigint[]): Promise<void> {
+  if (userIds.length === 0) return;
+  
+  await prisma.presortedFeedSegment.deleteMany({
+    where: {
+      userId: { in: userIds },
+    },
+  });
+}
+
+/**
+ * Invalidate feed segments for user and all their followers
+ */
+export async function invalidateUserAndFollowerFeeds(userId: bigint): Promise<void> {
+  const followerIds = await getFollowerIds(userId);
+  const allUserIds = [userId, ...followerIds];
+  await batchInvalidateSegments(allUserIds);
 }
