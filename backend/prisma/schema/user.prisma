@@ -82,6 +82,8 @@ model Profile {
   locationText  String?
   lat           Decimal? @db.Decimal(9,6)
   lng           Decimal? @db.Decimal(9,6)
+  geoPrecision  GeoPrecision?
+  locationAccuracy LocationAccuracy?
   gender        Gender        @default(UNSPECIFIED)
   intent        DatingIntent  @default(UNSPECIFIED)
   isVisible     Boolean @default(true)

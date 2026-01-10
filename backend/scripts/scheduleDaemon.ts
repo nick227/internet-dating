@@ -28,18 +28,37 @@ async function registerWorker() {
  * Sync code-defined schedules to database
  * Creates missing schedules (disabled by default)
  * Does NOT modify existing schedules
+ * 
+ * INVARIANT: If enabled=true AND nextRunAt IS NULL, recompute nextRunAt
+ * This recovers from bad cron parse or timezone corruption
  */
 async function syncScheduleDefinitions() {
   for (const schedule of schedules) {
-    await prisma.jobSchedule.upsert({
-      where: { id: schedule.id },
-      create: {
-        id: schedule.id,
-        enabled: false, // Safety: require explicit admin enable
-        nextRunAt: new Cron(schedule.cron, { timezone: schedule.timezone, paused: true }).nextRun() || new Date()
-      },
-      update: {} // Don't touch existing records
+    const existing = await prisma.jobSchedule.findUnique({
+      where: { id: schedule.id }
     });
+
+    // New schedule: create disabled with nextRunAt calculated
+    if (!existing) {
+      await prisma.jobSchedule.create({
+        data: {
+          id: schedule.id,
+          enabled: false, // Safety: require explicit admin enable
+          nextRunAt: new Cron(schedule.cron, { timezone: schedule.timezone, paused: true }).nextRun() || new Date()
+        }
+      });
+      continue;
+    }
+
+    // INVARIANT: enabled=true BUT nextRunAt IS NULL → corruption, recompute
+    if (existing.enabled && !existing.nextRunAt) {
+      const nextRun = new Cron(schedule.cron, { timezone: schedule.timezone, paused: true }).nextRun() || new Date();
+      await prisma.jobSchedule.update({
+        where: { id: schedule.id },
+        data: { nextRunAt: nextRun }
+      });
+      console.warn(`⚠️  Recovered corrupted schedule "${schedule.id}": nextRunAt was NULL, recomputed to ${nextRun.toISOString()}`);
+    }
   }
   console.log(`📋 Synced ${schedules.length} schedule definitions from code`);
 }

@@ -157,11 +157,15 @@ export function SchedulesPage() {
       </div>
 
       <div className="info-banner">
-        <strong>ℹ️ About Schedules:</strong> Schedule definitions are version-controlled in code.
-        Use the toggles below to enable or disable automatic execution.
-        <br />
-        <strong>Missed Run Policy:</strong> If the schedule daemon is down during a scheduled time,
-        the run will be skipped (not executed retroactively).
+        <div className="info-section">
+          <strong>ℹ️ About Schedules:</strong> Schedule definitions are version-controlled in code.
+          Use the toggles below to enable or disable automatic execution.
+        </div>
+        <div className="info-section warning">
+          <strong>⚠️ Missed Run Policy (SKIP):</strong> If the schedule daemon is down during a scheduled time,
+          the run will be <strong>skipped permanently</strong>. Schedules do not catch up.
+          Next run will wait for the next scheduled interval.
+        </div>
       </div>
 
       {schedules.length === 0 ? (
@@ -241,7 +245,12 @@ export function SchedulesPage() {
                   
                   <td>
                     {schedule.enabled ? (
-                      <span className="next-run">{formatNextRun(schedule.nextRunAt)}</span>
+                      <div className="next-run-cell">
+                        <span className="next-run">{formatNextRun(schedule.nextRunAt)}</span>
+                        <span className="next-run-hint" title="If daemon is down at this time, this run will be skipped (not caught up)">
+                          ⓘ
+                        </span>
+                      </div>
                     ) : (
                       <span className="disabled-text">Disabled</span>
                     )}

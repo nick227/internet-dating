@@ -114,3 +114,15 @@ enum SampleCategory {
      MIDDLE
      WORST
 }
+
+enum GeoPrecision {
+     EXACT
+     CITY
+     STATE
+     UNKNOWN
+}
+
+enum LocationAccuracy {
+     FRESH
+     STALE
+}
