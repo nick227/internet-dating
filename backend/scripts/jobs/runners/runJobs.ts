@@ -5,8 +5,86 @@ import { getJob, getAllJobs, printUsage } from '../../../src/lib/jobs/shared/reg
 
 loadEnv();
 
+const PIPELINES: Record<string, string[]> = {
+  matching: ['match-scores', 'compatibility'],
+  feed: ['feed-presort', 'trending'],
+  search: ['profile-search-index', 'searchable-user', 'user-interest-sets', 'interest-relationships', 'quiz-answer-stats']
+};
+
+const MEDIA_JOBS = new Set(['media-metadata', 'media-metadata-batch', 'media-metadata-all']);
+
+function isFullRun(args: string[]): boolean {
+  return args.includes('--full') || args.includes('--force');
+}
+
+function filterAllJobs(jobNames: string[], fullRun: boolean): string[] {
+  if (fullRun) {
+    return jobNames.filter((name) => name !== 'media-metadata' && name !== 'media-metadata-batch');
+  }
+  return jobNames.filter((name) => !MEDIA_JOBS.has(name));
+}
+
+function collectJobsWithDependencies(jobNames: string[], jobs: Record<string, { dependencies?: string[] }>): Set<string> {
+  const collected = new Set<string>();
+
+  const visit = (name: string) => {
+    if (collected.has(name)) return;
+    const job = jobs[name];
+    if (!job) {
+      throw new Error(`Unknown job in dependency graph: ${name}`);
+    }
+    collected.add(name);
+    const deps = job.dependencies ?? [];
+    for (const dep of deps) {
+      visit(dep);
+    }
+  };
+
+  for (const name of jobNames) {
+    visit(name);
+  }
+
+  return collected;
+}
+
+function topologicalSort(jobNames: Set<string>, jobs: Record<string, { dependencies?: string[] }>): string[] {
+  const permanent = new Set<string>();
+  const temporary = new Set<string>();
+  const ordered: string[] = [];
+
+  const visit = (name: string) => {
+    if (permanent.has(name)) return;
+    if (temporary.has(name)) {
+      throw new Error(`Cycle detected in job dependencies at "${name}"`);
+    }
+    const job = jobs[name];
+    if (!job) {
+      throw new Error(`Unknown job in dependency graph: ${name}`);
+    }
+    temporary.add(name);
+    const deps = job.dependencies ?? [];
+    for (const dep of deps) {
+      if (!jobNames.has(dep)) {
+        throw new Error(`Missing dependency "${dep}" required by "${name}"`);
+      }
+      visit(dep);
+    }
+    temporary.delete(name);
+    permanent.add(name);
+    ordered.push(name);
+  };
+
+  const sortedNames = Array.from(jobNames).sort();
+  for (const name of sortedNames) {
+    visit(name);
+  }
+
+  return ordered;
+}
+
 async function main() {
-  const command = process.argv[2];
+  const args = process.argv.slice(2);
+  const command = args[0];
   
   if (!command) {
     await printUsage();
@@ -14,20 +92,29 @@ async function main() {
     return;
   }
 
-  if (command === 'all') {
+  const fullRun = isFullRun(args);
+  if (fullRun) {
+    process.env.JOB_FULL = '1';
+  }
+
+  if (command === 'all' || PIPELINES[command]) {
     const jobs = await getAllJobs();
     const jobNames = Object.keys(jobs).filter(name => name !== 'all');
-    const normalizedJobNames = jobNames.filter(name => !['media-metadata', 'media-metadata-batch', 'media-metadata-all'].includes(name));
-    if (jobNames.includes('media-metadata-all')) {
-      normalizedJobNames.push('media-metadata-all');
-    }
-    
-    for (const jobName of normalizedJobNames) {
+    const selectedJobs = command === 'all'
+      ? filterAllJobs(jobNames, fullRun)
+      : PIPELINES[command];
+
+    const jobSet = collectJobsWithDependencies(selectedJobs, jobs);
+    const orderedJobs = topologicalSort(jobSet, jobs);
+
+    for (const jobName of orderedJobs) {
       const job = jobs[jobName];
-      if (job) {
-        console.log(`Running job: ${jobName}`);
-        await job.run();
+      if (!job) continue;
+      if (!fullRun && MEDIA_JOBS.has(jobName)) {
+        continue;
       }
+      console.log(`Running job: ${jobName}`);
+      await job.run();
     }
     console.log('All jobs completed.');
     return;

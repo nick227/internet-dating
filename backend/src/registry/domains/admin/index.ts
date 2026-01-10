@@ -753,6 +753,70 @@ export const adminDomain: DomainRegistry = {
     }
   },
 
+  // Daemon Monitoring
+  {
+    id: 'admin.GET./admin/daemon/status',
+    method: 'GET',
+    path: '/admin/daemon/status',
+    auth: Auth.admin(),
+    summary: 'Get schedule daemon status and health',
+    tags: ['admin', 'daemon'],
+    handler: async (req, res) => {
+      const { getWorkerInstances } = await import('../../../workers/workerManager.js');
+      
+      // Query for schedule_daemon workers
+      const instances = await getWorkerInstances('schedule_daemon');
+      const now = Date.now();
+      
+      // Find active daemon (recent heartbeat within 2 minutes)
+      const activeDaemon = instances.find(
+        (w: any) => 
+          w.status === 'RUNNING' && 
+          (now - new Date(w.lastHeartbeatAt).getTime()) < 120000
+      );
+      
+      // Determine health status
+      let health: 'healthy' | 'warning' | 'critical' = 'critical';
+      let message = 'Daemon not running';
+      
+      if (activeDaemon) {
+        const secondsSinceHeartbeat = (now - new Date(activeDaemon.lastHeartbeatAt).getTime()) / 1000;
+        if (secondsSinceHeartbeat < 60) {
+          health = 'healthy';
+          message = 'Daemon is running normally';
+        } else if (secondsSinceHeartbeat < 120) {
+          health = 'warning';
+          message = `Heartbeat delayed (${Math.floor(secondsSinceHeartbeat)}s ago)`;
+        } else {
+          health = 'critical';
+          message = 'Daemon heartbeat stale';
+        }
+      }
+      
+      return json(res, {
+        daemonRunning: !!activeDaemon,
+        daemon: activeDaemon ? {
+          id: activeDaemon.id,
+          hostname: activeDaemon.hostname,
+          pid: activeDaemon.pid,
+          startedAt: activeDaemon.startedAt.toISOString(),
+          lastHeartbeatAt: activeDaemon.lastHeartbeatAt.toISOString(),
+          uptime: now - new Date(activeDaemon.startedAt).getTime(),
+          metadata: activeDaemon.metadata as any
+        } : null,
+        health,
+        healthMessage: message,
+        recentInstances: instances.slice(0, 5).map((w: any) => ({
+          id: w.id,
+          status: w.status,
+          hostname: w.hostname,
+          startedAt: w.startedAt.toISOString(),
+          stoppedAt: w.stoppedAt?.toISOString(),
+        }))
+      });
+    }
+  },
+
   // Schedule Management
   {
     id: 'admin.GET./admin/schedules',

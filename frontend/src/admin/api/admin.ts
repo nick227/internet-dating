@@ -116,6 +116,11 @@ export const adminApi = {
     return http('/api/admin/worker/stop', 'POST', { body: {} });
   },
 
+  // Daemon Monitoring
+  async getDaemonStatus(): Promise<import('../types').DaemonStatus> {
+    return http('/api/admin/daemon/status', 'GET');
+  },
+
   // Schedule Management
   async getSchedules(): Promise<import('../types').SchedulesResponse> {
     return http('/api/admin/schedules', 'GET');

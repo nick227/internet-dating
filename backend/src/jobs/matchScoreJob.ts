@@ -22,6 +22,7 @@ import {
 } from './match-score/operators/index.js';
 import { MinHeap } from './match-score/heap.js';
 import { scoreCandidate } from './match-score/engine.js';
+import { isFullRun } from '../lib/jobs/shared/freshness.js';
 
 type CandidateProfile = {
   id: bigint;
@@ -136,6 +137,116 @@ const DEFAULT_CONFIG: MatchScoreJobConfig = {
 export const MATCH_SCORE_DEFAULTS = { ...DEFAULT_CONFIG };
 
 type NumberLike = number | bigint | { toNumber: () => number };
+
+type LatestInputs = {
+  latestInputAt: Date | null;
+  latestInputSource: string | null;
+  profileId: bigint | null;
+};
+
+function maxDate(
+  dates: Array<{ source: string; date: Date | null | undefined }>
+): { latestInputAt: Date | null; latestInputSource: string | null } {
+  let latest: Date | null = null;
+  let source: string | null = null;
+  for (const item of dates) {
+    if (!item.date) continue;
+    if (!latest || item.date > latest) {
+      latest = item.date;
+      source = item.source;
+    }
+  }
+  return { latestInputAt: latest, latestInputSource: source };
+}
+
+async function getLatestViewerInputs(userId: bigint): Promise<LatestInputs> {
+  const profile = await prisma.profile.findUnique({
+    where: { userId },
+    select: { id: true, updatedAt: true }
+  });
+
+  const [preferences, quiz, traits, interests, ratings] = await Promise.all([
+    prisma.userPreference.findUnique({
+      where: { userId },
+      select: { updatedAt: true }
+    }),
+    prisma.quizResult.findFirst({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    }),
+    prisma.userTrait.findFirst({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    }),
+    prisma.userInterest.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true }
+    }),
+    profile?.id
+      ? prisma.profileRating.findFirst({
+          where: { raterProfileId: profile.id },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true }
+        })
+      : Promise.resolve(null)
+  ]);
+
+  const latest = maxDate([
+    { source: 'profile.updatedAt', date: profile?.updatedAt },
+    { source: 'preferences.updatedAt', date: preferences?.updatedAt },
+    { source: 'quiz.updatedAt', date: quiz?.updatedAt },
+    { source: 'traits.updatedAt', date: traits?.updatedAt },
+    { source: 'interests.createdAt', date: interests?.createdAt },
+    { source: 'ratings.createdAt', date: ratings?.createdAt }
+  ]);
+
+  return {
+    latestInputAt: latest.latestInputAt,
+    latestInputSource: latest.latestInputSource,
+    profileId: profile?.id ?? null
+  };
+}
+
+async function shouldRecomputeMatchScores(
+  userId: bigint,
+  algorithmVersion: string
+): Promise<{
+  shouldRecompute: boolean;
+  lastScoreAt: Date | null;
+  latestInputAt: Date | null;
+  latestInputSource: string | null;
+}> {
+  const latestScore = await prisma.matchScore.findFirst({
+    where: { userId, algorithmVersion },
+    orderBy: { scoredAt: 'desc' },
+    select: { scoredAt: true }
+  });
+
+  if (!latestScore) {
+    return { shouldRecompute: true, lastScoreAt: null, latestInputAt: null, latestInputSource: null };
+  }
+
+  const { latestInputAt, latestInputSource } = await getLatestViewerInputs(userId);
+
+  if (!latestInputAt) {
+    return {
+      shouldRecompute: false,
+      lastScoreAt: latestScore.scoredAt,
+      latestInputAt: null,
+      latestInputSource
+    };
+  }
+
+  return {
+    shouldRecompute: latestInputAt > latestScore.scoredAt,
+    lastScoreAt: latestScore.scoredAt,
+    latestInputAt,
+    latestInputSource
+  };
+}
 
 /**
  * Match Score Job
@@ -748,6 +859,27 @@ export async function runMatchScoreJob(options: MatchScoreJobOptions = {}) {
       lastId = users[users.length - 1]!.id;
 
       for (const user of users) {
+        if (!isFullRun()) {
+          const { shouldRecompute, lastScoreAt, latestInputAt, latestInputSource } =
+            await shouldRecomputeMatchScores(
+              user.id,
+              config.algorithmVersion
+            );
+          if (!shouldRecompute) {
+            console.log(`[match-scores] User ${user.id} up-to-date (algorithm: ${config.algorithmVersion})`, {
+              lastScoreAt: lastScoreAt?.toISOString() ?? null,
+              latestInputAt: latestInputAt?.toISOString() ?? null,
+              latestInputSource
+            });
+            continue;
+          }
+          console.log(`[match-scores] User ${user.id} recompute`, {
+            lastScoreAt: lastScoreAt?.toISOString() ?? null,
+            latestInputAt: latestInputAt?.toISOString() ?? null,
+            latestInputSource,
+            algorithmVersion: config.algorithmVersion
+          });
+        }
         await recomputeMatchScoresForUser(user.id, {
           candidateBatchSize: config.candidateBatchSize,
           pauseMs: config.pauseMs,
@@ -783,4 +915,3 @@ export async function runMatchScoreJob(options: MatchScoreJobOptions = {}) {
     run
   );
 }
-

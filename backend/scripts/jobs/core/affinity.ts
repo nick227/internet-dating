@@ -6,7 +6,7 @@ export const affinityJob: JobDefinition = {
   name: 'affinity',
   description: 'Compute user affinity profiles',
   group: 'feed',
-  dependencies: [],
+  dependencies: ['content-features'],
   examples: [
     'tsx scripts/jobs/runners/runJobs.ts affinity --userId=8 --lookbackDays=90'
   ],

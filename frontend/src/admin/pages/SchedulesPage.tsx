@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../api/admin';
 import { trackError } from '../utils/errorTracking';
-import type { JobSchedule } from '../types';
+import type { JobSchedule, DaemonStatus } from '../types';
 import './SchedulesPage.css';
 
 export function SchedulesPage() {
@@ -9,9 +9,15 @@ export function SchedulesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
+  const [daemonStatus, setDaemonStatus] = useState<DaemonStatus | null>(null);
 
   useEffect(() => {
     loadSchedules();
+    loadDaemonStatus();
+    
+    // Refresh daemon status every 30 seconds
+    const interval = setInterval(loadDaemonStatus, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadSchedules = async () => {
@@ -28,6 +34,28 @@ export function SchedulesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadDaemonStatus = async () => {
+    try {
+      const status = await adminApi.getDaemonStatus();
+      setDaemonStatus(status);
+    } catch (err) {
+      console.error('Failed to load daemon status:', err);
+      // Don't set error state, just log it (non-critical)
+    }
+  };
+
+  const formatUptime = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m`;
+    return `${seconds}s`;
   };
 
   const handleToggle = async (scheduleId: string, currentEnabled: boolean) => {
@@ -155,6 +183,34 @@ export function SchedulesPage() {
           🔄 Refresh
         </button>
       </div>
+
+      {/* Daemon Status Banner */}
+      {daemonStatus && (
+        <div className={`daemon-status daemon-status-${daemonStatus.health}`}>
+          <div className="daemon-status-icon">
+            {daemonStatus.health === 'healthy' && '✓'}
+            {daemonStatus.health === 'warning' && '⚠️'}
+            {daemonStatus.health === 'critical' && '❌'}
+          </div>
+          <div className="daemon-status-content">
+            <div className="daemon-status-message">
+              <strong>Schedule Daemon:</strong> {daemonStatus.healthMessage}
+            </div>
+            {daemonStatus.daemon && (
+              <div className="daemon-status-details">
+                <span>Host: {daemonStatus.daemon.hostname}</span>
+                <span>Uptime: {formatUptime(daemonStatus.daemon.uptime)}</span>
+                <span>Heartbeat: {formatRelativeTime(daemonStatus.daemon.lastHeartbeatAt)}</span>
+              </div>
+            )}
+            {!daemonStatus.daemon && (
+              <div className="daemon-status-warning">
+                Schedules will not execute automatically. Check Railway deployment or start daemon locally.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="info-banner">
         <div className="info-section">

@@ -6,7 +6,7 @@ export const compatibilityJob: JobDefinition = {
   name: 'compatibility',
   description: 'Compute compatibility scores between users',
   group: 'matching',
-  dependencies: ['build-user-traits'],
+  dependencies: ['build-user-traits', 'match-scores'],
   examples: [
     'tsx scripts/jobs/runners/runJobs.ts compatibility --userId=8 --targetBatchSize=500'
   ],

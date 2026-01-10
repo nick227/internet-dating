@@ -55,6 +55,74 @@
   font-size: 0.85rem;
 }
 
+/* Daemon Status Banner */
+.daemon-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 2px solid;
+  transition: all 0.3s ease;
+}
+
+.daemon-status-healthy {
+  background: #d4edda;
+  border-color: #28a745;
+  color: #155724;
+}
+
+.daemon-status-warning {
+  background: #fff3cd;
+  border-color: #ffc107;
+  color: #856404;
+}
+
+.daemon-status-critical {
+  background: #f8d7da;
+  border-color: #dc3545;
+  color: #721c24;
+}
+
+.daemon-status-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.daemon-status-content {
+  flex: 1;
+}
+
+.daemon-status-message {
+  margin-bottom: 0.5rem;
+}
+
+.daemon-status-message strong {
+  font-weight: 600;
+}
+
+.daemon-status-details {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  flex-wrap: wrap;
+}
+
+.daemon-status-details span {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.daemon-status-warning {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
 .loading, .error {
   text-align: center;
   padding: 3rem;

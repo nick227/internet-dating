@@ -47,6 +47,19 @@ model JobRun {
   @@index([scheduleId])
 }
 
+model JobFreshness {
+  id         BigInt   @id @default(autoincrement())
+  jobName    String
+  scope      String
+  inputHash  String
+  computedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([jobName, scope])
+  @@index([jobName, scope])
+}
+
 model JobLog {
   id          BigInt   @id @default(autoincrement())
   jobRunId    BigInt

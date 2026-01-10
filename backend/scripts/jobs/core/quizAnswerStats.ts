@@ -6,7 +6,7 @@ export const quizAnswerStatsJob: JobDefinition = {
   name: 'quiz-answer-stats',
   description: 'Aggregate quiz answer statistics by demographics',
   group: 'quiz',
-  dependencies: [],
+  dependencies: ['profile-search-index'],
   examples: [
     'tsx scripts/jobs/runners/runJobs.ts quiz-answer-stats',
     'tsx scripts/jobs/runners/runJobs.ts quiz-answer-stats --quizId=1',

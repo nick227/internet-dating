@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma/client.js';
 import { Prisma } from '@prisma/client';
 import { runJob } from '../lib/jobs/runJob.js';
+import { hashKeyValues, isJobFresh, upsertJobFreshness } from '../lib/jobs/shared/freshness.js';
 
 type InterestRow = {
   userId: bigint;
@@ -47,6 +48,102 @@ const DEFAULT_CONFIG: CompatibilityJobConfig = {
 };
 
 export const COMPATIBILITY_DEFAULTS = { ...DEFAULT_CONFIG };
+
+function maxDate(dates: Array<Date | null | undefined>): Date | null {
+  let latest: Date | null = null;
+  for (const date of dates) {
+    if (!date) continue;
+    if (!latest || date > latest) {
+      latest = date;
+    }
+  }
+  return latest;
+}
+
+async function buildCompatibilityInputHash(
+  viewerId: bigint,
+  config: CompatibilityJobConfig
+): Promise<{ inputHash: string; latestInputAt: Date | null }> {
+  const [
+    latestQuiz,
+    latestInterest,
+    latestRating,
+    latestMatchScore,
+    latestMatch,
+    latestAccess,
+    latestConversation
+  ] = await Promise.all([
+    prisma.quizResult.findFirst({
+      where: { userId: viewerId },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    }),
+    prisma.userInterest.findFirst({
+      where: { userId: viewerId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true }
+    }),
+    prisma.profile.findUnique({
+      where: { userId: viewerId },
+      select: {
+        id: true,
+        ratingsGiven: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true }
+        }
+      }
+    }),
+    prisma.matchScore.findFirst({
+      where: { userId: viewerId },
+      orderBy: { scoredAt: 'desc' },
+      select: { scoredAt: true, algorithmVersion: true }
+    }),
+    prisma.match.findFirst({
+      where: { OR: [{ userAId: viewerId }, { userBId: viewerId }] },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    }),
+    prisma.profileAccess.findFirst({
+      where: { OR: [{ ownerUserId: viewerId }, { viewerUserId: viewerId }] },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    }),
+    prisma.conversation.findFirst({
+      where: { OR: [{ userAId: viewerId }, { userBId: viewerId }] },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    })
+  ]);
+
+  const latestRatingAt = latestRating?.ratingsGiven[0]?.createdAt ?? null;
+  const latestInputAt = maxDate([
+    latestQuiz?.updatedAt,
+    latestInterest?.createdAt,
+    latestRatingAt,
+    latestMatchScore?.scoredAt,
+    latestMatch?.updatedAt,
+    latestAccess?.updatedAt,
+    latestConversation?.updatedAt
+  ]);
+
+  const inputHash = hashKeyValues([
+    ['algorithmVersion', config.algorithmVersion],
+    ['ratingMax', config.ratingMax],
+    ['weights', config.weights],
+    ['maxSuggestionTargets', config.maxSuggestionTargets],
+    ['quizUpdatedAt', latestQuiz?.updatedAt ?? null],
+    ['interestsCreatedAt', latestInterest?.createdAt ?? null],
+    ['ratingsCreatedAt', latestRatingAt],
+    ['matchScoreAt', latestMatchScore?.scoredAt ?? null],
+    ['matchScoreVersion', latestMatchScore?.algorithmVersion ?? null],
+    ['matchUpdatedAt', latestMatch?.updatedAt ?? null],
+    ['accessUpdatedAt', latestAccess?.updatedAt ?? null],
+    ['conversationUpdatedAt', latestConversation?.updatedAt ?? null]
+  ]);
+
+  return { inputHash, latestInputAt };
+}
 
 function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
@@ -264,10 +361,23 @@ async function collectTargets(viewerId: bigint, maxSuggestionTargets: number): P
 
 export async function recomputeCompatibilityForUser(viewerId: bigint, overrides: CompatibilityJobOptions = {}) {
   const config = resolveConfig(overrides);
+  const scope = `user:${viewerId}`;
+  const { inputHash, latestInputAt } = await buildCompatibilityInputHash(viewerId, config);
+  if (await isJobFresh('compatibility', scope, inputHash)) {
+    console.log('[compatibility] up-to-date', {
+      viewerId: viewerId.toString(),
+      latestInputAt: latestInputAt?.toISOString() ?? null,
+      algorithmVersion: config.algorithmVersion
+    });
+    return 0;
+  }
   const targetIds = await collectTargets(viewerId, config.maxSuggestionTargets);
 
   await prisma.userCompatibility.deleteMany({ where: { viewerUserId: viewerId } });
-  if (!targetIds.length) return 0;
+  if (!targetIds.length) {
+    await upsertJobFreshness('compatibility', scope, inputHash, new Date());
+    return 0;
+  }
 
   const userQuiz = await prisma.quizResult.findFirst({
     where: { userId: viewerId },
@@ -517,6 +627,7 @@ export async function recomputeCompatibilityForUser(viewerId: bigint, overrides:
     }
   }
 
+  await upsertJobFreshness('compatibility', scope, inputHash, computedAt);
   return totalWritten;
 }
 

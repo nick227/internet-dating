@@ -6,6 +6,7 @@ import { mergeAndRank } from '../registry/domains/feed/ranking/index.js'
 import { generatePhase1JSON, convertToPresortedItem } from './feedPresortPhase1.js'
 import { storePresortedSegment, getPresortedSegment } from '../services/feed/presortedFeedService.js'
 import type { ViewerContext, FeedItem } from '../registry/domains/feed/types.js'
+import { hashKeyValues, isJobFresh, upsertJobFreshness } from '../lib/jobs/shared/freshness.js'
 
 type FeedPresortJobOptions = {
   userId?: bigint | null
@@ -22,6 +23,70 @@ const DEFAULT_CONFIG = {
   algorithmVersion: 'v1',
   ttlMinutes: 30,
 } as const
+
+function maxDate(dates: Array<Date | null | undefined>): Date | null {
+  let latest: Date | null = null
+  for (const date of dates) {
+    if (!date) continue
+    if (!latest || date > latest) {
+      latest = date
+    }
+  }
+  return latest
+}
+
+async function buildFeedPresortInputHash(
+  userId: bigint,
+  options: FeedPresortJobOptions
+): Promise<{ inputHash: string; latestInputAt: Date | null }> {
+  const [latestMatchScore, latestAffinity, latestPost, latestPostFeatures, latestTrending] = await Promise.all([
+    prisma.matchScore.findFirst({
+      where: { userId },
+      orderBy: { scoredAt: 'desc' },
+      select: { scoredAt: true, algorithmVersion: true },
+    }),
+    prisma.userAffinityProfile.findUnique({
+      where: { userId },
+      select: { computedAt: true },
+    }),
+    prisma.post.findFirst({
+      where: { deletedAt: null },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true },
+    }),
+    prisma.postFeatures.findFirst({
+      orderBy: { computedAt: 'desc' },
+      select: { computedAt: true },
+    }),
+    prisma.trendingScore.findFirst({
+      orderBy: { computedAt: 'desc' },
+      select: { computedAt: true },
+    }),
+  ])
+
+  const latestInputAt = maxDate([
+    latestMatchScore?.scoredAt,
+    latestAffinity?.computedAt,
+    latestPost?.updatedAt,
+    latestPostFeatures?.computedAt,
+    latestTrending?.computedAt,
+  ])
+
+  const inputHash = hashKeyValues([
+    ['algorithmVersion', DEFAULT_CONFIG.algorithmVersion],
+    ['segmentSize', options.segmentSize ?? DEFAULT_CONFIG.segmentSize],
+    ['maxSegments', options.maxSegments ?? DEFAULT_CONFIG.maxSegments],
+    ['incremental', options.incremental ?? false],
+    ['matchScoreAt', latestMatchScore?.scoredAt ?? null],
+    ['matchScoreVersion', latestMatchScore?.algorithmVersion ?? null],
+    ['affinityAt', latestAffinity?.computedAt ?? null],
+    ['postUpdatedAt', latestPost?.updatedAt ?? null],
+    ['postFeaturesAt', latestPostFeatures?.computedAt ?? null],
+    ['trendingAt', latestTrending?.computedAt ?? null],
+  ])
+
+  return { inputHash, latestInputAt }
+}
 
 /**
  * Run feed presort job for single user or batch
@@ -90,6 +155,17 @@ async function presortFeedForUser(
   userId: bigint,
   options: FeedPresortJobOptions
 ) {
+  const scope = `user:${userId}`
+  const { inputHash, latestInputAt } = await buildFeedPresortInputHash(userId, options)
+  if (await isJobFresh('feed-presort', scope, inputHash)) {
+    console.log('[feed-presort] up-to-date', {
+      userId: userId.toString(),
+      latestInputAt: latestInputAt?.toISOString() ?? null,
+      algorithmVersion: DEFAULT_CONFIG.algorithmVersion,
+    })
+    return
+  }
+
   // Incremental presort: Only recompute top segment when new content arrives
   if (options.incremental) {
     const existingSegment = await getPresortedSegment(userId, 0)
@@ -148,6 +224,8 @@ async function presortFeedForUser(
       expiresAt: new Date(Date.now() + DEFAULT_CONFIG.ttlMinutes * 60 * 1000),
     })
   }
+
+  await upsertJobFreshness('feed-presort', scope, inputHash, new Date())
 }
 
 /**

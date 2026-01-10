@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma/client.js';
 import { Prisma } from '@prisma/client';
 import { runJob } from '../lib/jobs/runJob.js';
+import { isFullRun } from '../lib/jobs/shared/freshness.js';
 
 type BuildUserTraitsJobConfig = {
   userBatchSize: number;
@@ -148,6 +149,51 @@ async function aggregateUserTraits(userId: bigint): Promise<Map<string, { value:
  * Builds or rebuilds user traits for a single user
  */
 async function buildUserTraits(userId: bigint, config: BuildUserTraitsJobConfig) {
+  if (isFullRun()) {
+    const aggregatedTraits = await aggregateUserTraits(userId);
+
+    await prisma.userTrait.deleteMany({
+      where: { userId }
+    });
+
+    if (aggregatedTraits.size > 0) {
+      await prisma.userTrait.createMany({
+        data: Array.from(aggregatedTraits.entries()).map(([traitKey, { value, n }]) => ({
+          userId,
+          traitKey,
+          value: new Prisma.Decimal(value),
+          n
+        })),
+        skipDuplicates: true
+      });
+    }
+    return;
+  }
+
+  const [latestQuiz, latestTrait] = await Promise.all([
+    prisma.quizResult.findFirst({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    }),
+    prisma.userTrait.findFirst({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    })
+  ]);
+
+  if (!latestQuiz) {
+    if (latestTrait) {
+      await prisma.userTrait.deleteMany({ where: { userId } });
+    }
+    return;
+  }
+
+  if (latestTrait && latestTrait.updatedAt >= latestQuiz.updatedAt) {
+    return;
+  }
+
   const aggregatedTraits = await aggregateUserTraits(userId);
 
   // Delete existing traits for this user

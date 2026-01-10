@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma/client.js';
 import { Prisma } from '@prisma/client';
+import { isFullRun } from '../lib/jobs/shared/freshness.js';
 
 type ProfileSearchIndexJobOptions = {
   userId?: bigint | null;
@@ -32,6 +33,17 @@ function calculateAge(birthdate: Date): number {
 function calculateAgeBucket(age: number): number | null {
   if (age < 18) return null;
   return Math.floor((age - 18) / 5); // 0=18-22, 1=23-27, 2=28-32, etc.
+}
+
+function maxDate(dates: Array<Date | null | undefined>): Date | null {
+  let latest: Date | null = null;
+  for (const date of dates) {
+    if (!date) continue;
+    if (!latest || date > latest) {
+      latest = date;
+    }
+  }
+  return latest;
 }
 
 function parseLocation(locationText: string | null): { city: string | null; state: string | null; country: string | null } {
@@ -118,9 +130,26 @@ export async function buildProfileSearchIndex(options: ProfileSearchIndexJobOpti
       }
       
       for (const user of users) {
-        if (user.profile && user.profileSearchIndex?.indexedAt) {
-          const profileUpdatedAt = user.profile.updatedAt;
-          if (profileUpdatedAt && user.profileSearchIndex.indexedAt >= profileUpdatedAt) {
+        if (!isFullRun() && user.profile && user.profileSearchIndex?.indexedAt) {
+          const latestInterestAt = user.interests.reduce<Date | null>((latest, row) => {
+            if (!latest || row.createdAt > latest) return row.createdAt;
+            return latest;
+          }, null);
+          const latestTraitAt = user.traits.reduce<Date | null>((latest, row) => {
+            if (!latest || row.updatedAt > latest) return row.updatedAt;
+            return latest;
+          }, null);
+          const latestTop5At = user.profile.top5Lists.reduce<Date | null>((latest, row) => {
+            if (!latest || row.updatedAt > latest) return row.updatedAt;
+            return latest;
+          }, null);
+          const latestInputAt = maxDate([
+            user.profile.updatedAt,
+            latestInterestAt,
+            latestTraitAt,
+            latestTop5At
+          ]);
+          if (latestInputAt && user.profileSearchIndex.indexedAt >= latestInputAt) {
             continue;
           }
         }

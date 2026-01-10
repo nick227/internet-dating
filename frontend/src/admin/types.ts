@@ -174,6 +174,33 @@ export interface WorkerStatus {
   }>;
 }
 
+export interface DaemonStatus {
+  daemonRunning: boolean;
+  daemon: {
+    id: string;
+    hostname: string;
+    pid: number;
+    startedAt: string;
+    lastHeartbeatAt: string;
+    uptime: number;
+    metadata?: {
+      version?: string;
+      nodeVersion?: string;
+      platform?: string;
+      arch?: string;
+    };
+  } | null;
+  health: 'healthy' | 'warning' | 'critical';
+  healthMessage: string;
+  recentInstances: Array<{
+    id: string;
+    status: string;
+    hostname: string;
+    startedAt: string;
+    stoppedAt?: string;
+  }>;
+}
+
 export interface JobWebSocketEvent {
   type: 'server.admin.job_started' | 'server.admin.job_progress' | 'server.admin.job_completed';
   data: {
