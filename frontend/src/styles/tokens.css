@@ -46,7 +46,7 @@
   --overlay-medium: rgba(0, 0, 0, 0.35);
   --overlay-strong: rgba(0, 0, 0, 0.45);
   --z-base: 1;
-  --z-overlay: 4;
+  --z-overlay: 999;
   --z-content: 5;
   --z-modal: 9999;
 

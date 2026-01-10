@@ -110,6 +110,7 @@ const API_PATHS = {
   profileAdvancedSearch: '/api/profiles/advanced-search',
   profileRecommendations: '/api/profiles/recommendations',
   profileSearchTraits: '/api/profiles/search/traits',
+  profileReverseGeocode: '/api/profiles/location/reverse',
 } as const
 
 function fillPath(template: string, params: Record<string, string | number>) {
@@ -208,7 +209,9 @@ export const api = {
     traits?: Array<{ key: string; min?: number; max?: number; group?: string }>
     top5Query?: string
     top5Type?: 'title' | 'item'
-    sort?: 'newest' | 'age'
+    sort?: 'newest' | 'age' | 'distance'
+    nearMe?: boolean
+    radiusKm?: number
     limit?: number
     cursor?: string
   }, signal?: AbortSignal) => {
@@ -223,6 +226,8 @@ export const api = {
     if (filters.ageMin !== undefined) params.set('ageMin', String(filters.ageMin))
     if (filters.ageMax !== undefined) params.set('ageMax', String(filters.ageMax))
     if (filters.location) params.set('location', filters.location)
+    if (filters.nearMe) params.set('nearMe', '1')
+    if (filters.radiusKm) params.set('radiusKm', String(filters.radiusKm))
     if (filters.top5Query) params.set('top5Query', filters.top5Query)
     if (filters.top5Type) params.set('top5Type', filters.top5Type)
     if (filters.traits && filters.traits.length > 0) {
@@ -277,6 +282,16 @@ export const api = {
     return http<{
       traits: Record<string, Array<{ key: string; count: number }>>
     }>(`${API_BASE_URL}${API_PATHS.profileSearchTraits}`, 'GET', { signal })
+  },
+  reverseGeocode: async (coords: { lat: number; lng: number }, signal?: AbortSignal) => {
+    return http<{
+      locationText: string | null
+      city: string | null
+      state: string | null
+      country: string | null
+      lat: number
+      lng: number
+    }>(`${API_BASE_URL}${API_PATHS.profileReverseGeocode}`, 'POST', { body: coords, signal })
   },
   approveFollowRequest: (requestId: string | number, signal?: AbortSignal) => {
     const path = fillPath(API_PATHS.approveFollowRequest, { requestId })

@@ -29,7 +29,7 @@ async function main() {
     return;
   }
 
-  const job = getJob(command);
+  const job = await getJob(command);
   
   if (!job) {
     console.error(`Unknown job: ${command}`);

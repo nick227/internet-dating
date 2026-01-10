@@ -13,6 +13,7 @@ import { rateProfileRoute } from './handlers/rateProfile.js';
 import { updateProfileRoute } from './handlers/updateProfile.js';
 import { searchRoute, advancedSearchRoute, traitsRoute } from './handlers/search.js';
 import { recommendationsRoute } from './handlers/recommendations.js';
+import { reverseGeocodeRoute } from './handlers/location.js';
 
 export const profilesDomain: DomainRegistry = {
   domain: 'profiles',
@@ -23,6 +24,7 @@ export const profilesDomain: DomainRegistry = {
     searchRoute,
     advancedSearchRoute,
     traitsRoute,
+    reverseGeocodeRoute,
     // Parameterized routes come after specific routes
     getProfileRoute,
     requestAccessRoute,

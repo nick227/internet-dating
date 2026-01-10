@@ -5,12 +5,12 @@ import { ProfileSearchQuickFilters } from '../profile/search/ProfileSearchQuickF
 import { ProfileSearchResults } from '../profile/search/ProfileSearchResults'
 import { getErrorMessage } from '../../core/utils/errors'
 import type { SearchFilters } from '../../core/profile/search/types'
-import { useNavigate } from 'react-router-dom'
+
+type SearchError = Error & { code?: string }
 
 export function ProfileSearchPage() {
   const { filters, setFilters, results, loading, error, hasMore, loadMore, isShowingRecommendations } = useProfileSearch()
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
-  const nav = useNavigate()
   const hasActiveFilters = useMemo(() => {
     return !!(
       filters.q ||
@@ -19,6 +19,8 @@ export function ProfileSearchPage() {
       filters.ageMin ||
       filters.ageMax ||
       filters.location ||
+      filters.nearMe ||
+      filters.radiusKm ||
       filters.traits?.length ||
       filters.interests?.length ||
       filters.interestSubjects?.length
@@ -77,13 +79,25 @@ export function ProfileSearchPage() {
           <a href="#" className="profiles-portal__section-link" onClick={(e) => e.preventDefault()}>
             VIEW ALL
           </a>
-          <button className="actionBtn btn-small" onClick={() => nav('/science')}>Site View</button>
         </div>
 
         <div className="profiles-portal__content">
           {error && (
             <div className="profiles-portal__error">
-              {getErrorMessage(error, 'Search failed')}
+              {(error as SearchError).code === 'LOCATION_REQUIRED' ? (
+                <div>
+                  <div>{getErrorMessage(error, 'Location required for Near Me. Try “Use device” to set your location.')}</div>
+                  <button
+                    type="button"
+                    className="actionBtn btn-small"
+                    onClick={() => setAdvancedFiltersOpen(true)}
+                  >
+                    Open filters
+                  </button>
+                </div>
+              ) : (
+                getErrorMessage(error, 'Search failed')
+              )}
             </div>
           )}
           <ProfileSearchResults

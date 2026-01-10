@@ -5,6 +5,7 @@
 
 import { useCallback, useRef } from 'react'
 import { validateMediaFile } from './mediaValidation'
+import { api } from '../../api/client'
 import { uploadWithProgress, type UploadProgress } from '../../api/uploadWithProgress'
 import { API_BASE_URL } from '../../config/env'
 
@@ -22,6 +23,37 @@ export type MediaUploadResult = {
 export type MediaUploadError = {
   file: File
   error: string
+}
+
+const POLL_INTERVAL_MS = 750
+const MAX_WAIT_MS = 60_000
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const needsProcessing = (file: File) => {
+  if (file.type.startsWith('video/') || file.type.startsWith('audio/')) return true
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  return ext === 'mp4' || ext === 'webm' || ext === 'ogg' || ext === 'mp3' || ext === 'wav'
+}
+
+const waitForMediaReady = async (mediaId: string, signal?: AbortSignal) => {
+  const deadline = Date.now() + MAX_WAIT_MS
+
+  while (Date.now() < deadline) {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError')
+    }
+
+    const media = await api.media.get(mediaId, signal)
+    if (media.status === 'READY') return
+    if (media.status === 'FAILED') {
+      throw new Error('Media processing failed')
+    }
+
+    await sleep(POLL_INTERVAL_MS)
+  }
+
+  throw new Error('Media processing timed out')
 }
 
 /**
@@ -68,6 +100,10 @@ export function useMediaUpload() {
             signal: controller?.signal || options.signal,
           }
         )
+
+        if (needsProcessing(file)) {
+          await waitForMediaReady(String(result.mediaId), controller?.signal || options.signal)
+        }
 
         return {
           mediaId: String(result.mediaId),

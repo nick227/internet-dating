@@ -235,22 +235,19 @@ export function UserControlPanel({ open, userId, profile, onClose, onUpdated }: 
                   <div className="inlineField__labelRow">
                     <div className="inlineField__label">Avatar</div>
                   </div>
-                  <div className="u-row u-gap-3" style={{ alignItems: 'center' }}>
+                  <div className="u-row u-row-between">
                     <Avatar name={localProfile.name} size="md" src={localProfile.avatarUrl ?? null} profileId={String(userId)} />
-                    <div className="u-stack" style={{ gap: 'var(--s-1)', flex: 1 }}>
+                    <div className="u-stack">
                       <button
-                        className="topBar__btn topBar__btn--primary"
+                        className="actionBtn btn-small"
                         type="button"
                         onClick={handleAvatarPick}
                         disabled={avatarBusy}
                       >
                         {avatarBusy ? 'Uploading...' : 'Change Avatar'}
                       </button>
-                      <div className="profile__meta" style={{ fontSize: 'var(--fs-1)' }}>
-                        JPG, PNG, or WEBP. Max 10MB.
-                      </div>
                       {avatarError && (
-                        <div className="profile__error" style={{ fontSize: 'var(--fs-1)' }}>
+                        <div className="profile__error">
                           {avatarError}
                         </div>
                       )}

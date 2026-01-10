@@ -136,21 +136,25 @@ Implemented:
 - `user-interest-sets` (build user interest sets for search)
 - `searchable-user` (build searchable user snapshot)
 - `quiz-answer-stats` (aggregate quiz answer statistics by demographics)
+- `interest-relationships` (interest correlation prep)
+- `science-sample-pairs` (science sampling)
+- `science-daily-stats` (science stats rollup)
+- `science-interest-correlations` (interest correlation metrics)
 
 Unified CLI:
 ```
 cd backend
-npx tsx scripts/runJobs.ts match-scores --userId=8
-npx tsx scripts/runJobs.ts content-features --batchSize=50
-npx tsx scripts/runJobs.ts trending --windowHours=48 --minEngagements=5
-npx tsx scripts/runJobs.ts affinity --userId=8
-npx tsx scripts/runJobs.ts feed-presort --userId=8
-npx tsx scripts/runJobs.ts stats-reconcile --lookbackHours=24 --batchSize=200
-npx tsx scripts/runJobs.ts build-user-traits --userId=8 --batchSize=100
-npx tsx scripts/runJobs.ts profile-search-index --userBatchSize=100
-npx tsx scripts/runJobs.ts user-interest-sets --batchSize=1000
-npx tsx scripts/runJobs.ts searchable-user --userBatchSize=100
-npx tsx scripts/runJobs.ts quiz-answer-stats
+pnpm jobs:run match-scores --userId=8
+pnpm jobs:run content-features --batchSize=50
+pnpm jobs:run trending --windowHours=48 --minEngagements=5
+pnpm jobs:run affinity --userId=8
+pnpm jobs:run feed-presort --userId=8
+pnpm jobs:run stats-reconcile --lookbackHours=24 --batchSize=200
+pnpm jobs:run build-user-traits --userId=8 --batchSize=100
+pnpm jobs:run profile-search-index --userBatchSize=100
+pnpm jobs:run user-interest-sets --batchSize=1000
+pnpm jobs:run searchable-user --userBatchSize=100
+pnpm jobs:run quiz-answer-stats
 ```
 
 ## Matching System (High Level)
@@ -163,14 +167,15 @@ Scripts live in `backend/scripts/`.
 Common entry points:
 ```
 cd backend
-npm run seed:all
-npx tsx scripts/seedFeedDemo.ts
+pnpm seed:all
+pnpm seed:mass
+pnpm seed:activity
 ```
 
 ## Local Setup
 1) Install dependencies:
 ```
-npm install
+pnpm install
 ```
 2) Configure database:
 ```
@@ -180,13 +185,13 @@ DATABASE_URL=...
 3) Prisma generate + sync:
 ```
 cd backend
-npm run prisma:generate
-npx prisma db push --schema prisma/schema
+pnpm prisma:generate
+pnpm prisma db push --schema prisma/schema
 ```
 4) Start dev servers:
 ```
-npm run dev:backend
-npm run dev:frontend
+pnpm run dev:backend
+pnpm run dev:frontend
 ```
 
 ## OpenAPI Types

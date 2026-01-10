@@ -36,7 +36,6 @@ model JobRun {
   // Schedule relationship (optional)
   scheduleId          String?      @db.VarChar(50)
   schedule            JobSchedule? @relation("ScheduledJobs", fields: [scheduleId], references: [id], onDelete: SetNull)
-  scheduleAsLast      JobSchedule? @relation("ScheduleLastRun")
   
   logs                JobLog[]
 

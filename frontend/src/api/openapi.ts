@@ -88,6 +88,11 @@ export interface paths {
       };
     };
   };
+  "/api/admin/users": {
+    /** Get users list with details */
+    get: {
+    };
+  };
   "/api/admin/jobs/history": {
     /** Get job run history */
     get: {
@@ -357,6 +362,11 @@ export interface paths {
   "/api/profiles/search/traits": {
     /** Get available trait keys for search filters */
     get: {
+    };
+  };
+  "/api/profiles/location/reverse": {
+    /** Reverse geocode coordinates for location display */
+    post: {
     };
   };
   "/api/profiles/{userId}": {
@@ -755,6 +765,11 @@ export interface paths {
       };
     };
   };
+  "/api/quizzes/tags": {
+    /** List quiz tags */
+    get: {
+    };
+  };
   "/api/quizzes/{quizId}": {
     /** Get quiz by id */
     get: {
@@ -788,11 +803,6 @@ export interface paths {
   };
   "/api/quizzes": {
     /** List quizzes */
-    get: {
-    };
-  };
-  "/api/quizzes/tags": {
-    /** List quiz tags */
     get: {
     };
   };

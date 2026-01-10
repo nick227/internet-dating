@@ -240,6 +240,8 @@ export async function uploadMedia(input: UploadInput): Promise<UploadResult> {
       data: { status: 'UPLOADED' },
     })
 
+    let responseStatus: UploadResult['status'] = 'PENDING'
+
     // Update status based on type
     // Images: validated during upload, mark as READY
     // Video/Audio: Mark as STORED, then PROBING (metadata extraction job)
@@ -249,14 +251,9 @@ export async function uploadMedia(input: UploadInput): Promise<UploadResult> {
         where: { id: created.id },
         data: { status: 'READY' },
       })
+      responseStatus = 'READY'
     } else {
-      // Video/audio: Mark as UPLOADED, then enqueue metadata extraction job
-      // Job will validate duration/resolution and update to READY or REJECTED
-      await prisma.media.update({
-        where: { id: created.id },
-        data: { status: 'UPLOADED' },
-      })
-      
+      // Video/audio: status is UPLOADED while metadata job runs
       // Enqueue metadata extraction job (non-blocking)
       // Job will extract duration/resolution and validate constraints
       try {
@@ -272,12 +269,13 @@ export async function uploadMedia(input: UploadInput): Promise<UploadResult> {
           where: { id: created.id },
           data: { status: 'READY' },
         })
+        responseStatus = 'READY'
       }
     }
 
     return {
       mediaId: created.id,
-      status: 'READY',
+      status: responseStatus,
       mimeType,
       urls,
     }

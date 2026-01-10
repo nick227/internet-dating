@@ -98,7 +98,7 @@ export function ProfilePage() {
         <div className="u-glass profile__card">
           <div className="u-stack">
             <button
-              className="topBar__btn"
+              className="actionBtn"
               type="button"
               onClick={openControlPanel}
             >

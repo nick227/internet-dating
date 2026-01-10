@@ -8,12 +8,14 @@ interface SearchParams {
   ageMin?: number
   ageMax?: number
   location?: string
+  nearMe?: boolean
+  radiusKm?: number
   traits?: TraitFilter[]
   interests?: string[]
   interestSubjects?: string[]
   top5Query?: string
   top5Type?: 'title' | 'item'
-  sort?: 'newest' | 'age'
+  sort?: 'newest' | 'age' | 'distance'
   limit?: number
   cursor?: string
 }
@@ -98,6 +100,8 @@ export function serializeFiltersToURL(filters: SearchFilters): URLSearchParams {
   if (filters.ageMin !== undefined) params.set('ageMin', String(filters.ageMin))
   if (filters.ageMax !== undefined) params.set('ageMax', String(filters.ageMax))
   if (filters.location) params.set('location', filters.location)
+  if (filters.nearMe) params.set('nearMe', '1')
+  if (filters.radiusKm) params.set('radiusKm', String(filters.radiusKm))
   if (filters.top5Query) params.set('top5Query', filters.top5Query)
   if (filters.top5Type) params.set('top5Type', filters.top5Type)
   
@@ -134,6 +138,11 @@ export function parseFiltersFromURL(search: string): SearchFilters {
   if (params.has('ageMin')) filters.ageMin = Number(params.get('ageMin'))
   if (params.has('ageMax')) filters.ageMax = Number(params.get('ageMax'))
   if (params.has('location')) filters.location = params.get('location')!
+  if (params.has('nearMe')) {
+    const value = params.get('nearMe')!
+    filters.nearMe = value === '1' || value === 'true'
+  }
+  if (params.has('radiusKm')) filters.radiusKm = Number(params.get('radiusKm'))
   if (params.has('top5Query')) filters.top5Query = params.get('top5Query')!
   if (params.has('top5Type')) filters.top5Type = params.get('top5Type') as 'title' | 'item'
   

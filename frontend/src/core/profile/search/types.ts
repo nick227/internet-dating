@@ -63,7 +63,7 @@ export interface Top5DimensionConfig {
   searchType: 'title' | 'item' | 'both'
 }
 
-export type SearchSort = 'newest' | 'age'
+export type SearchSort = 'newest' | 'age' | 'distance'
 
 export interface TraitFilter {
   key: string
@@ -79,6 +79,8 @@ export interface SearchFilters {
   ageMin?: number
   ageMax?: number
   location?: string
+  nearMe?: boolean
+  radiusKm?: number
   traits?: TraitFilter[]
   interests?: string[]
   interestSubjects?: string[]

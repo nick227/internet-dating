@@ -102,6 +102,21 @@ body {
   bottom: 0;
   padding: var(--s-4);
   z-index: 5;
+  pointer-events: none;
+}
+.riverCard__meta > .u-stack {
+  pointer-events: auto;
+}
+.riverCard--commentsOpen .riverCard__media {
+  height: 20%;
+  top: 0;
+  bottom: auto;
+}
+.riverCard--commentsOpen .riverCard__meta {
+  height: 80%;
+}
+.riverCard--commentsOpen .riverCard__meta > .u-stack {
+  height: 100%;
 }
 
 /* Card Name/Header - Fixed layout */
@@ -109,6 +124,20 @@ body {
   display: flex;
   align-items: flex-end;
   gap: var(--s-2);
+}
+.riverCard__nameButton {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.riverCard__nameButton:hover {
+  opacity: 0.85;
 }
 .riverCard__name h2 {
   margin: 0;

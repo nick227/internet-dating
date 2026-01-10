@@ -1,5 +1,5 @@
 import { prisma } from '../src/lib/prisma/client.js';
-import cronParser from 'cron-parser';
+import { Cron } from 'croner';
 import { schedules, getScheduleDefinition } from '../src/lib/jobs/schedules/definitions.js';
 import { enqueueAllJobs, enqueueJobsByGroup } from '../src/lib/jobs/enqueue.js';
 import { hostname } from 'os';
@@ -36,10 +36,7 @@ async function syncScheduleDefinitions() {
       create: {
         id: schedule.id,
         enabled: false, // Safety: require explicit admin enable
-        nextRunAt: cronParser
-          .parseExpression(schedule.cron, { tz: schedule.timezone })
-          .next()
-          .toDate()
+        nextRunAt: new Cron(schedule.cron, { timezone: schedule.timezone, paused: true }).nextRun() || new Date()
       },
       update: {} // Don't touch existing records
     });
@@ -158,10 +155,7 @@ async function processSchedules() {
       }
       
       // Calculate next run time
-      const nextRun = cronParser
-        .parseExpression(definition.cron, { tz: definition.timezone })
-        .next()
-        .toDate();
+      const nextRun = new Cron(definition.cron, { timezone: definition.timezone, paused: true }).nextRun() || new Date();
       
       // Update schedule state
       await prisma.jobSchedule.update({

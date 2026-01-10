@@ -16,6 +16,11 @@ model ProfileSearchIndex {
   locationCity  String?
   locationState String?
   locationCountry String?
+
+  // Geo coordinates for near-me search
+  lat           Float?
+  lng           Float?
+  hasLocation   Boolean @default(false)
   
   // Aggregated counts
   interestCount Int      @default(0)
@@ -40,6 +45,7 @@ model ProfileSearchIndex {
   @@index([ageBucket, gender, intent])
   @@index([locationCity, locationState])
   @@index([locationText(50)]) // Prefix index for text search
+  @@index([hasLocation, lat, lng])
   @@index([accountCreatedAt])
 }
 

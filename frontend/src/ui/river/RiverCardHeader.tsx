@@ -16,6 +16,7 @@ type RiverCardHeaderProps = {
   presenceLabel?: string | null
   accent?: FeedCardPresentation['accent']
   isOptimistic?: boolean
+  onOpenProfile?: () => void
 }
 
 export function RiverCardHeader({
@@ -25,6 +26,7 @@ export function RiverCardHeader({
   presenceLabel,
   accent,
   isOptimistic,
+  onOpenProfile,
 }: RiverCardHeaderProps) {
   const name = actor?.name ?? content?.title ?? 'Untitled'
   const age = actor?.age
@@ -56,19 +58,39 @@ export function RiverCardHeader({
     [actor?.intent]
   )
 
+  const nameElement = onOpenProfile ? (
+    <h2
+      className="riverCard__name riverCard__nameButton"
+      onClick={onOpenProfile}
+      aria-label={`Open ${name}'s profile`}
+    >
+      <Avatar
+        name={name}
+        size="sm"
+        src={actor?.avatarUrl ?? null}
+        profileId={actor?.id != null ? String(actor.id) : null}
+        className="riverCard__avatar"
+      />
+      <h2 className="u-clamp-1">{name}</h2>
+      {age != null && <span>{age}</span>}
+    </h2>
+  ) : (
+    <div className="riverCard__name">
+      <Avatar
+        name={name}
+        size="sm"
+        src={actor?.avatarUrl ?? null}
+        profileId={actor?.id != null ? String(actor.id) : null}
+        className="riverCard__avatar"
+      />
+      <h2 className="u-clamp-1">{name}</h2>
+      {age != null && <span>{age}</span>}
+    </div>
+  )
+
   return (
     <div className="u-stack">
-      <div className="riverCard__name">
-        <Avatar
-          name={name}
-          size="sm"
-          src={actor?.avatarUrl ?? null}
-          profileId={actor?.id != null ? String(actor.id) : null}
-          className="riverCard__avatar"
-        />
-        <h2 className="u-clamp-1">{name}</h2>
-        {age != null && <span>{age}</span>}
-      </div>
+      {nameElement}
       <div className="riverCard__chips">
         {actor?.locationText && <Pill>{actor.locationText}</Pill>}
         {intentLabel && <Pill>{intentLabel}</Pill>}

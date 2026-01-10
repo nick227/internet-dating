@@ -1,6 +1,6 @@
 import type { JobDefinition, JobRegistry, JobGroup } from './types.js';
 import { validateJobDefinition } from './types.js';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 // Lazy load jobs to avoid importing scripts/ during compilation
@@ -13,7 +13,7 @@ const __dirname = dirname(__filename);
 // Use dynamic import with path construction to avoid TS checking at compile time
 async function dynamicImportJob(path: string): Promise<any> {
   const fullPath = join(__dirname, path);
-  return import(fullPath);
+  return import(pathToFileURL(fullPath).toString());
 }
 
 async function loadJobs(): Promise<JobRegistry> {

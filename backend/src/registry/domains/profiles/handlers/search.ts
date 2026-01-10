@@ -7,6 +7,7 @@ import { prisma } from '../../../../lib/prisma/client.js';
 import { toAvatarUrl } from '../presenters/mediaPresenter.js';
 import { loadBlockedUserIds, loadSearchProfiles } from '../loaders/searchLoader.js';
 import type { RouteDef } from '../../../../registry/types.js';
+import { Prisma } from '@prisma/client';
 
 export const searchRoute: RouteDef = {
   id: 'profiles.GET./profiles/search',
@@ -51,7 +52,7 @@ export const advancedSearchRoute: RouteDef = {
   tags: ['profiles'],
   handler: searchRateLimit(async (req, res) => {
     const viewerId = req.ctx.userId ?? undefined;
-    const { q, gender, intent, ageMin, ageMax, location, interests, interestSubjects, traits, top5Query, top5Type, sort, limit, cursor } = req.query;
+    const { q, gender, intent, ageMin, ageMax, location, interests, interestSubjects, traits, top5Query, top5Type, sort, limit, cursor, nearMe, radiusKm } = req.query;
     
     const limitParsed = parseLimit(limit, 20, 50, 'limit');
     if (!limitParsed.ok) return json(res, { error: limitParsed.error }, 400);
@@ -65,9 +66,24 @@ export const advancedSearchRoute: RouteDef = {
       return json(res, { error: 'ageMin must be <= ageMax' }, 400);
     }
     
-    const sortValue = (sort as string) || 'newest';
-    if (sortValue !== 'newest' && sortValue !== 'age') {
+    const nearMeEnabled = nearMe === 'true' || nearMe === '1';
+    const radiusParsed = radiusKm ? parseOptionalNumber(radiusKm, 'radiusKm') : { ok: true as const, value: undefined };
+    if (!radiusParsed.ok) return json(res, { error: radiusParsed.error }, 400);
+
+    let sortValue = (sort as string) || (nearMeEnabled ? 'distance' : 'newest');
+    if (nearMeEnabled) {
+      sortValue = 'distance';
+    } else if (sortValue !== 'newest' && sortValue !== 'age') {
       return json(res, { error: 'Invalid sort value. Supported: newest, age' }, 400);
+    }
+
+    if (nearMeEnabled && !viewerId) {
+      return json(res, { error: 'Authentication required' }, 401);
+    }
+
+    const radiusValue = nearMeEnabled ? (radiusParsed.value ?? 25) : radiusParsed.value;
+    if (nearMeEnabled && (radiusValue === undefined || radiusValue <= 0)) {
+      return json(res, { error: 'radiusKm must be greater than 0' }, 400);
     }
     
     const genderArray = Array.isArray(gender) ? gender as string[] : gender ? [gender as string] : undefined;
@@ -125,15 +141,17 @@ export const advancedSearchRoute: RouteDef = {
       intent: intentArray,
       ageMin: ageMinParsed.value,
       ageMax: ageMaxParsed.value,
-      location: location ? String(location).trim() : undefined,
+      location: nearMeEnabled ? undefined : (location ? String(location).trim() : undefined),
       interests: interestsArray,
       interestSubjects: interestSubjectsArray,
       traits: traitsArray,
       top5Query: top5Query ? String(top5Query).trim() : undefined,
       top5Type: top5Type as 'title' | 'item' | undefined,
-      sort: sortValue as 'newest' | 'age',
+      sort: sortValue as 'newest' | 'age' | 'distance',
       limit: take,
-      cursor: cursor ? String(cursor) : undefined
+      cursor: cursor ? String(cursor) : undefined,
+      nearMe: nearMeEnabled,
+      radiusKm: radiusValue
     };
     
     const builder = new ProfileSearchQueryBuilder(searchParams, viewerId);
@@ -145,9 +163,71 @@ export const advancedSearchRoute: RouteDef = {
     }
     
     const queryArgs = await builder.build();
+
+    let viewerLocation: { lat: number; lng: number } | null = null;
+    let nearMeBounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null = null;
+
+    if (nearMeEnabled) {
+      const viewerIndex = await prisma.profileSearchIndex.findUnique({
+        where: { userId: viewerId! },
+        select: { lat: true, lng: true, hasLocation: true }
+      });
+
+      if (!viewerIndex?.hasLocation || viewerIndex.lat === null || viewerIndex.lng === null) {
+        return json(res, { error: 'Location required', code: 'LOCATION_REQUIRED' }, 400);
+      }
+
+      viewerLocation = {
+        lat: Number(viewerIndex.lat),
+        lng: Number(viewerIndex.lng)
+      };
+
+      nearMeBounds = computeBoundingBox(viewerLocation.lat, viewerLocation.lng, radiusValue!);
+    }
+
+    if (nearMeBounds) {
+      queryArgs.where = withNearMeBounds(queryArgs.where ?? {}, nearMeBounds);
+      queryArgs.orderBy = [{ userId: 'asc' }];
+      queryArgs.cursor = undefined;
+      queryArgs.skip = 0;
+      queryArgs.take = Math.min(take * 4, 200);
+    }
+
     const results = await prisma.profileSearchIndex.findMany(queryArgs);
-    const hasMore = results.length > take;
-    const profiles = hasMore ? results.slice(0, take) : results;
+
+    let profiles = results;
+    let hasMore = results.length > take;
+
+    let nearMeDistances: Map<bigint, number> | null = null;
+    if (nearMeEnabled && viewerLocation) {
+      const scored = results
+        .filter(p => p.lat !== null && p.lng !== null)
+        .map(p => {
+          const distanceKm = roundDistanceKm(
+            haversineKm(viewerLocation!.lat, viewerLocation!.lng, Number(p.lat), Number(p.lng))
+          );
+          return { profile: p, distanceKm };
+        })
+        .filter(p => p.distanceKm <= radiusValue!);
+
+      scored.sort((a, b) => {
+        if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+        return a.profile.userId > b.profile.userId ? 1 : -1;
+      });
+
+      const cursorValue = cursor ? decodeNearMeCursor(String(cursor)) : null;
+      const filtered = cursorValue
+        ? scored.filter(item => isAfterNearMeCursor(item, cursorValue))
+        : scored;
+
+      const page = filtered.slice(0, take);
+      hasMore = filtered.length > take;
+      profiles = page.map(item => item.profile);
+      nearMeDistances = new Map(page.map(item => [item.profile.userId, item.distanceKm]));
+    } else {
+      hasMore = results.length > take;
+      profiles = hasMore ? results.slice(0, take) : results;
+    }
     
     const userIds = profiles.map(p => p.userId);
     const likedIds = viewerId
@@ -214,6 +294,12 @@ export const advancedSearchRoute: RouteDef = {
         if (searchParams.location) {
           matchReasons.push(`Location: ${p.locationText ?? 'N/A'}`);
         }
+        if (nearMeEnabled && nearMeDistances) {
+          const distanceKm = nearMeDistances.get(p.userId);
+          if (distanceKm !== undefined) {
+            matchReasons.push(`${formatDistanceMiles(distanceKm)} mi away`);
+          }
+        }
         
         return {
           userId: String(p.userId),
@@ -231,7 +317,9 @@ export const advancedSearchRoute: RouteDef = {
       });
     
     const nextCursor = hasMore && profiles.length > 0
-      ? builder.encodeCursor(profiles[profiles.length - 1].userId)
+      ? (nearMeEnabled && nearMeDistances
+          ? encodeNearMeCursor(nearMeDistances.get(profiles[profiles.length - 1].userId)!, profiles[profiles.length - 1].userId)
+          : builder.encodeCursor(profiles[profiles.length - 1].userId))
       : null;
     
     return json(res, {
@@ -275,3 +363,82 @@ export const traitsRoute: RouteDef = {
     return json(res, { traits: grouped });
   }
 };
+
+function computeBoundingBox(lat: number, lng: number, radiusKm: number) {
+  const latDelta = radiusKm / 111;
+  const latRad = (lat * Math.PI) / 180;
+  const cosLat = Math.max(Math.cos(latRad), 0.01);
+  const lngDelta = radiusKm / (111 * cosLat);
+  return {
+    minLat: lat - latDelta,
+    maxLat: lat + latDelta,
+    minLng: lng - lngDelta,
+    maxLng: lng + lngDelta
+  };
+}
+
+function withNearMeBounds(
+  where: Prisma.ProfileSearchIndexWhereInput,
+  bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+) {
+  const boundsFilter: Prisma.ProfileSearchIndexWhereInput = {
+    hasLocation: true,
+    lat: { gte: bounds.minLat, lte: bounds.maxLat },
+    lng: { gte: bounds.minLng, lte: bounds.maxLng }
+  };
+
+  const existingAnd = where.AND
+    ? (Array.isArray(where.AND) ? where.AND : [where.AND])
+    : [];
+
+  return {
+    ...where,
+    AND: [...existingAnd, boundsFilter]
+  };
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function roundDistanceKm(distanceKm: number): number {
+  return Math.round(distanceKm * 1000) / 1000;
+}
+
+function formatDistanceMiles(distanceKm: number): string {
+  const miles = distanceKm * 0.621371;
+  const rounded = miles >= 10 ? Math.round(miles) : Math.round(miles * 10) / 10;
+  return rounded.toString();
+}
+
+function encodeNearMeCursor(distanceKm: number, userId: bigint): string {
+  return Buffer.from(JSON.stringify({ distanceKm, userId: userId.toString() })).toString('base64');
+}
+
+function decodeNearMeCursor(cursor: string): { distanceKm: number; userId: bigint } | null {
+  try {
+    const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
+    const parsed = JSON.parse(decoded) as { distanceKm: number; userId: string };
+    return { distanceKm: Number(parsed.distanceKm), userId: BigInt(parsed.userId) };
+  } catch {
+    return null;
+  }
+}
+
+function isAfterNearMeCursor(
+  item: { profile: { userId: bigint }; distanceKm: number },
+  cursor: { distanceKm: number; userId: bigint }
+) {
+  if (item.distanceKm > cursor.distanceKm) return true;
+  if (item.distanceKm === cursor.distanceKm && item.profile.userId > cursor.userId) return true;
+  return false;
+}

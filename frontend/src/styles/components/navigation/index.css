@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   margin: 0 auto;
   height: 100%;
 }
@@ -25,10 +25,15 @@
   letter-spacing: -0.02em;
   cursor: pointer;
 }
+.topBar__titleText {
+  cursor: pointer;
+}
 .topBar__actions {
   display: flex;
   align-items: center;
   gap: var(--s-2);
+  position: absolute;
+  right: 60px;
 }
 .topBar__btn:hover {
   background: var(--component-surface);

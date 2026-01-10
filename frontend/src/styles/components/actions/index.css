@@ -20,6 +20,7 @@ button {
   gap: var(--s-2);
   cursor: pointer;
   min-width: 100px;
+  min-height: 60px;
 }
 .actionBtn:active {
   transform: scale(0.99);
@@ -69,4 +70,6 @@ button {
   border-radius: var(--r-8);
   max-width: 100px;
   white-space: nowrap;
+  min-width: 0;
+  min-height: 0;
 }

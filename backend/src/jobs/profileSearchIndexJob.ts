@@ -163,7 +163,11 @@ async function buildProfileSearchIndexForUser(userId: bigint, userData?: any) {
     acc[t.traitKey] = Number(t.value);
     return acc;
   }, {});
-  
+
+  const lat = user.profile.lat !== null && user.profile.lat !== undefined ? Number(user.profile.lat) : null;
+  const lng = user.profile.lng !== null && user.profile.lng !== undefined ? Number(user.profile.lng) : null;
+  const hasLocation = lat !== null && lng !== null;
+
   const top5Keywords = extractTop5Keywords(user.profile.top5Lists || []);
   
   await prisma.profileSearchIndex.upsert({
@@ -173,6 +177,9 @@ async function buildProfileSearchIndexForUser(userId: bigint, userData?: any) {
       displayName: user.profile.displayName,
       bio: user.profile.bio,
       locationText: user.profile.locationText,
+      lat,
+      lng,
+      hasLocation,
       gender: user.profile.gender,
       intent: user.profile.intent,
       age,
@@ -193,6 +200,9 @@ async function buildProfileSearchIndexForUser(userId: bigint, userData?: any) {
       displayName: user.profile.displayName,
       bio: user.profile.bio,
       locationText: user.profile.locationText,
+      lat,
+      lng,
+      hasLocation,
       gender: user.profile.gender,
       intent: user.profile.intent,
       age,

@@ -58,9 +58,11 @@
 }
 .riverCard--noMedia .riverCard__meta {
   justify-content: center;
+  height: 100%;
 }
 .riverCard--noMedia .riverCard__meta > .u-stack {
   justify-content: center;
+  height: 100%;
 }
 .riverCard--noMedia .riverCard__question {
   flex: 1;
@@ -235,20 +237,47 @@
   flex-direction: column;
   gap: var(--s-3);
   z-index: 110;
-  height: 100%;
-  justify-content: flex-end;
   pointer-events: none;
 }
 .riverCard__meta > .u-stack { 
   width: 100%;
-  height: 100%;
   pointer-events: auto;
-  justify-content: flex-end;
+}
+/* When comments are open, expand meta to 80% and push media up */
+.riverCard--commentsOpen .riverCard__media {
+  height: 20%;
+  top: 0;
+  bottom: auto;
+}
+.riverCard--commentsOpen .riverCard__meta {
+  height: 80%;
+}
+.riverCard--commentsOpen .riverCard__meta > .u-stack {
+  height: 100%;
 }
 .riverCard__name {
   display: flex;
   align-items: flex-end;
   gap: var(--s-2);
+}
+.riverCard__nameButton {
+  /* Reset button styles */
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  /* Add transition for hover effect */
+  transition: opacity 0.2s ease;
+}
+.riverCard__nameButton:hover {
+  opacity: 0.85;
+}
+.riverCard__nameButton:active {
+  opacity: 0.7;
 }
 .riverCard__avatar {
   flex-shrink: 0;
@@ -260,7 +289,6 @@
   letter-spacing: -0.02em;
   text-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
   font-weight: 700;
-  cursor: pointer;
 }
 .riverCard__name span {
   font-size: var(--fs-4);

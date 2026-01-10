@@ -12,19 +12,8 @@ type RiverCardFrameProps = {
   position: number
   onOpenProfile?: (userId: string | number) => void
   children: ReactNode
-  commentWidgetOpen?: boolean // NEW: Track if comment widget is open
   showMedia?: boolean // Controls whether to show RiverCardMedia
-}
-
-function isInteractiveTarget(target: EventTarget | null | undefined) {
-  if (!target || !(target instanceof Element)) return false
-  return Boolean(target.closest('button, a, input, select, textarea'))
-}
-
-function isCommentWidget(target: EventTarget | null | undefined) {
-  if (!target || !(target instanceof Element)) return false
-  // Check if click is inside comment widget (including its content)
-  return Boolean(target.closest('.commentWidget'))
+  commentWidgetOpen?: boolean // Controls layout when comments are open
 }
 
 export function RiverCardFrame({
@@ -33,8 +22,8 @@ export function RiverCardFrame({
   position,
   onOpenProfile,
   children,
-  commentWidgetOpen = false, // NEW: Default to false
   showMedia = true, // Default to true for backwards compatibility
+  commentWidgetOpen = false,
 }: RiverCardFrameProps) {
   // Memoize expensive string computations
   const title = useMemo(() => {
@@ -52,7 +41,6 @@ export function RiverCardFrame({
 
   const hero = card.heroUrl ?? null
   const actorId = card.actor?.id
-  const canNavigate = Boolean(actorId && onOpenProfile)
   const { cardRef, isIntersecting: cardIsIntersecting } = useFeedSeen(card, position)
   const presentation = card.presentation
   // Accent is determined by card kind or presentation - match cards get match accent
@@ -61,54 +49,18 @@ export function RiverCardFrame({
   // Memoize className to avoid string concatenation
   const cardClassName = useMemo(() => {
     const classes = ['riverCard']
-    if (!canNavigate) classes.push('riverCard--static')
     if (!showMedia) classes.push('riverCard--noMedia')
+    if (commentWidgetOpen) classes.push('riverCard--commentsOpen')
     return classes.join(' ')
-  }, [canNavigate, showMedia])
+  }, [showMedia, commentWidgetOpen])
 
   const handleOpen = useCallback(() => {
     if (!actorId || !onOpenProfile) return
     onOpenProfile(actorId)
   }, [actorId, onOpenProfile])
 
-  const handleClick = useCallback(
-    (event: React.MouseEvent) => {
-      // Don't navigate if comment widget is open (user is interacting with comments)
-      if (commentWidgetOpen) return
-      // Don't navigate if clicking on interactive elements
-      if (!canNavigate || isInteractiveTarget(event.target)) return
-      // Don't navigate if clicking inside comment widget
-      if (isCommentWidget(event.target)) return
-      handleOpen()
-    },
-    [canNavigate, handleOpen, commentWidgetOpen]
-  )
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      // Don't navigate if comment widget is open
-      if (commentWidgetOpen) return
-      // Don't navigate if clicking on interactive elements
-      if (!canNavigate || isInteractiveTarget(event.target)) return
-      // Don't navigate if inside comment widget
-      if (isCommentWidget(event.target)) return
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault()
-        handleOpen()
-      }
-    },
-    [canNavigate, handleOpen, commentWidgetOpen]
-  )
-
   return (
-    <article
-      ref={cardRef}
-      className={cardClassName}
-      tabIndex={canNavigate ? 0 : -1}
-      aria-label={canNavigate ? `Open ${title}` : undefined}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-    >
+    <article ref={cardRef} className={cardClassName}>
       {showMedia && (
         <RiverCardMedia
           hero={hero}
@@ -128,6 +80,7 @@ export function RiverCardFrame({
             presenceLabel={presenceLabel}
             accent={accent}
             isOptimistic={card.flags?.optimistic}
+            onOpenProfile={handleOpen}
           />
           {children}
         </div>

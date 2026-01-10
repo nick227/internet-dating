@@ -25,7 +25,7 @@ export const FORCE_MATERIALIZED_SEARCH = process.env.FORCE_MATERIALIZED_SEARCH !
 export function assertNoLiveModelAccess(): void {
   // No-op: Enforcement handled by architecture.test.ts
 }
-export type SearchSort = 'newest' | 'age';
+export type SearchSort = 'newest' | 'age' | 'distance';
 
 export interface TraitFilter {
   key: string;
@@ -58,6 +58,10 @@ export interface SearchParams {
   
   // Sorting
   sort?: SearchSort;
+
+  // Near-me filters
+  nearMe?: boolean;
+  radiusKm?: number;
   
   // Pagination
   limit?: number;
@@ -226,6 +230,8 @@ export class ProfileSearchQueryBuilder {
         return [{ accountCreatedAt: 'desc' }, { userId: 'desc' }];
       case 'age':
         return [{ age: 'asc' }, { userId: 'desc' }];
+      case 'distance':
+        return [{ userId: 'asc' }];
       default:
         return [{ accountCreatedAt: 'desc' }, { userId: 'desc' }];
     }

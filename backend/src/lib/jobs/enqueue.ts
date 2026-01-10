@@ -1,6 +1,6 @@
 import { prisma } from '../prisma/client.js';
 import { getAllJobs, getJobsByGroup } from './shared/registry.js';
-import { resolveDependencies } from './shared/dependencyResolver.js';
+import { resolveJobDependencies, resolveJobsByGroup } from './shared/dependencyResolver.js';
 import type { JobGroup } from './shared/types.js';
 
 export interface EnqueueOptions {
@@ -23,12 +23,13 @@ export async function enqueueAllJobs(
   const jobRunIds: bigint[] = [];
   
   // Resolve dependencies to get correct execution order
-  const orderedJobNames = resolveDependencies(jobs);
+  const jobsMap = new Map(Object.entries(jobs));
+  const resolvedJobs = resolveJobDependencies(jobsMap);
   
-  for (const jobName of orderedJobNames) {
+  for (const resolved of resolvedJobs) {
     const run = await prisma.jobRun.create({
       data: {
-        jobName,
+        jobName: resolved.name,
         trigger: options.scheduleId ? 'CRON' : 'MANUAL',
         status: 'QUEUED',
         scheduleId: options.scheduleId,
@@ -53,13 +54,14 @@ export async function enqueueJobsByGroup(
   const jobRunIds: bigint[] = [];
   
   // Jobs within a group may have dependencies too
-  const jobsMap = new Map(jobs.map(j => [j.name, j]));
-  const orderedJobNames = resolveDependencies(jobsMap);
+  const allJobs = await getAllJobs();
+  const jobsMap = new Map(Object.entries(allJobs));
+  const resolvedJobs = resolveJobsByGroup(jobsMap, group);
   
-  for (const jobName of orderedJobNames) {
+  for (const resolved of resolvedJobs) {
     const run = await prisma.jobRun.create({
       data: {
-        jobName,
+        jobName: resolved.name,
         trigger: options.scheduleId ? 'CRON' : 'MANUAL',
         status: 'QUEUED',
         scheduleId: options.scheduleId,

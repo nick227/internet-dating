@@ -53,6 +53,20 @@ export const quizzesDomain: DomainRegistry = {
       }
     },
     {
+      id: 'quizzes.GET./quizzes/tags',
+      method: 'GET',
+      path: '/quizzes/tags',
+      auth: Auth.public(),
+      summary: 'List quiz tags',
+      tags: ['quizzes'],
+      handler: async (_req, res) => {
+        const tags = await prisma.quizTag.findMany({
+          orderBy: { label: 'asc' }
+        });
+        return json(res, { tags });
+      }
+    },
+    {
       id: 'quizzes.GET./quizzes/:quizId',
       method: 'GET',
       path: '/quizzes/:quizId',
@@ -166,20 +180,6 @@ export const quizzesDomain: DomainRegistry = {
             : items;
 
         return json(res, { items: finalItems });
-      }
-    },
-    {
-      id: 'quizzes.GET./quizzes/tags',
-      method: 'GET',
-      path: '/quizzes/tags',
-      auth: Auth.public(),
-      summary: 'List quiz tags',
-      tags: ['quizzes'],
-      handler: async (_req, res) => {
-        const tags = await prisma.quizTag.findMany({
-          orderBy: { label: 'asc' }
-        });
-        return json(res, { tags });
       }
     },
     {

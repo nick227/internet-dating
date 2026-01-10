@@ -219,6 +219,8 @@
   color: var(--text, rgba(255, 255, 255, 0.92));
   cursor: pointer;
   transition: background 0.2s, transform 0.2s;
+    min-width: 0;
+  min-height: 0;
 }
 
 .mediaViewer__close:hover {

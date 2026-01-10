@@ -20,12 +20,14 @@ export function ProfileSearchQuickFilters({ filters, onFiltersChange }: Props) {
       id: 'all',
       label: 'All',
       isActive: () => {
-        return !filters.gender?.length && !filters.intent?.length
+        return !filters.gender?.length && !filters.intent?.length && !filters.nearMe
       },
       onClick: () => ({
         ...filters,
         gender: undefined,
         intent: undefined,
+        nearMe: undefined,
+        radiusKm: undefined,
         cursor: undefined,
       }),
     },
@@ -33,12 +35,17 @@ export function ProfileSearchQuickFilters({ filters, onFiltersChange }: Props) {
       id: 'near-me',
       label: 'Near Me',
       icon: '📍',
-      isActive: () => !!filters.location,
-      onClick: (current) => ({
-        ...current,
-        location: current.location ? undefined : 'near me',
-        cursor: undefined,
-      }),
+      isActive: (current) => Boolean(current.nearMe),
+      onClick: (current) => {
+        const nextNearMe = !current.nearMe
+        return {
+          ...current,
+          nearMe: nextNearMe ? true : undefined,
+          radiusKm: nextNearMe ? (current.radiusKm ?? 25) : undefined,
+          location: undefined,
+          cursor: undefined,
+        }
+      },
     },
     {
       id: 'women',

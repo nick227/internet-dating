@@ -42,15 +42,20 @@ export function TopBar({
           onClick={onUserClick}
           className="topBar__userAvatar"
         />
-        <button
-          type="button"
+        <a
+          className="topBar__link"
+          onClick={onUserClick}
+          aria-disabled={user.loading}
+        >
+          Home
+        </a> / 
+        <a
           className="topBar__link"
           onClick={onLogout}
-          disabled={user.loading}
           aria-disabled={user.loading}
         >
           Logout
-        </button>
+        </a>
       </>
     )
   } else {
@@ -69,11 +74,9 @@ export function TopBar({
   return (
     <header className="topBar">
       <div className="topBar__inner">
-        <button type="button" className="topBar__title" onClick={onHome}>
-          <h1 className="topBar__titleText">{title}</h1>
-        </button>
-        <div className="topBar__actions">{actions}</div>
+          <h2 onClick={onHome} className="topBar__titleText">{title}</h2>
       </div>
+      <div className="topBar__actions">{actions}</div>
     </header>
   )
 }

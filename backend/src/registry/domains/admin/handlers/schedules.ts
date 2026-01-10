@@ -3,7 +3,7 @@ import { prisma } from '../../../../lib/prisma/client.js';
 import { json } from '../../../../lib/http/json.js';
 import { schedules, getScheduleDefinition } from '../../../../lib/jobs/schedules/definitions.js';
 import { enqueueAllJobs, enqueueJobsByGroup } from '../../../../lib/jobs/enqueue.js';
-import cronParser from 'cron-parser';
+import { Cron } from 'croner';
 
 /**
  * GET /api/admin/schedules
@@ -135,10 +135,7 @@ export async function updateSchedule(req: Request, res: Response) {
   // Calculate nextRunAt if enabling for the first time
   let nextRunAt: Date | undefined;
   if (enabled) {
-    nextRunAt = cronParser
-      .parseExpression(definition.cron, { tz: definition.timezone })
-      .next()
-      .toDate();
+    nextRunAt = new Cron(definition.cron, { timezone: definition.timezone, paused: true }).nextRun() || new Date();
   }
   
   const updated = await prisma.jobSchedule.upsert({

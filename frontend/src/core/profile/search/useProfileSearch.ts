@@ -47,6 +47,59 @@ function convertApiProfileToResult(profile: {
   }
 }
 
+type SearchError = Error & { code?: string }
+
+function toSearchError(err: unknown, fallback: string): SearchError {
+  const error = new Error(fallback) as SearchError
+  if (err instanceof HttpError) {
+    const body = err.body as { code?: unknown; error?: unknown } | null
+    if (body && typeof body === 'object' && 'code' in body && typeof body.code === 'string') {
+      error.code = body.code
+    }
+    if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
+      error.message = body.error
+    } else if (err.message) {
+      error.message = err.message
+    }
+  } else if (err instanceof Error && err.message) {
+    error.message = err.message
+  }
+  return error
+}
+
+function shouldPromptForGeo(err: unknown, filters: SearchFilters): boolean {
+  if (!filters.nearMe) return false
+  if (!(err instanceof HttpError)) return false
+  if (err.status !== 400) return false
+  const body = err.body as { code?: unknown } | null
+  return body?.code === 'LOCATION_REQUIRED'
+}
+
+async function trySaveDeviceLocation(userId: string | undefined): Promise<boolean> {
+  if (!userId) return false
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return false
+
+  const position = await new Promise<GeolocationPosition | null>((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(pos),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    )
+  })
+
+  if (!position) return false
+
+  const lat = position.coords.latitude
+  const lng = position.coords.longitude
+  const resolved = await api.reverseGeocode({ lat, lng })
+  await api.profileUpdate(userId, {
+    locationText: resolved.locationText ?? null,
+    lat,
+    lng,
+  })
+  return true
+}
+
 export function useProfileSearch() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -57,6 +110,7 @@ export function useProfileSearch() {
   const [error, setError] = useState<Error | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const geoPromptedRef = useRef(false)
   
   // Sync filters with URL on mount/location change
   useEffect(() => {
@@ -77,7 +131,7 @@ export function useProfileSearch() {
     }
   }, [debouncedFilters, navigate, location.search])
   
-  const search = useCallback(async (searchFilters: SearchFilters, append = false) => {
+  const search = useCallback(async (searchFilters: SearchFilters, append = false, allowGeoPrompt = true) => {
     // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -106,6 +160,14 @@ export function useProfileSearch() {
       if (err instanceof Error && err.name === 'AbortError') {
         return // Request was cancelled
       }
+      if (allowGeoPrompt && shouldPromptForGeo(err, searchFilters) && !geoPromptedRef.current) {
+        geoPromptedRef.current = true
+        const saved = await trySaveDeviceLocation(userId)
+        if (saved) {
+          setError(toSearchError(err, 'Location saved. Near Me updates after the next index refresh.'))
+          return
+        }
+      }
       // Handle auth errors - don't show error for 401, just clear results
       if (err instanceof HttpError && err.status === 401) {
         if (!append) {
@@ -115,9 +177,7 @@ export function useProfileSearch() {
         }
         return
       }
-      // Preserve the original error message if available
-      const errorMessage = err instanceof Error ? err.message : 'Search failed'
-      setError(new Error(errorMessage))
+      setError(toSearchError(err, 'Search failed'))
       if (!append) {
         setResults([])
         setNextCursor(null)
@@ -128,7 +188,7 @@ export function useProfileSearch() {
         abortControllerRef.current = null
       }
     }
-  }, [])
+  }, [userId])
   
   const loadRecommendations = useCallback(async (append = false) => {
     // Don't call API if userId is not available
@@ -202,9 +262,7 @@ export function useProfileSearch() {
         }
         return
       }
-      // Preserve the original error message if available
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load recommendations'
-      setError(new Error(errorMessage))
+      setError(toSearchError(err, 'Failed to load recommendations'))
       if (!append) {
         setResults([])
         setNextCursor(null)
@@ -225,15 +283,6 @@ export function useProfileSearch() {
       return
     }
 
-    // If auth finished loading but we don't have a userId, don't make API calls
-    if (!isAuthenticated || !userId) {
-      setResults([])
-      setNextCursor(null)
-      setLoading(false)
-      setError(null) // Clear any previous errors
-      return
-    }
-
     const hasAnyFilters = Object.keys(debouncedFilters).some(key => {
       if (key === 'cursor' || key === 'limit') return false // Ignore pagination params
       const value = debouncedFilters[key as keyof typeof debouncedFilters]
@@ -248,6 +297,14 @@ export function useProfileSearch() {
       // Use advanced search when filters are applied
       search(debouncedFilters)
     } else {
+      // If auth finished loading but we don't have a userId, don't make recommendations calls
+      if (!isAuthenticated || !userId) {
+        setResults([])
+        setNextCursor(null)
+        setLoading(false)
+        setError(null) // Clear any previous errors
+        return
+      }
       // Use recommendations when no filters and user is authenticated with valid userId
       // Add a small delay to ensure cookies are set after session load
       const timeoutId = setTimeout(() => {
