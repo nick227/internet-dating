@@ -6,7 +6,12 @@ import { hostname } from 'os';
 
 let workerId: string;
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const POLL_INTERVAL_MS = 60_000; // 1 minute
+const POLL_INTERVAL_MS = parseInt(process.env.SCHEDULE_POLL_INTERVAL_MS || '60000', 10);
+
+// Environment check
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const IS_PRODUCTION = NODE_ENV === 'production';
+const DAEMON_ENABLED = process.env.SCHEDULE_DAEMON_ENABLED !== 'false'; // Enabled by default
 
 /**
  * Register this daemon as a WorkerInstance for monitoring
@@ -221,6 +226,14 @@ async function updateHeartbeat() {
  * Main daemon loop
  */
 async function main() {
+  if (!DAEMON_ENABLED) {
+    console.log('⏸️  Schedule daemon DISABLED (SCHEDULE_DAEMON_ENABLED=false)');
+    console.log('   Jobs can still be triggered manually via admin UI');
+    process.exit(0);
+  }
+
+  console.log(`🚀 Starting schedule daemon (${NODE_ENV} mode)`);
+  
   await registerWorker();
   await syncScheduleDefinitions();
   

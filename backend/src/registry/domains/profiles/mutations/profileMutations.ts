@@ -1,5 +1,5 @@
 import { prisma } from '../../../../lib/prisma/client.js';
-import type { Gender, DatingIntent } from '@prisma/client';
+import type { Gender, DatingIntent, GeoPrecision, LocationAccuracy } from '@prisma/client';
 
 export type ProfileUpdateData = {
   displayName?: string | null;
@@ -8,6 +8,8 @@ export type ProfileUpdateData = {
   locationText?: string | null;
   lat?: number | null;
   lng?: number | null;
+  geoPrecision?: GeoPrecision;
+  locationAccuracy?: LocationAccuracy;
   gender?: Gender;
   intent?: DatingIntent;
   isVisible?: boolean | null;
@@ -28,6 +30,8 @@ export async function updateProfile(
       locationText: updates.locationText ?? undefined,
       lat: updates.lat,
       lng: updates.lng,
+      geoPrecision: updates.geoPrecision,
+      locationAccuracy: updates.locationAccuracy,
       gender: updates.gender,
       intent: updates.intent,
       isVisible: updates.isVisible ?? undefined,

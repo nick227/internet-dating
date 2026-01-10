@@ -249,6 +249,46 @@ pnpm tsx scripts/jobs/runners/runJobs.ts affinity
 
 ---
 
+## Media Jobs
+
+### `media-metadata`
+**What it does**: Extracts metadata for a single media record.
+
+**When to run**:
+- After uploading a specific media item
+- When metadata needs to be recomputed for one file
+
+**Examples**:
+```bash
+# Extract metadata for a specific media record
+pnpm tsx scripts/jobs/runners/runJobs.ts media-metadata --mediaId=123
+```
+
+**Key Options**:
+- `--mediaId=<id>` - Required media ID to process
+
+---
+
+### `media-metadata-batch`
+**What it does**: Extracts metadata for multiple recent media records.
+
+**When to run**:
+- Periodic backfill of recent uploads
+- After ingest pipeline changes
+
+**Examples**:
+```bash
+# Extract metadata for recent media files
+pnpm tsx scripts/jobs/runners/runJobs.ts media-metadata-batch --batchSize=50 --maxAgeHours=24 --pauseMs=100
+```
+
+**Key Options**:
+- `--batchSize=<n>` - Records per batch (default: 50)
+- `--maxAgeHours=<n>` - Only process media newer than this age (default: 24)
+- `--pauseMs=<n>` - Pause between batches (default: 100)
+
+---
+
 ## 📋 Common Workflows
 
 ### New User Onboarding

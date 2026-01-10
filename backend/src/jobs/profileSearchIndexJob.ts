@@ -98,6 +98,11 @@ export async function buildProfileSearchIndex(options: ProfileSearchIndexJobOpti
               }
             }
           },
+          profileSearchIndex: {
+            select: {
+              indexedAt: true
+            }
+          },
           interests: {
             include: {
               interest: true
@@ -113,6 +118,12 @@ export async function buildProfileSearchIndex(options: ProfileSearchIndexJobOpti
       }
       
       for (const user of users) {
+        if (user.profile && user.profileSearchIndex?.indexedAt) {
+          const profileUpdatedAt = user.profile.updatedAt;
+          if (profileUpdatedAt && user.profileSearchIndex.indexedAt >= profileUpdatedAt) {
+            continue;
+          }
+        }
         await buildProfileSearchIndexForUser(user.id, user);
       }
       
@@ -167,6 +178,8 @@ async function buildProfileSearchIndexForUser(userId: bigint, userData?: any) {
   const lat = user.profile.lat !== null && user.profile.lat !== undefined ? Number(user.profile.lat) : null;
   const lng = user.profile.lng !== null && user.profile.lng !== undefined ? Number(user.profile.lng) : null;
   const hasLocation = lat !== null && lng !== null;
+  const geoPrecision = user.profile.geoPrecision ?? (hasLocation ? 'EXACT' : undefined);
+  const locationAccuracy = user.profile.locationAccuracy ?? (hasLocation ? 'FRESH' : undefined);
 
   const top5Keywords = extractTop5Keywords(user.profile.top5Lists || []);
   
@@ -180,6 +193,8 @@ async function buildProfileSearchIndexForUser(userId: bigint, userData?: any) {
       lat,
       lng,
       hasLocation,
+      geoPrecision,
+      locationAccuracy,
       gender: user.profile.gender,
       intent: user.profile.intent,
       age,
@@ -203,6 +218,8 @@ async function buildProfileSearchIndexForUser(userId: bigint, userData?: any) {
       lat,
       lng,
       hasLocation,
+      geoPrecision,
+      locationAccuracy,
       gender: user.profile.gender,
       intent: user.profile.intent,
       age,

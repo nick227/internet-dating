@@ -2,7 +2,7 @@ import { Auth } from '../../../../lib/auth/rules.js';
 import { json } from '../../../../lib/http/json.js';
 import { parseOptionalBoolean, parseOptionalDate, parseOptionalNumber, parseOptionalPositiveBigInt, parsePositiveBigInt } from '../../../../lib/http/parse.js';
 import { MediaError } from '../../../../services/media/mediaService.js';
-import type { Gender, DatingIntent } from '@prisma/client';
+import type { Gender, DatingIntent, GeoPrecision, LocationAccuracy } from '@prisma/client';
 import type { RouteDef } from '../../../../registry/types.js';
 import { updateProfile, ValidationError } from '../services/updateProfileService.js';
 
@@ -42,6 +42,21 @@ export const updateProfileRoute: RouteDef = {
     const visibleParsed = parseOptionalBoolean(isVisible, 'isVisible');
     if (!visibleParsed.ok) return json(res, { error: visibleParsed.error }, 400);
 
+    const hasLat = Object.prototype.hasOwnProperty.call(body, 'lat');
+    const hasLng = Object.prototype.hasOwnProperty.call(body, 'lng');
+    const hasLocationText = Object.prototype.hasOwnProperty.call(body, 'locationText');
+
+    let geoPrecisionUpdate: GeoPrecision | undefined;
+    let locationAccuracyUpdate: LocationAccuracy | undefined;
+
+    if (hasLat && hasLng && latParsed.value !== undefined && lngParsed.value !== undefined) {
+      geoPrecisionUpdate = 'EXACT';
+      locationAccuracyUpdate = 'FRESH';
+    } else if (hasLocationText && (!hasLat && !hasLng)) {
+      geoPrecisionUpdate = 'CITY';
+      locationAccuracyUpdate = 'STALE';
+    }
+
     try {
       const updated = await updateProfile(userId, {
         displayName: displayName as string | null | undefined,
@@ -50,6 +65,8 @@ export const updateProfileRoute: RouteDef = {
         locationText: locationText as string | null | undefined,
         lat: latParsed.value,
         lng: lngParsed.value,
+        geoPrecision: geoPrecisionUpdate,
+        locationAccuracy: locationAccuracyUpdate,
         gender: gender as Gender | undefined,
         intent: intent as DatingIntent | undefined,
         isVisible: visibleParsed.value,

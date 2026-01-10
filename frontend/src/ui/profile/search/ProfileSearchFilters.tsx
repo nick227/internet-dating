@@ -140,8 +140,6 @@ export function ProfileSearchFilters({ open, filters, onFiltersChange, onClose }
     try {
       await api.profileUpdate(userId, {
         locationText: locationDraft.trim() || null,
-        lat: null,
-        lng: null,
       })
       setLocationSaved(true)
     } catch (err) {

@@ -14,7 +14,7 @@ export const mediaMetadataJob: JobDefinition = {
   run: async () => {
     const mediaId = parseBigIntArg('--mediaId');
     if (!mediaId) {
-      throw new Error('--mediaId required');
+      throw new Error('--mediaId required (example: tsx scripts/jobs/runners/runJobs.ts media-metadata --mediaId=123)');
     }
 
     await runMediaMetadataJob({

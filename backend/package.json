@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "daemon:schedules": "tsx scripts/scheduleDaemon.ts",
+    "daemon:health": "tsx scripts/monitoring/checkScheduleDaemonHealth.ts",
     "dev": "tsx watch src/index.ts",
     "build": "cd ../shared && npm run build && cd ../backend && prisma generate --schema prisma/schema && tsc -p tsconfig.json",
     "start": "node dist/index.js",

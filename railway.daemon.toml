@@ -1,0 +1,30 @@
+# Railway Configuration for Schedule Daemon Service
+# 
+# This is a SEPARATE service from your main web service.
+# 
+# Setup in Railway:
+#   1. Create new service: "+ New Service" → "Empty Service"
+#   2. Name it: "schedule-daemon"
+#   3. Link to same GitHub repo
+#   4. Set environment variables (see below)
+#   5. Set custom start command (see deploy.startCommand)
+#   6. Deploy!
+# 
+# Required Environment Variables in Railway:
+#   NODE_ENV=production
+#   DATABASE_URL=<same-as-web-service>
+#   SCHEDULE_DAEMON_ENABLED=true
+#   SCHEDULE_POLL_INTERVAL_MS=60000
+#   JWT_SECRET=<same-as-web-service>
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --prod=false"
+
+[deploy]
+startCommand = "cd backend && pnpm daemon:schedules"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# No healthcheck for daemon (it's not an HTTP server)
+# Monitor via WorkerInstance heartbeat instead

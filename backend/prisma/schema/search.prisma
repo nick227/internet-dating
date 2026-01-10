@@ -21,6 +21,8 @@ model ProfileSearchIndex {
   lat           Float?
   lng           Float?
   hasLocation   Boolean @default(false)
+  geoPrecision  GeoPrecision?
+  locationAccuracy LocationAccuracy?
   
   // Aggregated counts
   interestCount Int      @default(0)
