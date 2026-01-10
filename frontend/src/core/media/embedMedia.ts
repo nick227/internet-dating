@@ -2,6 +2,9 @@ export type EmbedInfo = {
   type: 'youtube' | 'vimeo' | 'soundcloud' | 'spotify' | 'unknown';
   id: string;
   url: string;
+  provider: 'youtube' | 'vimeo' | 'soundcloud' | 'spotify';
+  embedUrl: string;
+  thumbUrl?: string | null;
 };
 
 export function parseEmbedUrl(url: string): EmbedInfo | null {
@@ -10,20 +13,28 @@ export function parseEmbedUrl(url: string): EmbedInfo | null {
   // YouTube
   const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
   if (youtubeMatch) {
+    const videoId = youtubeMatch[1];
     return {
       type: 'youtube',
-      id: youtubeMatch[1],
-      url
+      provider: 'youtube',
+      id: videoId,
+      url,
+      embedUrl: `https://www.youtube.com/embed/${videoId}`,
+      thumbUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
     };
   }
 
-  // Vimeos URLS
+  // Vimeo
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) {
+    const videoId = vimeoMatch[1];
     return {
       type: 'vimeo',
-      id: vimeoMatch[1],
-      url
+      provider: 'vimeo',
+      id: videoId,
+      url,
+      embedUrl: `https://player.vimeo.com/video/${videoId}`,
+      thumbUrl: null
     };
   }
 
@@ -31,18 +42,25 @@ export function parseEmbedUrl(url: string): EmbedInfo | null {
   if (url.includes('soundcloud.com')) {
     return {
       type: 'soundcloud',
+      provider: 'soundcloud',
       id: url,
-      url
+      url,
+      embedUrl: `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}`,
+      thumbUrl: null
     };
   }
 
   // Spotify
   const spotifyMatch = url.match(/spotify\.com\/track\/([^?\s]+)/);
   if (spotifyMatch) {
+    const trackId = spotifyMatch[1];
     return {
       type: 'spotify',
-      id: spotifyMatch[1],
-      url
+      provider: 'spotify',
+      id: trackId,
+      url,
+      embedUrl: `https://open.spotify.com/embed/track/${trackId}`,
+      thumbUrl: null
     };
   }
 
