@@ -97,6 +97,51 @@ export interface ApiError {
   retryable?: boolean;
 }
 
+// Schedule types
+export type ScheduleExecutionMode = 'ALL_JOBS' | 'GROUP';
+
+export interface JobSchedule {
+  // From code definitions
+  id: string;
+  name: string;
+  description: string;
+  cron: string;
+  timezone: string;
+  executionMode: ScheduleExecutionMode;
+  jobGroup?: JobGroup;
+  
+  // From database (runtime state)
+  enabled: boolean;
+  lockedAt: string | null;
+  lockedBy: string | null;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  runCount: number;
+  failureCount: number;
+  lastRun: {
+    id: string;
+    status: JobRunStatus;
+    startedAt: string | null;
+    finishedAt: string | null;
+    durationMs: number | null;
+  } | null;
+}
+
+export interface SchedulesResponse {
+  schedules: JobSchedule[];
+}
+
+export interface ScheduleUpdateRequest {
+  enabled: boolean;
+}
+
+export interface ScheduleHistoryResponse {
+  runs: JobRun[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface WorkerInstance {
   id: string;
   hostname?: string;
@@ -144,4 +189,32 @@ export interface JobWebSocketEvent {
     triggeredBy?: string;
   };
   ts: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  profile: {
+    displayName: string | null;
+    location: string | null;
+    age: number | null;
+    gender: string | null;
+    avatarUrl: string | undefined;
+  } | null;
+  stats: {
+    posts: number;
+    interests: number;
+    quizzes: number;
+    likesReceived: number;
+    matches: number;
+  };
+}
+
+export interface UserListResponse {
+  users: AdminUser[];
+  total: number;
+  limit: number;
+  offset: number;
 }

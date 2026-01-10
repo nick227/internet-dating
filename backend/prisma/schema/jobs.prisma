@@ -33,6 +33,11 @@ model JobRun {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   
+  // Schedule relationship (optional)
+  scheduleId          String?      @db.VarChar(50)
+  schedule            JobSchedule? @relation("ScheduledJobs", fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleAsLast      JobSchedule? @relation("ScheduleLastRun")
+  
   logs                JobLog[]
 
   @@index([jobName, status])
@@ -40,6 +45,7 @@ model JobRun {
   @@index([status, queuedAt])
   @@index([triggeredBy])
   @@index([status, lastHeartbeatAt])
+  @@index([scheduleId])
 }
 
 model JobLog {

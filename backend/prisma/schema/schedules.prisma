@@ -1,0 +1,29 @@
+// Job Schedule Schema
+// Stores runtime state for code-defined schedules
+
+model JobSchedule {
+  id              String        @id @db.VarChar(50) // Matches schedule ID from code
+  enabled         Boolean       @default(false) // Safety: default disabled
+  
+  // Locking mechanism (prevents duplicate runs)
+  lockedAt        DateTime?
+  lockedBy        String?       @db.VarChar(100) // Worker ID
+  
+  // Runtime tracking
+  lastRunAt       DateTime?
+  lastRunId       BigInt?
+  nextRunAt       DateTime?
+  runCount        Int           @default(0)
+  failureCount    Int           @default(0)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  lastRun         JobRun?       @relation("ScheduleLastRun", fields: [lastRunId], references: [id], onDelete: SetNull)
+  scheduledRuns   JobRun[]      @relation("ScheduledJobs")
+  
+  @@index([enabled, nextRunAt])
+  @@index([lastRunId])
+  @@index([lockedAt])
+}

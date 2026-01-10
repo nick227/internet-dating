@@ -37,6 +37,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             >
               Job Manager
             </Link>
+            <Link 
+              to="/admin/schedules" 
+              className={`admin-nav-link ${isActive('/admin/schedules') ? 'active' : ''}`}
+            >
+              Schedules
+            </Link>
+            <Link 
+              to="/admin/users" 
+              className={`admin-nav-link ${isActive('/admin/users') ? 'active' : ''}`}
+            >
+              User Management
+            </Link>
           </div>
         </div>
       </nav>

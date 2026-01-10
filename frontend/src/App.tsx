@@ -31,6 +31,8 @@ const ConnectionsPage = lazy(() => import('./ui/pages/ConnectionsPage').then(m =
 // Admin pages
 const AdminLayout = lazy(() => import('./admin/components/AdminLayout').then(m => ({ default: m.AdminLayout })))
 const JobManagerPage = lazy(() => import('./admin/pages/JobManagerPage').then(m => ({ default: m.JobManagerPage })))
+const SchedulesPage = lazy(() => import('./admin/pages/SchedulesPage').then(m => ({ default: m.SchedulesPage })))
+const UserManagementPage = lazy(() => import('./admin/pages/UserManagementPage').then(m => ({ default: m.UserManagementPage })))
 const JobDetailsPage = lazy(() => import('./admin/pages/JobDetailsPage').then(m => ({ default: m.JobDetailsPage })))
 const SciencePage = lazy(() => import('./ui/pages/SciencePage').then(m => ({ default: m.SciencePage })))
 
@@ -225,6 +227,30 @@ export default function App() {
                 <AdminLayout>
                   <Suspense fallback={<RouteLoader />}>
                     <JobManagerPage />
+                  </Suspense>
+                </AdminLayout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/schedules"
+            element={
+              <AdminRoute>
+                <AdminLayout>
+                  <Suspense fallback={<RouteLoader />}>
+                    <SchedulesPage />
+                  </Suspense>
+                </AdminLayout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <AdminLayout>
+                  <Suspense fallback={<RouteLoader />}>
+                    <UserManagementPage />
                   </Suspense>
                 </AdminLayout>
               </AdminRoute>

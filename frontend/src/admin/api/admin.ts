@@ -9,10 +9,30 @@ import type {
   JobRun,
   EnqueueAllJobsResponse,
   EnqueueGroupJobsResponse,
-  JobGroup
+  JobGroup,
+  UserListResponse
 } from '../types';
 
 export const adminApi = {
+  // Get users list
+  async getUsers(params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
+  }): Promise<UserListResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
+    if (params?.sortDir) searchParams.set('sortDir', params.sortDir);
+
+    const query = searchParams.toString();
+    return http(`/api/admin/users${query ? `?${query}` : ''}`, 'GET');
+  },
+
   // Get job history with filters
   async getJobHistory(params?: {
     limit?: number;
@@ -94,5 +114,37 @@ export const adminApi = {
 
   async stopWorker(): Promise<{ message: string }> {
     return http('/api/admin/worker/stop', 'POST', { body: {} });
+  },
+
+  // Schedule Management
+  async getSchedules(): Promise<import('../types').SchedulesResponse> {
+    return http('/api/admin/schedules', 'GET');
+  },
+
+  async getSchedule(scheduleId: string): Promise<import('../types').JobSchedule> {
+    return http(`/api/admin/schedules/${scheduleId}`, 'GET');
+  },
+
+  async updateSchedule(
+    scheduleId: string, 
+    data: import('../types').ScheduleUpdateRequest
+  ): Promise<{ id: string; enabled: boolean; message: string }> {
+    return http(`/api/admin/schedules/${scheduleId}`, 'PUT', { body: data });
+  },
+
+  async triggerSchedule(scheduleId: string): Promise<{ message: string; count: number }> {
+    return http(`/api/admin/schedules/${scheduleId}/trigger`, 'POST', { body: {} });
+  },
+
+  async getScheduleHistory(
+    scheduleId: string,
+    params?: { limit?: number; offset?: number }
+  ): Promise<import('../types').ScheduleHistoryResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+    const query = searchParams.toString();
+    return http(`/api/admin/schedules/${scheduleId}/history${query ? `?${query}` : ''}`, 'GET');
   }
 };

@@ -6,6 +6,98 @@ import { json } from '../../../lib/http/json.js';
 export const adminDomain: DomainRegistry = {
   domain: 'admin',
   routes: [
+    // User Management - List users with details
+    {
+      id: 'admin.GET./admin/users',
+      method: 'GET',
+      path: '/admin/users',
+      auth: Auth.admin(),
+      summary: 'Get users list with details',
+      tags: ['admin'],
+      handler: async (req, res) => {
+        const limit = parseInt(req.query.limit as string) || 50;
+        const offset = parseInt(req.query.offset as string) || 0;
+        const search = req.query.search as string | undefined;
+        const sortBy = req.query.sortBy as string || 'createdAt';
+        const sortDir = (req.query.sortDir as string) === 'asc' ? 'asc' : 'desc';
+
+        const where: any = {};
+        if (search) {
+          where.OR = [
+            { email: { contains: search } },
+            { profile: { displayName: { contains: search } } }
+          ];
+        }
+
+        let orderBy: any = {};
+        if (sortBy === 'name') {
+          orderBy = { profile: { displayName: sortDir } };
+        } else {
+          // Default to createdAt if unknown sort field to avoid crashing
+          orderBy = { [sortBy === 'email' ? 'email' : 'createdAt']: sortDir };
+        }
+
+        const [users, total] = await Promise.all([
+          prisma.user.findMany({
+            where,
+            take: limit,
+            skip: offset,
+            orderBy,
+            select: {
+              id: true,
+              email: true,
+              createdAt: true,
+              role: true,
+              profile: {
+                select: {
+                  displayName: true,
+                  locationText: true,
+                  birthdate: true,
+                  gender: true,
+                  intent: true,
+                  avatarMedia: { select: { url: true, thumbUrl: true } }
+                }
+              },
+              _count: {
+                select: {
+                  posts: true,
+                  interests: true,
+                  quizResults: true,
+                  LikesGot: true,
+                  matchesA: true,
+                  matchesB: true
+                }
+              }
+            }
+          }),
+          prisma.user.count({ where })
+        ]);
+
+        const formattedUsers = users.map(u => ({
+          id: u.id.toString(),
+          email: u.email,
+          role: u.role,
+          createdAt: u.createdAt.toISOString(),
+          profile: u.profile ? {
+            displayName: u.profile.displayName,
+            location: u.profile.locationText,
+            age: u.profile.birthdate ? Math.floor((Date.now() - new Date(u.profile.birthdate).getTime()) / 31557600000) : null,
+            gender: u.profile.gender,
+            avatarUrl: u.profile.avatarMedia?.thumbUrl || u.profile.avatarMedia?.url
+          } : null,
+          stats: {
+            posts: u._count.posts,
+            interests: u._count.interests,
+            quizzes: u._count.quizResults,
+            likesReceived: u._count.LikesGot,
+            matches: u._count.matchesA + u._count.matchesB
+          }
+        }));
+
+        return json(res, { users: formattedUsers, total, limit, offset });
+      }
+    },
+
     // Job History - List recent job runs
     {
       id: 'admin.GET./admin/jobs/history',
@@ -280,37 +372,19 @@ export const adminDomain: DomainRegistry = {
       tags: ['admin'],
       handler: async (req, res) => {
         try {
-          const { getJobsMap } = await import('../../../lib/jobs/shared/registry.js');
-          const { resolveJobDependencies } = await import('../../../lib/jobs/shared/dependencyResolver.js');
+          // Use new enqueue API (single source of truth)
+          const { enqueueAllJobs } = await import('../../../lib/jobs/enqueue.js');
+          const result = await enqueueAllJobs({ triggeredBy: req.ctx.userId });
+
+          const { getAllJobs } = await import('../../../lib/jobs/shared/registry.js');
+          const jobs = await getAllJobs();
+          const jobNames = Object.keys(jobs);
           
-          const jobsMap = await getJobsMap();
-          const resolvedJobs = resolveJobDependencies(jobsMap);
-          
-          const enqueuedJobs: Array<{ jobName: string; jobRunId: string }> = [];
-          
-          // Enqueue all jobs in dependency order
-          for (const job of resolvedJobs) {
-            const jobRun = await prisma.jobRun.create({
-              data: {
-                jobName: job.name,
-                status: 'QUEUED',
-                trigger: 'MANUAL',
-                scope: 'system',
-                algorithmVersion: 'v1',
-                metadata: {
-                  params: job.defaultParams ?? {}
-                } as any,
-                queuedAt: new Date(),
-                triggeredBy: req.ctx.userId
-              }
-            });
-            
-            enqueuedJobs.push({
-              jobName: job.name,
-              jobRunId: jobRun.id.toString()
-            });
-          }
-          
+          const enqueuedJobs = result.jobRunIds.map((id, index) => ({
+            jobName: jobNames[index] || 'unknown',
+            jobRunId: id.toString()
+          }));
+
           return json(res, {
             status: 'enqueued',
             count: enqueuedJobs.length,
@@ -336,47 +410,28 @@ export const adminDomain: DomainRegistry = {
       handler: async (req, res) => {
         try {
           const group = req.body.group as string;
-          
+
           if (!group) {
             return json(res, { error: 'Group is required' }, 400);
           }
-          
-          const { getJobsMap } = await import('../../../lib/jobs/shared/registry.js');
-          const { resolveJobsByGroup } = await import('../../../lib/jobs/shared/dependencyResolver.js');
-          
-          const jobsMap = await getJobsMap();
-          const resolvedJobs = resolveJobsByGroup(jobsMap, group as any);
-          
-          if (resolvedJobs.length === 0) {
+
+          // Use new enqueue API (single source of truth)
+          const { enqueueJobsByGroup } = await import('../../../lib/jobs/enqueue.js');
+          const result = await enqueueJobsByGroup(group as any, { triggeredBy: req.ctx.userId });
+
+          if (result.jobRunIds.length === 0) {
             return json(res, { error: `No jobs found for group: ${group}` }, 404);
           }
+
+          const { getJobsByGroup } = await import('../../../lib/jobs/shared/registry.js');
+          const jobs = await getJobsByGroup(group as any);
           
-          const enqueuedJobs: Array<{ jobName: string; jobRunId: string; group?: string }> = [];
-          
-          // Enqueue all jobs in dependency order
-          for (const job of resolvedJobs) {
-            const jobRun = await prisma.jobRun.create({
-              data: {
-                jobName: job.name,
-                status: 'QUEUED',
-                trigger: 'MANUAL',
-                scope: 'system',
-                algorithmVersion: 'v1',
-                metadata: {
-                  params: job.defaultParams ?? {}
-                } as any,
-                queuedAt: new Date(),
-                triggeredBy: req.ctx.userId
-              }
-            });
-            
-            enqueuedJobs.push({
-              jobName: job.name,
-              jobRunId: jobRun.id.toString(),
-              group: job.group
-            });
-          }
-          
+          const enqueuedJobs = result.jobRunIds.map((id, index) => ({
+            jobName: jobs[index]?.name || 'unknown',
+            jobRunId: id.toString(),
+            group
+          }));
+
           return json(res, {
             status: 'enqueued',
             group,
@@ -695,6 +750,68 @@ export const adminDomain: DomainRegistry = {
           error: err instanceof Error ? err.message : 'Failed to stop worker'
         }, 500);
       }
+    }
+  },
+
+  // Schedule Management
+  {
+    id: 'admin.GET./admin/schedules',
+    method: 'GET',
+    path: '/admin/schedules',
+    auth: Auth.admin(),
+    summary: 'List all job schedules',
+    tags: ['admin', 'schedules'],
+    handler: async (req, res) => {
+      const { listSchedules } = await import('./handlers/schedules.js');
+      return listSchedules(req, res);
+    }
+  },
+  {
+    id: 'admin.GET./admin/schedules/:id',
+    method: 'GET',
+    path: '/admin/schedules/:id',
+    auth: Auth.admin(),
+    summary: 'Get schedule details',
+    tags: ['admin', 'schedules'],
+    handler: async (req, res) => {
+      const { getSchedule } = await import('./handlers/schedules.js');
+      return getSchedule(req, res);
+    }
+  },
+  {
+    id: 'admin.PUT./admin/schedules/:id',
+    method: 'PUT',
+    path: '/admin/schedules/:id',
+    auth: Auth.admin(),
+    summary: 'Update schedule (enable/disable)',
+    tags: ['admin', 'schedules'],
+    handler: async (req, res) => {
+      const { updateSchedule } = await import('./handlers/schedules.js');
+      return updateSchedule(req, res);
+    }
+  },
+  {
+    id: 'admin.POST./admin/schedules/:id/trigger',
+    method: 'POST',
+    path: '/admin/schedules/:id/trigger',
+    auth: Auth.admin(),
+    summary: 'Manually trigger schedule (run now)',
+    tags: ['admin', 'schedules'],
+    handler: async (req, res) => {
+      const { triggerSchedule } = await import('./handlers/schedules.js');
+      return triggerSchedule(req, res);
+    }
+  },
+  {
+    id: 'admin.GET./admin/schedules/:id/history',
+    method: 'GET',
+    path: '/admin/schedules/:id/history',
+    auth: Auth.admin(),
+    summary: 'Get schedule run history',
+    tags: ['admin', 'schedules'],
+    handler: async (req, res) => {
+      const { getScheduleHistory } = await import('./handlers/schedules.js');
+      return getScheduleHistory(req, res);
     }
   }
   ]
