@@ -7,6 +7,7 @@ import { useMediaPreferences } from '../../core/feed/useMediaPreferences'
 import { useIntersectionThreshold } from '../../core/feed/useIntersectionThreshold'
 import { parseEmbedUrl } from '../../core/media/embedMedia'
 import { EmbedMedia } from '../ui/EmbedMedia'
+import { optimizeMosaicLayout } from '../../core/feed/mosaicMediaSelector'
 
 const SWIPE_THRESHOLD = 48
 const SWIPE_VELOCITY_THRESHOLD = 0.3
@@ -53,7 +54,10 @@ export function RiverCardMedia({
   }, [])
   const canNavigate = mode === 'single' && items.length > 1
   const active = items[activeIndex] ?? null
-  const mosaicItems = mode === 'mosaic' ? items.slice(0, 3) : []
+  // Smart mosaic: Optimize layout for best media presentation
+  const mosaicItems = mode === 'mosaic' 
+    ? optimizeMosaicLayout(items.slice(0, 3)) 
+    : []
 
   useEffect(() => {
     if (activeIndex >= items.length) {

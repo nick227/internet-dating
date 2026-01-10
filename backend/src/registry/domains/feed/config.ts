@@ -55,9 +55,10 @@ export type FeedConfig = {
 };
 
 // Sequence-first configuration:
-// Example: 3 video posts -> 1 suggestion -> 1 quiz -> repeat.
+// Example: 2 video posts -> 1 mosaic post -> 1 suggestion -> 1 quiz -> repeat.
 const sequence: FeedSlot[] = [
-  { kind: 'post', mediaType: 'video', count: 3, presentation: 'single' },
+  { kind: 'post', mediaType: 'video', count: 2, presentation: 'single' },
+  { kind: 'post', mediaType: 'image', count: 1, presentation: 'mosaic' },
   { kind: 'suggestion', count: 1, presentation: 'single' },
   { kind: 'question', count: 1 }
 ];

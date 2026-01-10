@@ -171,6 +171,19 @@
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: var(--s-2);
   padding: var(--s-2);
+  /* Smooth entry animation */
+  animation: mosaicFadeIn 0.4s ease-out;
+}
+
+@keyframes mosaicFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 .riverCard__mediaNav {
   position: absolute;
