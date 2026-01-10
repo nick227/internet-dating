@@ -253,7 +253,7 @@ export const feedDomain: DomainRegistry = {
             });
           } else if (segment && segment.expiresAt <= new Date()) {
             // Segment expired: Trigger background job for next time
-            void runFeedPresortJob({ userId: ctx.userId, incremental: true });
+            void runFeedPresortJob({ userId: ctx.userId });
           }
         }
 
