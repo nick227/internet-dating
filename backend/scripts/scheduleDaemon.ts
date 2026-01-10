@@ -1,7 +1,8 @@
 import { prisma } from '../src/lib/prisma/client.js';
 import { Cron } from 'croner';
 import { schedules, getScheduleDefinition } from '../src/lib/jobs/schedules/definitions.js';
-import { enqueueAllJobs, enqueueJobsByGroup } from '../src/lib/jobs/enqueue.js';
+import type { ScheduleDefinition } from '../src/lib/jobs/schedules/definitions.js';
+import { getAllJobs, getJobsByGroup } from '../src/lib/jobs/shared/registry.js';
 import { hostname } from 'os';
 
 let workerId: string;
@@ -123,6 +124,68 @@ async function releaseLock(scheduleId: string) {
 }
 
 /**
+ * Execute jobs inline for a schedule (no queue, no polling)
+ */
+async function executeScheduleInline(schedule: ScheduleDefinition, scheduleId: string) {
+  const startTime = Date.now();
+  let jobsExecuted = 0;
+  let jobsFailed = 0;
+  
+  // Get jobs to execute based on execution mode
+  const jobs = await (async () => {
+    if (schedule.executionMode === 'ALL_JOBS') {
+      const allJobs = await getAllJobs();
+      const jobsMap = new Map(Object.entries(allJobs));
+      const { resolveJobDependencies } = await import('../src/lib/jobs/shared/dependencyResolver.js');
+      return resolveJobDependencies(jobsMap);
+    } else if (schedule.executionMode === 'GROUP' && schedule.jobGroup) {
+      const allJobs = await getAllJobs();
+      const jobsMap = new Map(Object.entries(allJobs));
+      const { resolveJobsByGroup } = await import('../src/lib/jobs/shared/dependencyResolver.js');
+      return resolveJobsByGroup(jobsMap, schedule.jobGroup);
+    }
+    return [];
+  })();
+  
+  console.log(`[daemon] Executing ${jobs.length} jobs inline for "${schedule.name}"`);
+  
+  // Execute each job immediately
+  for (const job of jobs) {
+    try {
+      console.log(`[daemon] → Executing: ${job.name}`);
+      
+      // Create JobRun record (for tracking/history)
+      const jobRun = await prisma.jobRun.create({
+        data: {
+          jobName: job.name,
+          trigger: 'CRON',
+          scheduleId: scheduleId,
+          status: 'RUNNING',
+          startedAt: new Date()
+        }
+      });
+      
+      // Execute job immediately (inline)
+      const { runQueuedJob } = await import('../src/lib/jobs/runJob.js');
+      await runQueuedJob(jobRun.id);
+      
+      jobsExecuted++;
+      console.log(`[daemon] ✓ ${job.name} completed`);
+      
+    } catch (error) {
+      jobsFailed++;
+      console.error(`[daemon] ✗ ${job.name} failed:`, error);
+      // Continue to next job even if this one failed
+    }
+  }
+  
+  const duration = Date.now() - startTime;
+  console.log(`[daemon] ✅ Schedule "${schedule.name}" complete: ${jobsExecuted} succeeded, ${jobsFailed} failed (${duration}ms)`);
+  
+  return { jobsExecuted, jobsFailed };
+}
+
+/**
  * Process all due schedules
  * Main scheduling logic
  */
@@ -165,18 +228,8 @@ async function processSchedules() {
     try {
       console.log(`⏰ Processing schedule: ${definition.name}`);
       
-      // Use existing enqueue APIs (maintains consistency with manual triggers)
-      let result: { jobRunIds: bigint[] };
-      
-      if (definition.executionMode === 'ALL_JOBS') {
-        result = await enqueueAllJobs({ scheduleId: dbSchedule.id });
-      } else if (definition.executionMode === 'GROUP' && definition.jobGroup) {
-        result = await enqueueJobsByGroup(definition.jobGroup, { 
-          scheduleId: dbSchedule.id 
-        });
-      } else {
-        throw new Error(`Invalid execution mode: ${definition.executionMode}`);
-      }
+      // Execute jobs inline (no enqueue, no queue)
+      await executeScheduleInline(definition, dbSchedule.id);
       
       // Calculate next run time
       const nextRun = new Cron(definition.cron, { timezone: definition.timezone, paused: true }).nextRun() || new Date();
@@ -186,7 +239,6 @@ async function processSchedules() {
         where: { id: dbSchedule.id },
         data: {
           lastRunAt: now,
-          lastRunId: result.jobRunIds[0],
           nextRunAt: nextRun,
           runCount: { increment: 1 },
           lockedAt: null, // Release lock
@@ -194,7 +246,7 @@ async function processSchedules() {
         }
       });
       
-      console.log(`✅ Enqueued ${result.jobRunIds.length} jobs, next run: ${nextRun.toISOString()}`);
+      console.log(`✅ Schedule complete, next run: ${nextRun.toISOString()}`);
       
     } catch (err) {
       console.error(`❌ Failed to process "${definition.name}":`, err);
