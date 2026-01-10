@@ -6,7 +6,7 @@ import { getAllJobs, getJobsByGroup } from '../src/lib/jobs/shared/registry.js';
 import { hostname } from 'os';
 
 let workerId: string;
-const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const LOCK_TIMEOUT_MS = parseInt(process.env.LOCK_TIMEOUT_MS || '3600000', 10); // 1 hour default (was 5 min)
 const POLL_INTERVAL_MS = parseInt(process.env.SCHEDULE_POLL_INTERVAL_MS || '60000', 10);
 
 // Environment check
@@ -293,12 +293,15 @@ async function main() {
   console.log('⚠️  Missed Run Policy: SKIP (if daemon down, wait for next interval)');
   console.log(`📋 Loaded ${schedules.length} schedule definitions from code`);
   console.log(`⏱️  Polling every ${POLL_INTERVAL_MS / 1000}s`);
+  console.log(`🔒 Lock timeout: ${LOCK_TIMEOUT_MS / 1000}s`);
   
-  // Poll every minute
+  // Cleanup stalled locks once at startup (not during operation to avoid premature release)
+  await cleanupStalledLocks();
+  
+  // Poll using setInterval
   setInterval(async () => {
     try {
       await updateHeartbeat();
-      await cleanupStalledLocks();
       await processSchedules();
     } catch (err) {
       console.error('❌ Error in daemon loop:', err);
@@ -306,7 +309,6 @@ async function main() {
   }, POLL_INTERVAL_MS);
   
   // Initial run
-  await cleanupStalledLocks();
   await processSchedules();
 }
 

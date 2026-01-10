@@ -17,8 +17,12 @@ async function main() {
   if (command === 'all') {
     const jobs = await getAllJobs();
     const jobNames = Object.keys(jobs).filter(name => name !== 'all');
+    const normalizedJobNames = jobNames.filter(name => !['media-metadata', 'media-metadata-batch', 'media-metadata-all'].includes(name));
+    if (jobNames.includes('media-metadata-all')) {
+      normalizedJobNames.push('media-metadata-all');
+    }
     
-    for (const jobName of jobNames) {
+    for (const jobName of normalizedJobNames) {
       const job = jobs[jobName];
       if (job) {
         console.log(`Running job: ${jobName}`);

@@ -55,6 +55,32 @@ SCHEDULE_POLL_INTERVAL_MS="300000"
 
 ---
 
+### LOCK_TIMEOUT_MS
+**Type:** Number (milliseconds)  
+**Default:** `3600000` (1 hour)  
+**Purpose:** How long before a schedule lock is considered "stalled" and released
+
+```env
+# Production: 1 hour (recommended for most cases)
+LOCK_TIMEOUT_MS="3600000"
+
+# Long-running jobs: 2 hours
+LOCK_TIMEOUT_MS="7200000"
+
+# Development: 30 minutes
+LOCK_TIMEOUT_MS="1800000"
+```
+
+**Critical Guidelines:**
+- **Must be >= expected maximum job duration**
+- **If jobs can take 30 minutes, set to at least 1 hour (2x safety margin)**
+- **If set too short:** Lock will be released while jobs are still running, causing duplicate executions
+- **If set too long:** Crashed jobs will hold lock longer before cleanup
+
+**See:** `LONG_RUNNING_JOB_ANALYSIS.md` for detailed risk analysis
+
+---
+
 ## Example Configurations
 
 ### Local Development (.env)
@@ -63,6 +89,7 @@ NODE_ENV="development"
 DATABASE_URL="mysql://root:password@localhost:3306/internet_date"
 SCHEDULE_DAEMON_ENABLED="true"
 SCHEDULE_POLL_INTERVAL_MS="10000"
+LOCK_TIMEOUT_MS="1800000"  # 30 minutes (dev)
 ```
 
 ### Railway Web Service
@@ -80,6 +107,7 @@ NODE_ENV="production"
 DATABASE_URL="<railway-mysql-url>"
 SCHEDULE_DAEMON_ENABLED="true"   # This service runs the daemon
 SCHEDULE_POLL_INTERVAL_MS="60000"
+LOCK_TIMEOUT_MS="3600000"  # 1 hour (production)
 JWT_SECRET="<your-secret>"
 ```
 
@@ -89,6 +117,7 @@ NODE_ENV="production"
 DATABASE_URL="mysql://user:password@localhost:3306/internet_date"
 SCHEDULE_DAEMON_ENABLED="true"
 SCHEDULE_POLL_INTERVAL_MS="60000"
+LOCK_TIMEOUT_MS="3600000"  # 1 hour
 ```
 
 ---
