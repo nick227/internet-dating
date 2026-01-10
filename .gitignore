@@ -4,6 +4,8 @@ node_modules/
 
 dist/
 backend/dist/
+backend/scripts/**/*.js
+backend/scripts/**/*.d.ts
 frontend/dist/
 build/
 out/
