@@ -7,8 +7,8 @@ import { parseLimit, parseOptionalPositiveBigInt, parsePositiveBigInt } from '..
 import { toAvatarUrl } from '../../../services/media/presenter.js';
 import { getCompatibilityMap, resolveCompatibility } from '../../../services/compatibility/compatibilityService.js';
 import { notify } from '../../../ws/notify.js';
-import type { WsMessage, WsSubscribeTopic } from '@app/shared/ws/contracts';
-import type { ServerEventType, WsEvents } from '@app/shared/ws/contracts';
+import type { WsMessage, WsSubscribeTopic } from '@app/shared';
+import type { ServerEventType, WsEvents } from '@app/shared';
 
 function orderedPair(a: bigint, b: bigint) {
   return a < b ? { userAId: a, userBId: b } : { userAId: b, userBId: a };

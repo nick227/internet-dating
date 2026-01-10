@@ -1,4 +1,4 @@
-import type { ClientEventType, WsMessage } from '@app/shared/ws/contracts'
+import type { ClientEventType, WsMessage } from '@app/shared'
 import type { WsContext } from './types.js'
 
 export type WsHandler<T extends ClientEventType> = (

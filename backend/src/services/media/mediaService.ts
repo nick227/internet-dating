@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'crypto';
 import { Readable } from 'stream';
-import imageSize from 'image-size';
+import { imageSize } from 'image-size';
 import type { Express } from 'express';
 import { prisma } from '../../lib/prisma/client.js';
 import { hasProfileAccess } from '../access/profileAccessService.js';

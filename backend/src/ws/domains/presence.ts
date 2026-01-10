@@ -1,5 +1,5 @@
 import type WebSocket from 'ws'
-import type { WsPresenceStatus } from '@app/shared/ws/contracts'
+import type { WsPresenceStatus } from '@app/shared'
 import type { WsRouter } from '../router.js'
 
 const AWAY_AFTER_MS = 5 * 60 * 1000

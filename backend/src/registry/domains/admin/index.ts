@@ -144,7 +144,7 @@ export const adminDomain: DomainRegistry = {
         };
 
         // Validate job exists
-        const { getJob } = await import('../../../../scripts/jobs/lib/registry');
+        const { getJob } = await import('../../../../scripts/jobs/lib/registry.js');
         const job = getJob(jobName);
         if (!job) {
           return json(res, { 
@@ -252,11 +252,11 @@ export const adminDomain: DomainRegistry = {
       summary: 'Get available job definitions',
       tags: ['admin'],
       handler: async (req, res) => {
-        const { getAllJobs, getJobGroups } = await import('../../../../scripts/jobs/lib/registry');
+        const { getAllJobs, getJobGroups } = await import('../../../../scripts/jobs/lib/registry.js');
         const jobs = getAllJobs();
         const groups = getJobGroups();
         
-        const definitions = Object.entries(jobs).map(([name, job]) => ({
+        const definitions = Object.entries(jobs).map(([name, job]: [string, any]) => ({
           id: name,
           name: job.name,
           description: job.description,
@@ -280,8 +280,8 @@ export const adminDomain: DomainRegistry = {
       tags: ['admin'],
       handler: async (req, res) => {
         try {
-          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry');
-          const { resolveJobDependencies } = await import('../../../../scripts/jobs/lib/dependencyResolver');
+          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry.js');
+          const { resolveJobDependencies } = await import('../../../../scripts/jobs/lib/dependencyResolver.js');
           
           const jobsMap = getJobsMap();
           const resolvedJobs = resolveJobDependencies(jobsMap);
@@ -341,8 +341,8 @@ export const adminDomain: DomainRegistry = {
             return json(res, { error: 'Group is required' }, 400);
           }
           
-          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry');
-          const { resolveJobsByGroup } = await import('../../../../scripts/jobs/lib/dependencyResolver');
+          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry.js');
+          const { resolveJobsByGroup } = await import('../../../../scripts/jobs/lib/dependencyResolver.js');
           
           const jobsMap = getJobsMap();
           const resolvedJobs = resolveJobsByGroup(jobsMap, group as any);
@@ -583,8 +583,8 @@ export const adminDomain: DomainRegistry = {
     summary: 'Get worker status and health',
     tags: ['admin'],
     handler: async (req, res) => {
-      const { getWorkerInstances, getActiveWorkersCount } = await import('../../../workers/workerManager');
-      const { getWorkerStatus } = await import('../../../workers/jobWorker');
+      const { getWorkerInstances, getActiveWorkersCount } = await import('../../../workers/workerManager.js');
+      const { getWorkerStatus } = await import('../../../workers/jobWorker.js');
       
       const [instances, activeCount, localStatus] = await Promise.all([
         getWorkerInstances('job_worker'),
@@ -595,8 +595,8 @@ export const adminDomain: DomainRegistry = {
       // Get running workers (with recent heartbeat)
       const now = Date.now();
       const runningWorkers = instances
-        .filter(w => w.status === 'RUNNING' && (now - new Date(w.lastHeartbeatAt).getTime()) < 30000)
-        .map(w => ({
+        .filter((w: any) => w.status === 'RUNNING' && (now - new Date(w.lastHeartbeatAt).getTime()) < 30000)
+        .map((w: any) => ({
           id: w.id,
           hostname: w.hostname,
           pid: w.pid,
@@ -612,7 +612,7 @@ export const adminDomain: DomainRegistry = {
         activeWorkersCount: activeCount,
         localWorkerRunning: localStatus.isRunning,
         workers: runningWorkers,
-        recentInstances: instances.slice(0, 10).map(w => ({
+        recentInstances: instances.slice(0, 10).map((w: any) => ({
           id: w.id,
           status: w.status,
           hostname: w.hostname,
@@ -631,8 +631,8 @@ export const adminDomain: DomainRegistry = {
     summary: 'Start the job worker',
     tags: ['admin'],
     handler: async (req, res) => {
-      const { workerLoop, getWorkerStatus } = await import('../../../workers/jobWorker');
-      const { getActiveWorkersCount } = await import('../../../workers/workerManager');
+      const { workerLoop, getWorkerStatus } = await import('../../../workers/jobWorker.js');
+      const { getActiveWorkersCount } = await import('../../../workers/workerManager.js');
 
       // Check if already running locally
       const localStatus = getWorkerStatus();
@@ -653,7 +653,7 @@ export const adminDomain: DomainRegistry = {
       }
 
       // Start worker in background (non-blocking)
-      workerLoop().catch(err => {
+      workerLoop().catch((err: Error) => {
         console.error('[admin] Worker crashed:', err);
       });
 
@@ -674,7 +674,7 @@ export const adminDomain: DomainRegistry = {
     summary: 'Stop the job worker',
     tags: ['admin'],
     handler: async (req, res) => {
-      const { stopWorker, getWorkerStatus } = await import('../../../workers/jobWorker');
+      const { stopWorker, getWorkerStatus } = await import('../../../workers/jobWorker.js');
 
       const localStatus = getWorkerStatus();
       if (!localStatus.isRunning) {

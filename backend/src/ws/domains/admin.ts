@@ -1,4 +1,4 @@
-import type { WsEvents } from '@app/shared/ws/contracts';
+import type { WsEvents } from '@app/shared';
 import type WebSocket from 'ws';
 
 // Track admin sockets explicitly

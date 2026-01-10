@@ -2,7 +2,7 @@ import type {
   ServerEventType,
   WsMessage,
   WsSubscribeTopic
-} from '@app/shared/ws/contracts'
+} from '@app/shared'
 
 export type WsNotifyPayload<T extends ServerEventType = ServerEventType> = {
   event: WsMessage<T>

@@ -1,4 +1,4 @@
-import type { WsSubscribeTopic } from '@app/shared/ws/contracts'
+import type { WsSubscribeTopic } from '@app/shared'
 
 export function topicKey(topic: WsSubscribeTopic) {
   return `${topic.kind}:${topic.id}`

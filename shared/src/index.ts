@@ -8,4 +8,4 @@ export type {
   WsMessage,
   WsPresenceStatus,
   WsSubscribeTopic
-} from './ws/contracts'
+} from './ws/contracts.js'

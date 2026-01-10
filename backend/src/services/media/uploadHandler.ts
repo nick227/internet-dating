@@ -47,7 +47,7 @@ function mimeToExt(mimeType: string): string {
 import { buildMediaUrls } from './urlBuilder.js'
 import { MEDIA_UPLOAD_ROOT } from './config.js'
 import { finalizeUpload, cleanupTempFile } from './streamingUpload.js'
-import imageSize from 'image-size'
+import { imageSize } from 'image-size'
 import { createHash } from 'crypto'
 import { assertRateLimit } from './mediaService.js'
 

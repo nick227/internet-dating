@@ -10,7 +10,7 @@ import type {
   WsEvents,
   WsMessage,
   WsSubscribeTopic
-} from '@app/shared/ws/contracts'
+} from '@app/shared'
 import { createRouter } from './router.js'
 import type { WsContext } from './types.js'
 import { initNotifier } from './notify.js'
