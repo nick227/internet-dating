@@ -245,8 +245,8 @@ export async function runQueuedJob(jobRunId: bigint): Promise<void> {
   }
 
   // Import and execute the job
-  const { getJob } = await import('../../../scripts/jobs/lib/registry.js');
-  const job = getJob(jobRun.jobName);
+  const { getJob } = await import('./shared/registry.js');
+  const job = await getJob(jobRun.jobName);
   
   if (!job) {
     throw new Error(`Unknown job: ${jobRun.jobName}`);

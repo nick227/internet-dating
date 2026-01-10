@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseBigIntArg } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseBigIntArg } from '../../../src/lib/jobs/shared/utils.js';
 import { runMediaMetadataJob } from '../../../src/jobs/mediaMetadataJob.js';
 
 export const mediaMetadataJob: JobDefinition = {

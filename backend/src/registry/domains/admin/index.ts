@@ -144,8 +144,8 @@ export const adminDomain: DomainRegistry = {
         };
 
         // Validate job exists
-        const { getJob } = await import('../../../../scripts/jobs/lib/registry.js');
-        const job = getJob(jobName);
+        const { getJob } = await import('../../../lib/jobs/shared/registry.js');
+        const job = await getJob(jobName);
         if (!job) {
           return json(res, { 
             error: 'Unknown job',
@@ -252,9 +252,9 @@ export const adminDomain: DomainRegistry = {
       summary: 'Get available job definitions',
       tags: ['admin'],
       handler: async (req, res) => {
-        const { getAllJobs, getJobGroups } = await import('../../../../scripts/jobs/lib/registry.js');
-        const jobs = getAllJobs();
-        const groups = getJobGroups();
+        const { getAllJobs, getJobGroups } = await import('../../../lib/jobs/shared/registry.js');
+        const jobs = await getAllJobs();
+        const groups = await getJobGroups();
         
         const definitions = Object.entries(jobs).map(([name, job]: [string, any]) => ({
           id: name,
@@ -280,10 +280,10 @@ export const adminDomain: DomainRegistry = {
       tags: ['admin'],
       handler: async (req, res) => {
         try {
-          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry.js');
-          const { resolveJobDependencies } = await import('../../../../scripts/jobs/lib/dependencyResolver.js');
+          const { getJobsMap } = await import('../../../lib/jobs/shared/registry.js');
+          const { resolveJobDependencies } = await import('../../../lib/jobs/shared/dependencyResolver.js');
           
-          const jobsMap = getJobsMap();
+          const jobsMap = await getJobsMap();
           const resolvedJobs = resolveJobDependencies(jobsMap);
           
           const enqueuedJobs: Array<{ jobName: string; jobRunId: string }> = [];
@@ -341,10 +341,10 @@ export const adminDomain: DomainRegistry = {
             return json(res, { error: 'Group is required' }, 400);
           }
           
-          const { getJobsMap } = await import('../../../../scripts/jobs/lib/registry.js');
-          const { resolveJobsByGroup } = await import('../../../../scripts/jobs/lib/dependencyResolver.js');
+          const { getJobsMap } = await import('../../../lib/jobs/shared/registry.js');
+          const { resolveJobsByGroup } = await import('../../../lib/jobs/shared/dependencyResolver.js');
           
-          const jobsMap = getJobsMap();
+          const jobsMap = await getJobsMap();
           const resolvedJobs = resolveJobsByGroup(jobsMap, group as any);
           
           if (resolvedJobs.length === 0) {

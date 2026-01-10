@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { prisma } from '../../../src/lib/prisma/client.js';
-import { loadEnv } from '../lib/utils.js';
-import { getJob, getAllJobs, printUsage } from '../lib/registry.js';
+import { loadEnv } from '../../../src/lib/jobs/shared/utils.js';
+import { getJob, getAllJobs, printUsage } from '../../../src/lib/jobs/shared/registry.js';
 
 loadEnv();
 
@@ -9,13 +9,13 @@ async function main() {
   const command = process.argv[2];
   
   if (!command) {
-    printUsage();
+    await printUsage();
     process.exitCode = 1;
     return;
   }
 
   if (command === 'all') {
-    const jobs = getAllJobs();
+    const jobs = await getAllJobs();
     const jobNames = Object.keys(jobs).filter(name => name !== 'all');
     
     for (const jobName of jobNames) {

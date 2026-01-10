@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseIntArg, getEnvVar } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseIntArg, getEnvVar } from '../../../src/lib/jobs/shared/utils.js';
 import { runTrendingJob } from '../../../src/jobs/trendingJob.js';
 
 export const trendingJob: JobDefinition = {

@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseBigIntArg, parseIntArrayArg } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseBigIntArg, parseIntArrayArg } from '../../../src/lib/jobs/shared/utils.js';
 import { runQuizAnswerStatsJob } from '../../../src/jobs/quizAnswerStatsJob.js';
 
 export const quizAnswerStatsJob: JobDefinition = {

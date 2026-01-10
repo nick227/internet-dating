@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseIntArg, parseBigIntArg, parseFlag } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseIntArg, parseBigIntArg, parseFlag } from '../../../src/lib/jobs/shared/utils.js';
 import { runFeedPresortJob } from '../../../src/jobs/feedPresortJob.js';
 
 export const feedPresortJob: JobDefinition = {

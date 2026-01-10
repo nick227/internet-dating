@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseIntArg } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseIntArg } from '../../../src/lib/jobs/shared/utils.js';
 import { runMediaOrphanCleanupJob } from '../../../src/jobs/mediaOrphanCleanupJob.js';
 
 export const mediaOrphanCleanupJob: JobDefinition = {

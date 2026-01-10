@@ -1,4 +1,4 @@
-import type { JobDefinition } from '../lib/types.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
 import { runFeedPresortCleanupJob } from '../../../src/jobs/feedPresortCleanup.js';
 
 export const feedPresortCleanupJob: JobDefinition = {

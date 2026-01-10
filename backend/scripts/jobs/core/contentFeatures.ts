@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseIntArg, parseBigIntArg, getEnvVar } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseIntArg, parseBigIntArg, getEnvVar } from '../../../src/lib/jobs/shared/utils.js';
 import { runContentFeatureJob } from '../../../src/jobs/contentFeatureJob.js';
 
 export const contentFeaturesJob: JobDefinition = {

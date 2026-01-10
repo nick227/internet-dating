@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseBigIntArg, parseIntArg } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseBigIntArg, parseIntArg } from '../../../src/lib/jobs/shared/utils.js';
 import { buildProfileSearchIndexForAll } from '../../../src/jobs/profileSearchIndexJob.js';
 
 export const profileSearchIndexJob: JobDefinition = {

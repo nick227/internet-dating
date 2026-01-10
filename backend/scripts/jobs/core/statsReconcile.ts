@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseIntArg, parseFlag, getEnvVar } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseIntArg, parseFlag, getEnvVar } from '../../../src/lib/jobs/shared/utils.js';
 import { runStatsReconcileJob } from '../../../src/jobs/statsReconcileJob.js';
 
 export const statsReconcileJob: JobDefinition = {

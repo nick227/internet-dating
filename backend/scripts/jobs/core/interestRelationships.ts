@@ -1,4 +1,4 @@
-import type { JobDefinition } from '../lib/types.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
 import { prisma } from '../../../src/lib/prisma/client.js';
 
 const DEFAULT_BATCH_SIZE = 100;

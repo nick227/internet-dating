@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../lib/types.js';
-import { parseIntArg } from '../lib/utils.js';
+import type { JobDefinition } from '../../../src/lib/jobs/shared/types.js';
+import { parseIntArg } from '../../../src/lib/jobs/shared/utils.js';
 import { buildSearchableUsersForAll } from '../../../src/jobs/searchableUserJob.js';
 
 export const searchableUserJob: JobDefinition = {
