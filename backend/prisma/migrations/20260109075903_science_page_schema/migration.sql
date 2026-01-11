@@ -144,8 +144,7 @@ CREATE TABLE `science_interest_correlations` (
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   
   PRIMARY KEY (`interestAId`, `interestBId`),
-  INDEX `science_interest_correlations_score_idx`(`correlationScore` DESC),
-  CONSTRAINT `science_interest_correlations_check` CHECK (`interestAId` < `interestBId`)
+  INDEX `science_interest_correlations_score_idx`(`correlationScore` DESC)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
