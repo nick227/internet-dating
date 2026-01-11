@@ -11,7 +11,6 @@ import { hydrateFeedItems } from '../hydration/index.js';
 import { hydrateFeedItemsFromPresorted } from '../hydration/presorted.js';
 import { validatePresortedSegment } from '../validation.js';
 import { buildRelationshipFilters } from './seenService.js';
-import { FEED_ALGORITHM_VERSION } from '../constants.js';
 import type { ViewerContext, FeedItem, FeedDebugSummary } from '../types.js';
 import type { HydratedFeedItem } from '../hydration/index.js';
 import type { PresortedFeedItem } from '../../../../services/feed/presortedFeedService.js';

@@ -1,6 +1,7 @@
 // Feed algorithm and system constants
 
-export const FEED_ALGORITHM_VERSION = 'v1';
+// Presorted segment should have enough items to avoid thin feeds.
+export const FEED_PRESORT_MIN_SEGMENT_ITEMS = 8;
 
 export const FeedItemType = {
   POST: 'post',

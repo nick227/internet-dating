@@ -3,6 +3,18 @@ import { refreshToken } from './authRefresh'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
+function combineAbortSignals(signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController()
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort()
+      return controller.signal
+    }
+    signal.addEventListener('abort', () => controller.abort(), { once: true })
+  }
+  return controller.signal
+}
+
 export class HttpError extends Error {
   status: number
   body: unknown
@@ -16,10 +28,24 @@ export class HttpError extends Error {
 export async function http<T>(
   url: string,
   method: HttpMethod,
-  opts?: { body?: unknown; signal?: AbortSignal; headers?: Record<string, string>; skipAuthRefresh?: boolean }
+  opts?: { body?: unknown; signal?: AbortSignal; headers?: Record<string, string>; skipAuthRefresh?: boolean; timeout?: number }
 ): Promise<T> {
   const body = opts?.body
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+  
+  // Default timeout: 15s for auth endpoints, 30s for others
+  const isAuthEndpoint = url.includes('/api/auth/')
+  const defaultTimeout = isAuthEndpoint ? 15000 : 30000
+  const timeoutMs = opts?.timeout ?? defaultTimeout
+  
+  // Create timeout controller
+  const timeoutController = new AbortController()
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs)
+  
+  // Combine user signal with timeout signal
+  const combinedSignal = opts?.signal 
+    ? combineAbortSignals([opts.signal, timeoutController.signal])
+    : timeoutController.signal
 
   try {
     const res = await fetch(url, {
@@ -29,8 +55,10 @@ export async function http<T>(
         ? { ...(opts?.headers ?? {}) }
         : { 'content-type': 'application/json', ...(opts?.headers ?? {}) },
       body: body == null ? undefined : isFormData ? body : JSON.stringify(body),
-      signal: opts?.signal,
+      signal: combinedSignal,
     })
+    
+    clearTimeout(timeoutId)
 
     const data = await readResponseBody(res, url)
 
@@ -55,11 +83,16 @@ export async function http<T>(
     
     return data as T
   } catch (e) {
+    clearTimeout(timeoutId)
     if (e instanceof HttpError) {
       throw e
     }
     // Suppress AbortError logs - these are expected when requests are cancelled
     const isAbortError = e instanceof DOMException && e.name === 'AbortError'
+    if (isAbortError && timeoutController.signal.aborted) {
+      console.error('[DEBUG] http: Request timeout', { url, timeoutMs })
+      throw new HttpError('Request timeout', 408, { error: 'timeout', timeoutMs })
+    }
     if (!isAbortError) {
       console.error('[DEBUG] http: Network/fetch error', { url, error: e })
     }

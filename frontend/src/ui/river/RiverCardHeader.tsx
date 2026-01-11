@@ -41,8 +41,8 @@ export function RiverCardHeader({
     if (!createdAt) return null
     // If createdAt is already a number (epoch ms), use it directly
     // Otherwise parse ISO string (fallback for Phase-2)
-    const timestamp = typeof createdAt === 'number' 
-      ? createdAt 
+    const timestamp = typeof createdAt === 'number'
+      ? createdAt
       : new Date(createdAt).getTime()
     if (Number.isNaN(timestamp)) return 'recent'
     const d = new Date(timestamp)
@@ -59,21 +59,23 @@ export function RiverCardHeader({
   )
 
   const nameElement = onOpenProfile ? (
-    <h2
-      className="riverCard__name riverCard__nameButton"
-      onClick={onOpenProfile}
-      aria-label={`Open ${name}'s profile`}
-    >
-      <Avatar
-        name={name}
-        size="sm"
-        src={actor?.avatarUrl ?? null}
-        profileId={actor?.id != null ? String(actor.id) : null}
-        className="riverCard__avatar"
-      />
-      <h2 className="u-clamp-1">{name}</h2>
+    <div>
+      <h2
+        className="riverCard__name riverCard__nameButton"
+        onClick={onOpenProfile}
+        aria-label={`Open ${name}'s profile`}
+      >
+        <Avatar
+          name={name}
+          size="sm"
+          src={actor?.avatarUrl ?? null}
+          profileId={actor?.id != null ? String(actor.id) : null}
+          className="riverCard__avatar"
+        />
+        {name}
+      </h2>
       {age != null && <span>{age}</span>}
-    </h2>
+    </div>
   ) : (
     <div className="riverCard__name">
       <Avatar

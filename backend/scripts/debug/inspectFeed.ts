@@ -23,11 +23,12 @@ async function inspectFeed() {
   const items = segment.items as any[];
   console.log(`Total items: ${items.length}`);
   
-  const mosaicItems = items.filter(i => i.presentation?.mode === 'mosaic');
-  console.log(`Naive Mosaic items count: ${mosaicItems.length}`);
-
   items.slice(0, 10).forEach((item, idx) => {
-    console.log(`[${idx}] Type: ${item.type}, Pres: ${item.presentation?.mode || 'default'}, Source: ${item.source}`);
+    let details = '';
+    if (item.type === 'post') {
+        details = `MediaType: ${item.post?.mediaType}`;
+    }
+    console.log(`[${idx}] Type: ${item.type}, Pres: ${item.presentation?.mode || 'default'}, Source: ${item.source} (${details})`);
   });
 }
 

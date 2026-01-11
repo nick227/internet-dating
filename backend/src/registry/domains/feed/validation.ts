@@ -1,10 +1,11 @@
 // Feed validation utilities
-import { FEED_ALGORITHM_VERSION } from './constants.js';
+import { FEED_CONFIG_VERSION } from './config.js';
+import { FEED_PRESORT_MIN_SEGMENT_ITEMS } from './constants.js';
 import type { PresortedFeedSegment } from '../../../services/feed/presortedFeedService.js';
 
 export type SegmentValidationResult =
   | { valid: true; segment: PresortedFeedSegment }
-  | { valid: false; reason: 'not_found' | 'expired' | 'version_mismatch' };
+  | { valid: false; reason: 'not_found' | 'expired' | 'version_mismatch' | 'thin_segment' };
 
 /**
  * Validate presorted segment for use
@@ -17,8 +18,12 @@ export function validatePresortedSegment(
     return { valid: false, reason: 'not_found' };
   }
 
-  if (segment.algorithmVersion !== FEED_ALGORITHM_VERSION) {
+  if (segment.algorithmVersion !== FEED_CONFIG_VERSION) {
     return { valid: false, reason: 'version_mismatch' };
+  }
+
+  if (segment.items.length < FEED_PRESORT_MIN_SEGMENT_ITEMS) {
+    return { valid: false, reason: 'thin_segment' };
   }
 
   if (segment.expiresAt <= new Date()) {

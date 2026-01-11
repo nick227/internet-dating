@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma/client.js'
 import { runJob } from '../lib/jobs/runJob.js'
 import { getCandidates } from '../registry/domains/feed/candidates/index.js'
 import { FEED_CONFIG_VERSION } from '../registry/domains/feed/config.js'
+import { FEED_PRESORT_MIN_SEGMENT_ITEMS } from '../registry/domains/feed/constants.js'
 import { scoreCandidatesWithoutSeen } from './feedPresortScoring.js'
 import { mergeAndRank } from '../registry/domains/feed/ranking/index.js'
 import { generatePhase1JSON, convertToPresortedItem } from './feedPresortPhase1.js'
@@ -27,6 +28,8 @@ const DEFAULT_CONFIG = {
   segmentSize: 20,
   // Maximum segments to precompute (balance between freshness and precomputation)
   maxSegments: 3,
+  // Minimum candidate pool to prevent thin segments for new users
+  minCandidateCount: 100,
   // Algorithm version linked to config to auto-invalidate on changes
   algorithmVersion: FEED_CONFIG_VERSION,
   // TTL should match or slightly exceed job run frequency to prevent gaps
@@ -79,6 +82,7 @@ async function buildFeedPresortInputHash(
     ['segmentSize', options.segmentSize ?? DEFAULT_CONFIG.segmentSize],
     ['maxSegments', options.maxSegments ?? DEFAULT_CONFIG.maxSegments],
     ['incremental', options.incremental ?? false],
+    ['minCandidateCount', DEFAULT_CONFIG.minCandidateCount],
     ['matchScoreAt', latestMatchScore?.scoredAt?.toISOString() ?? null],
     ['matchScoreVersion', latestMatchScore?.algorithmVersion ?? null],
     ['latestLikeAt', latestLike?.createdAt?.toISOString() ?? null],
@@ -259,7 +263,7 @@ function validateSegment(
   }
 
   // First segment must have enough items for initial load
-  if (segmentIndex === 0 && segmentItems.length < Math.min(5, expectedSize)) {
+  if (segmentIndex === 0 && segmentItems.length < Math.min(FEED_PRESORT_MIN_SEGMENT_ITEMS, expectedSize)) {
     logger.warn('First segment has too few items', {
       segmentIndex,
       itemCount: segmentItems.length,
@@ -326,9 +330,12 @@ async function presortFeedForUser(
 
   // Check freshness - skip if inputs haven't changed
   const existingSegment = await getPresortedSegment(userId, 0)
+  const effectiveIncremental =
+    Boolean(options.incremental) &&
+    Boolean(existingSegment && existingSegment.items.length >= FEED_PRESORT_MIN_SEGMENT_ITEMS)
   let relevantPostUpdatedAt: Date | null = null
 
-  if (options.incremental && existingSegment && existingSegment.items.length > 0) {
+  if (effectiveIncremental && existingSegment && existingSegment.items.length > 0) {
     const actorIds = Array.from(new Set(existingSegment.items.map((item) => item.actorId)))
     if (actorIds.length > 0) {
       const latestRelevantPost = await prisma.post.findFirst({
@@ -340,8 +347,21 @@ async function presortFeedForUser(
     }
   }
 
-  const inputHash = await buildFeedPresortInputHash(userId, options, relevantPostUpdatedAt)
-  if (existingSegment && (await isJobFresh('feed-presort', scope, inputHash))) {
+  if (options.incremental && !effectiveIncremental) {
+    logger.info('Presort incremental disabled due to thin or missing segment', {
+      userId: userId.toString(),
+      existingCount: existingSegment?.items.length ?? 0,
+      minRequired: FEED_PRESORT_MIN_SEGMENT_ITEMS,
+    })
+  }
+
+  const inputHash = await buildFeedPresortInputHash(
+    userId,
+    { ...options, incremental: effectiveIncremental },
+    relevantPostUpdatedAt
+  )
+  const skipFreshness = options.incremental === false
+  if (!skipFreshness && existingSegment && (await isJobFresh('feed-presort', scope, inputHash))) {
     return {
       userId,
       candidatesFetched: 0,
@@ -356,10 +376,10 @@ async function presortFeedForUser(
   // Calculate optimal candidate count based on actual needs
   const segmentSize = options.segmentSize ?? DEFAULT_CONFIG.segmentSize
   const maxSegments = options.maxSegments ?? DEFAULT_CONFIG.maxSegments
-  const targetSegments = options.incremental ? 1 : maxSegments
+  const targetSegments = effectiveIncremental ? 1 : maxSegments
   const targetItems = segmentSize * targetSegments
   // Fetch extra candidates to account for deduplication and filtering (typically ~20% overhead)
-  const candidateCount = Math.ceil(targetItems * 1.2)
+  const candidateCount = Math.max(Math.ceil(targetItems * 1.2), DEFAULT_CONFIG.minCandidateCount)
 
   // Build viewer context with calculated candidate count
   const ctx: ViewerContext = {

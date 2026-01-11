@@ -1,4 +1,5 @@
 import { lazy, ReactNode } from 'react'
+import { useAuth } from '../../core/auth/useAuth'
 import { useCurrentUser } from '../../core/auth/useCurrentUser'
 import { useRealtime } from '../../core/ws/useRealtime'
 import { useSwipeNavigation } from '../../core/gestures/useSwipeNavigation'
@@ -51,14 +52,17 @@ const MediaViewer = lazy(() => import('../ui/MediaViewer').then(m => ({ default:
  * - Normal state: BottomNav outside error boundary (remains available if content crashes)
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const auth = useAuth()
+  // Only fetch profile after auth completes to avoid extra API call during bootstrap
   const currentUser = useCurrentUser()
   const { logout } = useLogout()
   const { goToFeed, goToLogin, goToProfile } = useAppNavigation()
   const { openModal, openControlPanel, openPost, closeModal } = useModalState()
   const { triggerAuthChange } = useDebouncedAuthChange()
 
-  const userId = currentUser.userId
-  const isLoading = currentUser.loading
+  const userId = auth.userId
+  // Only wait for auth, not profile - profile loads in background without blocking UI
+  const isLoading = auth.loading
 
   // WebSocket connection: automatically connects/disconnects based on userId
   // Cleanup handled internally via useEffect return function

@@ -34,7 +34,7 @@ const SessionContext = createContext<SessionContextValue | null>(null)
 // Module-level flag to prevent infinite refresh loops across all instances
 let globalRefreshFailed = false
 let globalRefreshFailedTimestamp = 0
-const REFRESH_FAILURE_COOLDOWN_MS = 60000 // 1 minute cooldown before allowing retry
+const REFRESH_FAILURE_COOLDOWN_MS = 5000 // 5 second cooldown before allowing retry
 
 function useSessionInternal() {
   const [version, setVersion] = useState(0)
@@ -86,6 +86,13 @@ function useSessionInternal() {
       return res
     } catch (err) {
       if (isAbortError(err)) throw err
+      
+      // Handle timeout errors (408) or network errors - treat as unauthenticated
+      if (err instanceof HttpError && (err.status === 408 || err.status === 0)) {
+        if (DEBUG) console.debug('[auth] session:me:timeout/network-error, treating as unauthenticated')
+        return null
+      }
+      
       if (err instanceof HttpError && err.status === 401) {
         // Check cooldown again (it might have been set by another instance)
         const currentTime = Date.now()
@@ -121,6 +128,17 @@ function useSessionInternal() {
           globalRefreshFailedTimestamp = 0
           return res
         } catch (refreshErr) {
+          if (isAbortError(refreshErr)) throw refreshErr
+          
+          // Handle timeout or network errors during refresh
+          if (refreshErr instanceof HttpError && (refreshErr.status === 408 || refreshErr.status === 0)) {
+            if (DEBUG) console.debug('[auth] session:refresh:timeout/network-error, treating as unauthenticated')
+            refreshFailedRef.current = true
+            globalRefreshFailed = true
+            globalRefreshFailedTimestamp = Date.now()
+            return null
+          }
+          
           if (refreshErr instanceof HttpError && refreshErr.status === 401) {
             if (DEBUG) console.debug('[auth] session:refresh:401 expired - marking as failed with cooldown')
             // Mark refresh as failed to prevent infinite retry loop (both local and global)
@@ -133,11 +151,17 @@ function useSessionInternal() {
             // The error will be handled by the component (e.g., redirect to login)
             return null
           }
-          throw refreshErr
+          
+          // Other errors (500, etc) - log and treat as unauthenticated
+          if (DEBUG) console.debug('[auth] session:refresh:error, treating as unauthenticated', refreshErr)
+          return null
         }
       }
-      if (DEBUG) console.debug('[auth] session:me:error', err)
-      throw err
+      
+      // Handle any other errors (network errors, 500, etc) - treat as unauthenticated
+      // This prevents blocking the UI on transient errors
+      if (DEBUG) console.debug('[auth] session:me:error, treating as unauthenticated', err)
+      return null
     }
   }, [])
 

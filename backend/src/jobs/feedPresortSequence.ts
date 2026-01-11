@@ -6,6 +6,7 @@ type SequenceSlot = {
   mediaType?: 'video' | 'image' | 'text' | 'mixed' | 'any'
   source?: 'match' | 'suggested'
   count?: number
+  presentation?: 'single' | 'mosaic' | 'highlight'
 }
 
 function expandSequence(sequence: readonly SequenceSlot[]) {
@@ -84,6 +85,19 @@ export function applyFeedSequence(rankedItems: FeedItem[]): FeedItem[] {
     return null
   }
 
+  const takeNextPostForLayout = (
+    mediaType?: SequenceSlot['mediaType'],
+    presentation?: 'single' | 'mosaic' | 'highlight'
+  ): FeedItem | null => {
+    if (!presentation) return takeNextPost(mediaType)
+    const matched = takeNextPost(mediaType)
+    if (matched) return matched
+    if (mediaType && mediaType !== 'any') {
+      return takeNextPost('any')
+    }
+    return null
+  }
+
   const takeNextSuggestion = (source?: SequenceSlot['source']): FeedItem | null => {
     const key = source ?? 'all'
     const bucket = suggestionBuckets.get(key) ?? []
@@ -129,7 +143,7 @@ export function applyFeedSequence(rankedItems: FeedItem[]): FeedItem[] {
     let chosen: FeedItem | null = null
 
     if (slot.kind === 'post') {
-      chosen = takeNextPost(slot.mediaType)
+      chosen = takeNextPostForLayout(slot.mediaType, slot.presentation)
     } else if (slot.kind === 'suggestion') {
       chosen = takeNextSuggestion(slot.source)
     } else if (slot.kind === 'question') {

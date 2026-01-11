@@ -3,6 +3,16 @@ import type { FeedCandidateSet, FeedItem, ViewerContext } from '../types.js';
 
 type PostMediaType = Extract<FeedSlot, { kind: 'post' }>['mediaType'];
 type SuggestionSource = Extract<FeedSlot, { kind: 'suggestion' }>['source'];
+type PostSlot = Extract<FeedSlot, { kind: 'post' }>;
+type SuggestionSlot = Extract<FeedSlot, { kind: 'suggestion' }>;
+
+function isPostSlot(slot: FeedSlot): slot is PostSlot {
+  return slot.kind === 'post';
+}
+
+function isSuggestionSlot(slot: FeedSlot): slot is SuggestionSlot {
+  return slot.kind === 'suggestion';
+}
 
 function mulberry32(seed: number) {
   return function () {
@@ -121,6 +131,19 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
     return null;
   };
 
+  const takeNextPostForLayout = (
+    mediaType?: PostMediaType,
+    presentation?: PostSlot['presentation']
+  ) => {
+    if (!presentation) return takeNextPost(mediaType);
+    const matched = takeNextPost(mediaType);
+    if (matched) return matched;
+    if (mediaType && mediaType !== 'any') {
+      return takeNextPost('any');
+    }
+    return null;
+  };
+
   const takeNextSuggestion = (source?: SuggestionSource) => {
     const key = source ?? 'all';
     const bucket = suggestionBuckets.get(key) ?? [];
@@ -154,6 +177,86 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
   };
 
   const sequence = expandSequence(feedConfig.sequence);
+
+  const mosaicSlots = feedConfig.sequence.filter((slot) => isPostSlot(slot) && slot.presentation === 'mosaic');
+  if (mosaicSlots.length > 0) {
+    const missingMosaicSlots: Array<{
+      kind: FeedSlot['kind'];
+      mediaType?: PostMediaType;
+      source?: SuggestionSource;
+      count: number;
+      available: number;
+    }> = [];
+
+    for (const slot of mosaicSlots) {
+      if (isPostSlot(slot)) {
+        const key = !slot.mediaType || slot.mediaType === 'any' ? 'all' : slot.mediaType;
+        const available = (postBuckets.get(key)?.length ?? 0);
+        if (available === 0 && (postBuckets.get('all')?.length ?? 0) === 0) {
+          missingMosaicSlots.push({
+            kind: slot.kind,
+            mediaType: slot.mediaType,
+            count: slot.count,
+            available,
+          });
+        }
+      } else if (isSuggestionSlot(slot)) {
+        const key = slot.source ?? 'all';
+        const available = (suggestionBuckets.get(key)?.length ?? 0);
+        if (available === 0) {
+          missingMosaicSlots.push({
+            kind: slot.kind,
+            source: slot.source,
+            count: slot.count,
+            available,
+          });
+        }
+      }
+    }
+
+    if (missingMosaicSlots.length > 0) {
+      console.warn('[feed] Mosaic slots have no candidates', {
+        missingMosaicSlots,
+        postCandidatesByType: {
+          all: postBuckets.get('all')?.length ?? 0,
+          image: postBuckets.get('image')?.length ?? 0,
+          mixed: postBuckets.get('mixed')?.length ?? 0,
+          video: postBuckets.get('video')?.length ?? 0,
+          text: postBuckets.get('text')?.length ?? 0,
+        },
+        suggestionCandidatesBySource: {
+          all: suggestionBuckets.get('all')?.length ?? 0,
+          match: suggestionBuckets.get('match')?.length ?? 0,
+          suggested: suggestionBuckets.get('suggested')?.length ?? 0,
+        },
+      });
+    } else {
+      const totalPosts = postBuckets.get('all')?.length ?? 0;
+      const typedMissing = mosaicSlots.filter(
+        (slot): slot is PostSlot =>
+          slot.kind === 'post' &&
+          slot.mediaType != null &&
+          slot.mediaType !== 'any' &&
+          (postBuckets.get(slot.mediaType)?.length ?? 0) === 0
+      );
+      if (typedMissing.length > 0 && totalPosts > 0) {
+        console.info('[feed] Mosaic slots missing typed candidates; falling back to any post', {
+          typedMissing: typedMissing.map((slot) => ({
+            kind: slot.kind,
+            mediaType: slot.mediaType,
+            count: slot.count,
+          })),
+          postCandidatesByType: {
+            all: totalPosts,
+            image: postBuckets.get('image')?.length ?? 0,
+            mixed: postBuckets.get('mixed')?.length ?? 0,
+            video: postBuckets.get('video')?.length ?? 0,
+            text: postBuckets.get('text')?.length ?? 0,
+          },
+        });
+      }
+    }
+  }
   const hasRemaining = () =>
     usedPostIds.size < filteredPostItems.length ||
     usedSuggestionIds.size < suggestionItems.length ||
@@ -168,7 +271,7 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
       let chosen: FeedItem | null = null;
 
       if (slot.kind === 'post') {
-        chosen = takeNextPost(slot.mediaType);
+        chosen = takeNextPostForLayout(slot.mediaType, slot.presentation);
       } else if (slot.kind === 'suggestion') {
         chosen = takeNextSuggestion(slot.source);
       } else if (slot.kind === 'question') {
