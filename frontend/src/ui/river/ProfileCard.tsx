@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect, useRef } from 'react'
+import { memo, useState, useCallback } from 'react'
 import type { FeedCard } from '../../api/types'
 import type { WsPresenceStatus } from '@app/shared/ws/contracts'
 import { RiverCardFrame } from './RiverCardFrame'
@@ -29,41 +29,7 @@ function ProfileCardComponent({
     handleRated,
     setAuthoritativeCommentCount,
   } = useRiverCardCommentAdapter(card)
-  const [isHiding, setIsHiding] = useState(false)
   const [commentOpen, setCommentOpen] = useState(false)
-  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>()
-
-  // Cleanup timeout on unmount to prevent state updates after unmount
-  useEffect(() => {
-    return () => {
-      if (resetTimeoutRef.current) {
-        clearTimeout(resetTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  const handleNotInterested = useCallback(() => {
-    if (isHiding) return
-    setIsHiding(true)
-    window.dispatchEvent(
-      new CustomEvent('feed:hide', {
-        detail: {
-          itemType: card.kind,
-          itemId: card.id,
-        },
-      })
-    )
-    onToast?.('Profile hidden')
-    // Reset after brief delay to prevent spam clicking
-    // Clear any existing timeout before setting a new one
-    if (resetTimeoutRef.current) {
-      clearTimeout(resetTimeoutRef.current)
-    }
-    resetTimeoutRef.current = setTimeout(() => {
-      setIsHiding(false)
-      resetTimeoutRef.current = undefined
-    }, 1000)
-  }, [isHiding, card.kind, card.id, onToast])
 
   const handleToggleComments = useCallback(() => {
     setCommentOpen(prev => !prev)

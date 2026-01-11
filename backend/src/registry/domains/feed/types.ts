@@ -122,7 +122,7 @@ export type FeedDebugSummary = {
     demotedSuggestions: number
   }
   ranking?: {
-    sourceSequence: Array<'post' | 'match' | 'suggested'>
+    sourceSequence: Array<'post' | 'match' | 'suggested' | 'question'>
     actorCounts: Record<string, number>
     tierSequence?: Array<'self' | 'following' | 'followers' | 'everyone'>
     tierCounts?: Record<'self' | 'following' | 'followers' | 'everyone', number>

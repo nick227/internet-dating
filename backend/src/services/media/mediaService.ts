@@ -206,6 +206,45 @@ export const mediaService = {
     }
   },
 
+  async updateProfileAvatarUrl(userId: bigint, avatarMediaId: bigint | null) {
+    if (avatarMediaId === null) {
+      await prisma.profile.update({
+        where: { userId },
+        data: { avatarUrl: null }
+      });
+      return;
+    }
+
+    const media = await prisma.media.findFirst({
+      where: { id: avatarMediaId, deletedAt: null },
+      select: {
+        id: true,
+        type: true,
+        storageKey: true,
+        variants: true,
+        url: true,
+        thumbUrl: true,
+        width: true,
+        height: true,
+        durationSec: true
+      }
+    });
+
+    if (!media) {
+      await prisma.profile.update({
+        where: { userId },
+        data: { avatarUrl: null }
+      });
+      return;
+    }
+
+    const urls = buildMediaUrls(media);
+    await prisma.profile.update({
+      where: { userId },
+      data: { avatarUrl: urls.original }
+    });
+  },
+
   async assertOwnedMediaIds(
     mediaIds: bigint[],
     ownerUserId: bigint,

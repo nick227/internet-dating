@@ -774,33 +774,19 @@ export async function recomputeMatchScoresForUser(userId: bigint, overrides: Par
   const tierB = heapB.toArray(); // Already sorted descending
   const topScores = [...tierA, ...tierB];
   if (topScores.length > 0) {
-    await prisma.matchScore.createMany({
-      data: topScores.map(row => ({
-        ...row,
-        reasons: row.reasons as unknown as Prisma.InputJsonValue
-      })),
-      skipDuplicates: true
-    });
+    const rows = topScores.map(row => ({
+      ...row,
+      reasons: row.reasons as unknown as Prisma.InputJsonValue
+    }));
+    if (vPrev && vPrev === vNext) {
+      await prisma.$transaction([
+        prisma.matchScore.deleteMany({ where: { userId, algorithmVersion: vNext } }),
+        prisma.matchScore.createMany({ data: rows })
+      ]);
+    } else {
+      await prisma.matchScore.createMany({ data: rows });
+    }
     totalWritten = topScores.length;
-
-    // Calculate and log distribution statistics
-    const distribution = calculateDistribution(topScores);
-    console.log(`[match-scores] User ${userId} distribution:`, JSON.stringify({
-      count: distribution.count,
-      mean: distribution.mean.toFixed(4),
-      p50: distribution.p50.toFixed(4),
-      p90: distribution.p90.toFixed(4),
-      zeroCount: distribution.zeroCount,
-      nullCount: distribution.nullCount,
-      components: {
-        quiz: { mean: distribution.components.quiz.mean.toFixed(4), p50: distribution.components.quiz.p50.toFixed(4), p90: distribution.components.quiz.p90.toFixed(4) },
-        interests: { mean: distribution.components.interests.mean.toFixed(4), p50: distribution.components.interests.p50.toFixed(4), p90: distribution.components.interests.p90.toFixed(4) },
-        ratingQuality: { mean: distribution.components.ratingQuality.mean.toFixed(4), p50: distribution.components.ratingQuality.p50.toFixed(4), p90: distribution.components.ratingQuality.p90.toFixed(4) },
-        ratingFit: { mean: distribution.components.ratingFit.mean.toFixed(4), p50: distribution.components.ratingFit.p50.toFixed(4), p90: distribution.components.ratingFit.p90.toFixed(4) },
-        newness: { mean: distribution.components.newness.mean.toFixed(4), p50: distribution.components.newness.p50.toFixed(4), p90: distribution.components.newness.p90.toFixed(4) },
-        proximity: { mean: distribution.components.proximity.mean.toFixed(4), p50: distribution.components.proximity.p50.toFixed(4), p90: distribution.components.proximity.p90.toFixed(4) }
-      }
-    }, null, 2));
 
     // Delete old version scores after successful write (versioned swap)
     // Only delete if we successfully wrote new scores and versions differ
@@ -866,19 +852,8 @@ export async function runMatchScoreJob(options: MatchScoreJobOptions = {}) {
               config.algorithmVersion
             );
           if (!shouldRecompute) {
-            console.log(`[match-scores] User ${user.id} up-to-date (algorithm: ${config.algorithmVersion})`, {
-              lastScoreAt: lastScoreAt?.toISOString() ?? null,
-              latestInputAt: latestInputAt?.toISOString() ?? null,
-              latestInputSource
-            });
             continue;
           }
-          console.log(`[match-scores] User ${user.id} recompute`, {
-            lastScoreAt: lastScoreAt?.toISOString() ?? null,
-            latestInputAt: latestInputAt?.toISOString() ?? null,
-            latestInputSource,
-            algorithmVersion: config.algorithmVersion
-          });
         }
         await recomputeMatchScoresForUser(user.id, {
           candidateBatchSize: config.candidateBatchSize,

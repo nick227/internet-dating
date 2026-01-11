@@ -23,5 +23,9 @@ export async function updateProfile(
     await mediaService.assertProfileMedia(updates.heroMediaId, userId);
   }
 
-  return await mutateProfile(userId, updates);
+  const result = await mutateProfile(userId, updates);
+  if (updates.avatarMediaId !== undefined) {
+    await mediaService.updateProfileAvatarUrl(userId, updates.avatarMediaId ?? null);
+  }
+  return result;
 }

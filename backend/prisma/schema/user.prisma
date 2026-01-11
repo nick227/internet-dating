@@ -76,6 +76,7 @@ model Profile {
   heroMediaId   BigInt?
   avatarMedia   Media? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id])
   heroMedia     Media? @relation("ProfileHero", fields: [heroMediaId], references: [id])
+  avatarUrl     String?
   displayName   String?
   bio           String?  @db.Text
   birthdate     DateTime?

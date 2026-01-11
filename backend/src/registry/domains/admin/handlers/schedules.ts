@@ -11,19 +11,7 @@ import { Cron } from 'croner';
  */
 export async function listSchedules(req: Request, res: Response) {
   // Load database state for all schedules
-  const dbSchedules = await prisma.jobSchedule.findMany({
-    include: {
-      lastRun: {
-        select: {
-          id: true,
-          status: true,
-          startedAt: true,
-          finishedAt: true,
-          durationMs: true
-        }
-      }
-    }
-  });
+  const dbSchedules = await prisma.jobSchedule.findMany();
   
   // Create a map for quick lookup
   const dbScheduleMap = new Map(dbSchedules.map(s => [s.id, s]));
@@ -47,16 +35,10 @@ export async function listSchedules(req: Request, res: Response) {
       lockedAt: dbState?.lockedAt?.toISOString() ?? null,
       lockedBy: dbState?.lockedBy ?? null,
       lastRunAt: dbState?.lastRunAt?.toISOString() ?? null,
+      lastRunId: dbState?.lastRunId?.toString() ?? null,
       nextRunAt: dbState?.nextRunAt?.toISOString() ?? null,
       runCount: dbState?.runCount ?? 0,
-      failureCount: dbState?.failureCount ?? 0,
-      lastRun: dbState?.lastRun ? {
-        id: dbState.lastRun.id.toString(),
-        status: dbState.lastRun.status,
-        startedAt: dbState.lastRun.startedAt?.toISOString() ?? null,
-        finishedAt: dbState.lastRun.finishedAt?.toISOString() ?? null,
-        durationMs: dbState.lastRun.durationMs
-      } : null
+      failureCount: dbState?.failureCount ?? 0
     };
   });
   
@@ -76,24 +58,23 @@ export async function getSchedule(req: Request, res: Response) {
   }
   
   const dbState = await prisma.jobSchedule.findUnique({
-    where: { id },
-    include: {
-      lastRun: true,
-      scheduledRuns: {
-        take: 50,
-        orderBy: { queuedAt: 'desc' },
-        select: {
-          id: true,
-          jobName: true,
-          status: true,
-          queuedAt: true,
-          startedAt: true,
-          finishedAt: true,
-          durationMs: true
-        }
-      }
-    }
+    where: { id }
   });
+  
+  const recentRuns = dbState ? await prisma.jobRun.findMany({
+    where: { scheduleId: id },
+    take: 50,
+    orderBy: { queuedAt: 'desc' },
+    select: {
+      id: true,
+      jobName: true,
+      status: true,
+      queuedAt: true,
+      startedAt: true,
+      finishedAt: true,
+      durationMs: true
+    }
+  }) : [];
   
   return json(res, {
     // From code
@@ -110,11 +91,11 @@ export async function getSchedule(req: Request, res: Response) {
     lockedAt: dbState?.lockedAt?.toISOString() ?? null,
     lockedBy: dbState?.lockedBy ?? null,
     lastRunAt: dbState?.lastRunAt?.toISOString() ?? null,
+    lastRunId: dbState?.lastRunId?.toString() ?? null,
     nextRunAt: dbState?.nextRunAt?.toISOString() ?? null,
     runCount: dbState?.runCount ?? 0,
     failureCount: dbState?.failureCount ?? 0,
-    lastRun: dbState?.lastRun,
-    recentRuns: dbState?.scheduledRuns ?? []
+    recentRuns
   });
 }
 
@@ -165,7 +146,7 @@ export async function updateSchedule(req: Request, res: Response) {
  */
 export async function triggerSchedule(req: Request, res: Response) {
   const { id } = req.params;
-  const userId = req.user?.id;
+  const userId = req.userId ? BigInt(req.userId) : undefined;
   
   const definition = getScheduleDefinition(id);
   if (!definition) {

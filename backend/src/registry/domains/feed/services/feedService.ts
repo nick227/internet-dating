@@ -12,17 +12,13 @@ import { hydrateFeedItemsFromPresorted } from '../hydration/presorted.js';
 import { validatePresortedSegment } from '../validation.js';
 import { buildRelationshipFilters } from './seenService.js';
 import { FEED_ALGORITHM_VERSION } from '../constants.js';
-import type { ViewerContext, FeedItem } from '../types.js';
+import type { ViewerContext, FeedItem, FeedDebugSummary } from '../types.js';
+import type { HydratedFeedItem } from '../hydration/index.js';
 import type { PresortedFeedItem } from '../../../../services/feed/presortedFeedService.js';
 
 export type FeedServiceResult = {
-  items: FeedItem[];
-  debug?: {
-    sourceSequence?: Array<'post' | 'match' | 'suggested'>;
-    tierSequence?: Array<'self' | 'following' | 'followers' | 'everyone'>;
-    actorCounts?: Record<string, number>;
-    tierCounts?: Record<'self' | 'following' | 'followers' | 'everyone', number>;
-  };
+  items: HydratedFeedItem[];
+  debug?: FeedDebugSummary;
 };
 
 /**
@@ -155,6 +151,8 @@ async function fetchPresortedFeed(
     itemsToHydrate.length ? hydrateFeedItemsFromPresorted(ctx, itemsToHydrate) : Promise.resolve([]),
   ]);
 
+  console.log('[feedService] Presorted feed used. Items:', hydratedPresorted.length, 'First 3 items:', hydratedPresorted.slice(0, 3).map(i => ({ type: i.type, presentation: i.post?.presentation || i.suggestion?.presentation, mediaType: i.post ? 'mediaType not in hydrated' : undefined })));
+
   return {
     items: [...hydratedRelationship, ...hydratedPresorted],
   };
@@ -173,6 +171,8 @@ async function fetchFallbackFeed(
   const candidates = await getCandidates(ctx);
   const scored = await scoreCandidates(ctx, candidates);
   const ranked = mergeAndRank(ctx, scored);
+  
+  console.log('[feedService] Fallback feed used. First 5 items presentation:', ranked.slice(0, 5).map(i => ({ type: i.type, presentation: i.presentation, mediaType: i.post?.mediaType })));
 
   // Filter ranked items by relationship items
   const filteredRanked = ranked.filter((item) => {

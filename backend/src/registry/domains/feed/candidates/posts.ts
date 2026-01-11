@@ -23,6 +23,58 @@ const buildCursorFilter = (cursorCutoff?: CursorCutoff | null) => {
   };
 };
 
+
+const postSelect = {
+  id: true,
+  text: true,
+  createdAt: true,
+  user: { select: { id: true, profile: { select: { displayName: true } } } },
+  media: {
+    orderBy: { order: 'asc' },
+    select: {
+      order: true,
+      media: {
+        select: {
+          id: true,
+          type: true,
+          url: true,
+          thumbUrl: true,
+          width: true,
+          height: true,
+          durationSec: true,
+          storageKey: true,
+          variants: true
+        }
+      }
+    }
+  }
+} as const; // using 'as const' to help with type inference if needed
+
+function mapToCandidate(post: any): FeedPostCandidate {
+  const mediaItems = post.media?.map((pm: any) => ({
+    order: pm.order,
+    media: pm.media
+  })) || [];
+
+  let mediaType: 'text' | 'image' | 'video' | 'mixed' = 'text';
+  if (mediaItems.length > 1) {
+    mediaType = 'mixed';
+  } else if (mediaItems.length === 1) {
+    const type = mediaItems[0].media.type;
+    if (type === 'VIDEO') mediaType = 'video';
+    else if (type === 'IMAGE') mediaType = 'image';
+  }
+
+  return {
+    id: post.id,
+    text: post.text,
+    createdAt: post.createdAt,
+    user: post.user,
+    media: mediaItems,
+    mediaType
+  };
+}
+
 export async function getRelationshipPostCandidates(
   ctx: ViewerContext,
   ids: { followingIds: bigint[]; followerIds: bigint[] },
@@ -51,7 +103,7 @@ export async function getRelationshipPostCandidates(
   const followingIds = ids.followingIds.filter((id) => id !== ctx.userId);
   const followerIds = ids.followerIds.filter((id) => id !== ctx.userId);
 
-  const [self, following, followers] = await Promise.all([
+  const [selfRaw, followingRaw, followersRaw] = await Promise.all([
     prisma.post.findMany({
       where: {
         ...baseWhere,
@@ -59,12 +111,7 @@ export async function getRelationshipPostCandidates(
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: feedCandidateCaps.posts.selfMaxItems,
-      select: {
-        id: true,
-        text: true,
-        createdAt: true,
-        user: { select: { id: true, profile: { select: { displayName: true } } } }
-      }
+      select: postSelect
     }),
     followingIds.length
       ? prisma.post.findMany({
@@ -76,12 +123,7 @@ export async function getRelationshipPostCandidates(
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: feedCandidateCaps.posts.followingMaxItems,
-          select: {
-            id: true,
-            text: true,
-            createdAt: true,
-            user: { select: { id: true, profile: { select: { displayName: true } } } }
-          }
+          select: postSelect
         })
       : Promise.resolve([]),
     followerIds.length
@@ -94,17 +136,16 @@ export async function getRelationshipPostCandidates(
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: feedCandidateCaps.posts.followersMaxItems,
-          select: {
-            id: true,
-            text: true,
-            createdAt: true,
-            user: { select: { id: true, profile: { select: { displayName: true } } } }
-          }
+          select: postSelect
         })
       : Promise.resolve([])
   ]);
 
-  return { self, following, followers };
+  return {
+    self: selfRaw.map(mapToCandidate),
+    following: followingRaw.map(mapToCandidate),
+    followers: followersRaw.map(mapToCandidate)
+  };
 }
 
 export async function getPostCandidates(ctx: ViewerContext): Promise<FeedPostResult> {
@@ -121,7 +162,7 @@ export async function getPostCandidates(ctx: ViewerContext): Promise<FeedPostRes
   const createdAtCutoff =
     lookbackDays > 0 ? new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000) : null;
 
-  const posts = await prisma.post.findMany({
+  const postsRaw = await prisma.post.findMany({
     where: {
       deletedAt: null,
       visibility: 'PUBLIC',
@@ -131,16 +172,11 @@ export async function getPostCandidates(ctx: ViewerContext): Promise<FeedPostRes
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: candidateLimit,
     ...(ctx.cursorId ? { cursor: { id: ctx.cursorId }, skip: 1 } : {}),
-    select: {
-      id: true,
-      text: true,
-      createdAt: true,
-      user: { select: { id: true, profile: { select: { displayName: true } } } }
-    }
+    select: postSelect
   });
 
   const nextCursorId =
-    posts.length >= ctx.take ? posts[Math.min(ctx.take, posts.length) - 1]!.id : null;
+    postsRaw.length >= ctx.take ? postsRaw[Math.min(ctx.take, postsRaw.length) - 1]!.id : null;
 
-  return { items: posts, nextCursorId };
+  return { items: postsRaw.map(mapToCandidate), nextCursorId };
 }

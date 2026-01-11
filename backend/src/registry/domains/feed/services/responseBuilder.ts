@@ -3,21 +3,38 @@ import { recordFeedSeen } from '../../../../services/feed/feedSeenService.js';
 import { toPhase1Item, getNextPostCursorId, type Phase1Item } from '../transformers.js';
 import { extractSeenItemsFromPhase1, recordSeenItems } from './seenService.js';
 import type { ViewerContext, FeedItem } from '../types.js';
+import type { HydratedFeedItem } from '../hydration/index.js';
 import type { PresortedFeedSegment } from '../../../../services/feed/presortedFeedService.js';
 
 export type FeedResponse = {
-  items: FeedItem[] | Phase1Item[];
+  items: HydratedFeedItem[] | Phase1Item[];
   nextCursorId: string | null;
   hasMorePosts?: boolean;
   debug?: unknown;
 };
 
 /**
+ * Flatten presentation to top level for frontend compatibility
+ * Frontend expects card.presentation, but HydratedFeedItem has it nested
+ */
+function flattenPresentation(item: HydratedFeedItem): HydratedFeedItem {
+  const presentation = 
+    item.post?.presentation ?? 
+    item.suggestion?.presentation ?? 
+    item.question?.presentation;
+  
+  return {
+    ...item,
+    ...(presentation ? { presentation } : {})
+  } as HydratedFeedItem;
+}
+
+/**
  * Build full feed response (non-lite mode)
  */
 export async function buildFullResponse(
   ctx: ViewerContext,
-  items: FeedItem[],
+  items: HydratedFeedItem[],
   debug?: unknown
 ): Promise<FeedResponse> {
   await recordSeenItems(ctx.userId, ctx.markSeen ?? false, items);
@@ -25,8 +42,11 @@ export async function buildFullResponse(
   const nextCursorId = getNextPostCursorId(items);
   const hasMorePosts = nextCursorId !== null;
 
+  // Flatten presentation to top level for frontend compatibility
+  const flattenedItems = items.map(flattenPresentation);
+
   return {
-    items,
+    items: flattenedItems,
     nextCursorId,
     hasMorePosts,
     ...(debug ? { debug } : {}),
@@ -38,7 +58,7 @@ export async function buildFullResponse(
  */
 export async function buildLiteResponse(
   ctx: ViewerContext,
-  items: FeedItem[],
+  items: HydratedFeedItem[],
   limit: number
 ): Promise<{ items: Phase1Item[]; nextCursorId: string | null }> {
   await recordSeenItems(ctx.userId, ctx.markSeen ?? false, items);

@@ -66,8 +66,8 @@ function buildUncheckedMediaWhere(options?: {
   const { cutoffTime, includeReady } = options ?? {}
   return {
     deletedAt: null,
-    type: { in: ['VIDEO', 'AUDIO'] },
-    status: { in: includeReady ? ['UPLOADED', 'READY'] : ['UPLOADED'] },
+    type: { in: ['VIDEO' as const, 'AUDIO' as const] },
+    status: { in: includeReady ? ['UPLOADED' as const, 'READY' as const] : ['UPLOADED' as const] },
     ...(cutoffTime ? { createdAt: { gte: cutoffTime } } : {}),
   }
 }
@@ -375,12 +375,13 @@ export async function runMediaMetadataAllJob() {
       let lastId: bigint | null = null;
 
       while (true) {
+        const baseWhere = buildUncheckedMediaWhere();
         const where = {
-          ...buildUncheckedMediaWhere(),
+          ...baseWhere,
           ...(lastId ? { id: { gt: lastId } } : {}),
         };
 
-        const mediaToProcess = await prisma.media.findMany({
+        const mediaToProcess: Array<{ id: bigint }> = await prisma.media.findMany({
           where,
           select: { id: true },
           orderBy: { id: 'asc' },

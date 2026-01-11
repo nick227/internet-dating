@@ -364,11 +364,6 @@ export async function recomputeCompatibilityForUser(viewerId: bigint, overrides:
   const scope = `user:${viewerId}`;
   const { inputHash, latestInputAt } = await buildCompatibilityInputHash(viewerId, config);
   if (await isJobFresh('compatibility', scope, inputHash)) {
-    console.log('[compatibility] up-to-date', {
-      viewerId: viewerId.toString(),
-      latestInputAt: latestInputAt?.toISOString() ?? null,
-      algorithmVersion: config.algorithmVersion
-    });
     return 0;
   }
   const targetIds = await collectTargets(viewerId, config.maxSuggestionTargets);

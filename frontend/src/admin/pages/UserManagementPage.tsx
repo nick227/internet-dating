@@ -1,8 +1,8 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '../api/admin';
 import { UserTable } from '../components/UserTable';
-import { AdminUser, UserListResponse } from '../types';
+import { UserListResponse } from '../types';
 
 export function UserManagementPage() {
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export function UserManagementPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const response = await adminApi.getUsers({
@@ -36,11 +36,11 @@ export function UserManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, debouncedSearch, sortBy, sortDir]);
 
   useEffect(() => {
     fetchUsers();
-  }, [page, debouncedSearch, sortBy, sortDir]);
+  }, [fetchUsers]);
 
   const handleSort = (field: string) => {
     if (sortBy === field) {

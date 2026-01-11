@@ -136,11 +136,11 @@ pnpm tsx scripts/jobs/runners/runJobs.ts searchable-user
 # Presort feed for a specific user
 pnpm tsx scripts/jobs/runners/runJobs.ts feed-presort --userId=8
 
-# Batch process with custom segment size
+# Batch process with custom segment size (incremental by default)
 pnpm tsx scripts/jobs/runners/runJobs.ts feed-presort --batchSize=100 --segmentSize=20 --maxSegments=3
 
-# Incremental update (only new content)
-pnpm tsx scripts/jobs/runners/runJobs.ts feed-presort --userId=8 --incremental
+# Full recompute for a specific user
+pnpm tsx scripts/jobs/runners/runJobs.ts feed-presort --userId=8 --incremental=false
 ```
 
 **Key Options**:
@@ -148,7 +148,7 @@ pnpm tsx scripts/jobs/runners/runJobs.ts feed-presort --userId=8 --incremental
 - `--batchSize=<n>` - Users processed per batch (default: 100)
 - `--segmentSize=<n>` - Items per segment (default: 20)
 - `--maxSegments=<n>` - Max segments per user (default: 3)
-- `--incremental` - Only process new content (faster)
+- `--incremental` - Only process new content (default: true)
 
 **Output**: Stores pre-sorted feed segments in `FeedPresorted` table.
 
@@ -320,7 +320,7 @@ pnpm tsx scripts/jobs/runners/runJobs.ts match-scores --userId=<newUserId>
 # 3. Build search index
 pnpm tsx scripts/jobs/runners/runJobs.ts profile-search-index --userId=<newUserId>
 
-# 4. Presort feed
+# 4. Presort feed (incremental by default)
 pnpm tsx scripts/jobs/runners/runJobs.ts feed-presort --userId=<newUserId>
 ```
 
@@ -332,7 +332,7 @@ pnpm tsx scripts/jobs/runners/runJobs.ts match-scores --batchSize=100
 # 2. Rebuild search index
 pnpm tsx scripts/jobs/runners/runJobs.ts profile-search-index --userBatchSize=100
 
-# 3. Refresh feed presorts
+# 3. Refresh feed presorts (incremental by default)
 pnpm tsx scripts/jobs/runners/runJobs.ts feed-presort --batchSize=100
 ```
 

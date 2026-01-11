@@ -197,7 +197,7 @@ export function PostContentModal({ open, onClose, onPosted }: Props) {
 
     executeCleanup()
     onClose()
-  }, [busy, text, files.length, tags.length, executeCleanup, onClose])
+  }, [busy, text, files.length, tags.length, embedUrls.length, executeCleanup, onClose])
 
   // Simplified submit handler - orchestrator handles all coordination
   const handleSubmit = useCallback(async () => {

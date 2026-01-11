@@ -32,6 +32,10 @@ export type HydratedFeedItem = {
   post?: HydratedPost;
   suggestion?: HydratedSuggestion;
   question?: FeedQuestionCandidate & { presentation?: FeedPresentation };
+  actorId: bigint;
+  source: 'post' | 'match' | 'suggested' | 'question';
+  tier: 'self' | 'following' | 'followers' | 'everyone';
+  presentation?: FeedPresentation; // Flattened to top level for frontend
 };
 
 export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem[]): Promise<HydratedFeedItem[]> {
@@ -93,6 +97,9 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
         actorStats || postStats ? { ...(actorStats ?? {}), ...(postStats ?? {}) } : null;
       hydrated.push({
         type: 'post',
+        actorId: item.actorId,
+        source: item.source,
+        tier: item.tier,
         post: {
           ...postBase,
           media: postMediaByPostId.get(item.post.id) ?? [],
@@ -106,6 +113,9 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
       const { score: _score, matchScore: _matchScore, ...suggestionBase } = item.suggestion;
       hydrated.push({
         type: 'suggestion',
+        actorId: item.actorId,
+        source: item.source,
+        tier: item.tier,
         suggestion: {
           ...suggestionBase,
           media: mediaByUserId.get(item.suggestion.userId) ?? [],
@@ -117,6 +127,9 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
     } else if (item.type === 'question' && item.question) {
       hydrated.push({
         type: 'question',
+        actorId: item.actorId,
+        source: item.source,
+        tier: item.tier,
         question: {
           ...item.question,
           presentation: item.presentation ?? item.question.presentation

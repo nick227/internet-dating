@@ -198,6 +198,11 @@ export interface paths {
     post: {
     };
   };
+  "/api/admin/daemon/status": {
+    /** Get schedule daemon status and health */
+    get: {
+    };
+  };
   "/api/admin/schedules": {
     /** List all job schedules */
     get: {

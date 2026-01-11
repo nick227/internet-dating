@@ -8,6 +8,9 @@ import { hostname } from 'os';
 let workerId: string;
 const LOCK_TIMEOUT_MS = parseInt(process.env.LOCK_TIMEOUT_MS || '3600000', 10); // 1 hour default (was 5 min)
 const POLL_INTERVAL_MS = parseInt(process.env.SCHEDULE_POLL_INTERVAL_MS || '60000', 10);
+let intervalHandle: NodeJS.Timeout | null = null;
+let isProcessingTick = false;
+let isShuttingDown = false;
 
 // Environment check
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -42,7 +45,7 @@ async function syncScheduleDefinitions() {
   for (const schedule of schedules) {
     const existing = await prisma.jobSchedule.findUnique({
       where: { id: schedule.id }
-    });
+    }
 
     // New schedule: create disabled with nextRunAt calculated
     if (!existing) {
@@ -225,6 +228,7 @@ async function processSchedules() {
       continue;
     }
     
+    let updateSucceeded = false;
     try {
       console.log(`⏰ Processing schedule: ${definition.name}`);
       
@@ -240,26 +244,34 @@ async function processSchedules() {
         data: {
           lastRunAt: now,
           nextRunAt: nextRun,
-          runCount: { increment: 1 },
-          lockedAt: null, // Release lock
-          lockedBy: null
+          runCount: { increment: 1 }
         }
       });
-      
+
+      updateSucceeded = true;
       console.log(`✅ Schedule complete, next run: ${nextRun.toISOString()}`);
       
     } catch (err) {
-      console.error(`❌ Failed to process "${definition.name}":`, err);
+      console.error(`? Failed to process "${definition.name}":`, err);
       
       // Release lock and increment failure count
-      await prisma.jobSchedule.update({
-        where: { id: dbSchedule.id },
-        data: {
-          failureCount: { increment: 1 },
-          lockedAt: null,
-          lockedBy: null
-        }
-      });
+      try {
+        await prisma.jobSchedule.update({
+          where: { id: dbSchedule.id },
+          data: {
+            failureCount: { increment: 1 }
+          }
+        });
+      } catch (updateError) {
+        console.error(`? Failed to record failure for "${definition.name}":`, updateError);
+      }
+    } finally {
+      try {
+        await releaseLock(dbSchedule.id);
+      } catch (releaseError) {
+        const suffix = updateSucceeded ? '' : ' (after failure)';
+        console.error(`? Failed to release lock for "${definition.name}"${suffix}:`, releaseError);
+      }
     }
   }
 }
@@ -272,6 +284,47 @@ async function updateHeartbeat() {
     where: { id: workerId },
     data: { lastHeartbeatAt: new Date() }
   });
+}
+
+async function runDaemonTick() {
+  if (isProcessingTick) {
+    console.log('?  Previous tick still running, skipping this interval');
+    return;
+  }
+  isProcessingTick = true;
+  try {
+    await processSchedules();
+  } finally {
+    isProcessingTick = false;
+  }
+}
+
+async function shutdown(signal: string) {
+  if (isShuttingDown) {
+    return;
+  }
+  isShuttingDown = true;
+  console.log(`?? Received ${signal}, shutting down gracefully...`);
+  if (intervalHandle) {
+    clearInterval(intervalHandle);
+    intervalHandle = null;
+  }
+  try {
+    if (workerId) {
+      await prisma.workerInstance.update({
+        where: { id: workerId },
+        data: { status: 'STOPPED', stoppedAt: new Date() }
+      });
+    }
+  } catch (err) {
+    console.error(`? Failed to update worker status on ${signal}:`, err);
+  }
+  try {
+    await prisma.$disconnect();
+  } catch (err) {
+    console.error(`? Failed to disconnect prisma on ${signal}:`, err);
+  }
+  process.exit(0);
 }
 
 /**
@@ -298,39 +351,27 @@ async function main() {
   // Cleanup stalled locks once at startup (not during operation to avoid premature release)
   await cleanupStalledLocks();
   
-  // Poll using setInterval
-  setInterval(async () => {
-    try {
-      await updateHeartbeat();
-      await processSchedules();
-    } catch (err) {
-      console.error('❌ Error in daemon loop:', err);
-    }
-  }, POLL_INTERVAL_MS);
+  // Initial run before starting the interval to avoid overlap on long runs
+  await runDaemonTick();
   
-  // Initial run
-  await processSchedules();
+  // Poll using setInterval
+  intervalHandle = setInterval(() => {
+    void updateHeartbeat().catch((err) => {
+      console.error('? Error updating heartbeat:', err);
+    });
+    void runDaemonTick().catch((err) => {
+      console.error('? Error in daemon loop:', err);
+    });
+  }, POLL_INTERVAL_MS);
 }
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('📴 Received SIGTERM, shutting down gracefully...');
-  await prisma.workerInstance.update({
-    where: { id: workerId },
-    data: { status: 'STOPPED', stoppedAt: new Date() }
-  });
-  await prisma.$disconnect();
-  process.exit(0);
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
 });
 
-process.on('SIGINT', async () => {
-  console.log('📴 Received SIGINT, shutting down gracefully...');
-  await prisma.workerInstance.update({
-    where: { id: workerId },
-    data: { status: 'STOPPED', stoppedAt: new Date() }
-  });
-  await prisma.$disconnect();
-  process.exit(0);
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
 });
 
 // Start the daemon

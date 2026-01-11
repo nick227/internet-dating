@@ -55,9 +55,10 @@ export type FeedConfig = {
 };
 
 // Sequence-first configuration:
-// Example: 2 video posts -> 1 mosaic post -> 1 suggestion -> 1 quiz -> repeat.
+// Example: 2 video posts -> 1 mosaic post (image or mixed) -> 1 suggestion -> 1 quiz -> repeat.
 const sequence: FeedSlot[] = [
   { kind: 'post', mediaType: 'video', count: 2, presentation: 'single' },
+  { kind: 'post', mediaType: 'mixed', count: 1, presentation: 'mosaic' },
   { kind: 'post', mediaType: 'image', count: 1, presentation: 'mosaic' },
   { kind: 'suggestion', count: 1, presentation: 'single' },
   { kind: 'question', count: 1 }
@@ -80,3 +81,7 @@ export const feedConfig = {
     }
   }
 } as const satisfies FeedConfig;
+
+// Bump this version whenever you modify the sequence or weights
+// to ensure the presort job invalidates its cache.
+export const FEED_CONFIG_VERSION = 'v3';

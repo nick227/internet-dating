@@ -1,10 +1,11 @@
 import { prisma } from '../lib/prisma/client.js'
 import { runJob } from '../lib/jobs/runJob.js'
 import { getCandidates } from '../registry/domains/feed/candidates/index.js'
+import { FEED_CONFIG_VERSION } from '../registry/domains/feed/config.js'
 import { scoreCandidatesWithoutSeen } from './feedPresortScoring.js'
 import { mergeAndRank } from '../registry/domains/feed/ranking/index.js'
 import { generatePhase1JSON, convertToPresortedItem } from './feedPresortPhase1.js'
-import { storePresortedSegment, type PresortedFeedItem } from '../services/feed/presortedFeedService.js'
+import { getPresortedSegment, storePresortedSegment, type PresortedFeedItem } from '../services/feed/presortedFeedService.js'
 import type { ViewerContext, FeedItem } from '../registry/domains/feed/types.js'
 import { hashKeyValues, isJobFresh, upsertJobFreshness } from '../lib/jobs/shared/freshness.js'
 import { logger } from '../lib/logger/logger.js'
@@ -14,6 +15,8 @@ type FeedPresortJobOptions = {
   batchSize?: number
   segmentSize?: number
   maxSegments?: number
+  incremental?: boolean
+  noJitter?: boolean
 }
 
 // Configuration constants with clear documentation
@@ -24,8 +27,8 @@ const DEFAULT_CONFIG = {
   segmentSize: 20,
   // Maximum segments to precompute (balance between freshness and precomputation)
   maxSegments: 3,
-  // Algorithm version for cache invalidation on algorithm changes
-  algorithmVersion: 'v1',
+  // Algorithm version linked to config to auto-invalidate on changes
+  algorithmVersion: FEED_CONFIG_VERSION,
   // TTL should match or slightly exceed job run frequency to prevent gaps
   ttlMinutes: 30,
   // Concurrent user processing limit (based on database connection pool size)
@@ -55,7 +58,8 @@ type FeedPresortMetrics = {
  */
 async function buildFeedPresortInputHash(
   userId: bigint,
-  options: FeedPresortJobOptions
+  options: FeedPresortJobOptions,
+  relevantPostUpdatedAt: Date | null
 ): Promise<string> {
   const [latestMatchScore, latestLike] = await Promise.all([
     prisma.matchScore.findFirst({
@@ -74,9 +78,11 @@ async function buildFeedPresortInputHash(
     ['algorithmVersion', DEFAULT_CONFIG.algorithmVersion],
     ['segmentSize', options.segmentSize ?? DEFAULT_CONFIG.segmentSize],
     ['maxSegments', options.maxSegments ?? DEFAULT_CONFIG.maxSegments],
+    ['incremental', options.incremental ?? false],
     ['matchScoreAt', latestMatchScore?.scoredAt?.toISOString() ?? null],
     ['matchScoreVersion', latestMatchScore?.algorithmVersion ?? null],
     ['latestLikeAt', latestLike?.createdAt?.toISOString() ?? null],
+    ['relevantPostUpdatedAt', relevantPostUpdatedAt?.toISOString() ?? null],
   ])
 }
 
@@ -319,8 +325,23 @@ async function presortFeedForUser(
   const scope = `user:${userId}`
 
   // Check freshness - skip if inputs haven't changed
-  const inputHash = await buildFeedPresortInputHash(userId, options)
-  if (await isJobFresh('feed-presort', scope, inputHash)) {
+  const existingSegment = await getPresortedSegment(userId, 0)
+  let relevantPostUpdatedAt: Date | null = null
+
+  if (options.incremental && existingSegment && existingSegment.items.length > 0) {
+    const actorIds = Array.from(new Set(existingSegment.items.map((item) => item.actorId)))
+    if (actorIds.length > 0) {
+      const latestRelevantPost = await prisma.post.findFirst({
+        where: { userId: { in: actorIds }, deletedAt: null },
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+      })
+      relevantPostUpdatedAt = latestRelevantPost?.updatedAt ?? null
+    }
+  }
+
+  const inputHash = await buildFeedPresortInputHash(userId, options, relevantPostUpdatedAt)
+  if (existingSegment && (await isJobFresh('feed-presort', scope, inputHash))) {
     return {
       userId,
       candidatesFetched: 0,
@@ -331,10 +352,12 @@ async function presortFeedForUser(
     }
   }
 
+
   // Calculate optimal candidate count based on actual needs
   const segmentSize = options.segmentSize ?? DEFAULT_CONFIG.segmentSize
   const maxSegments = options.maxSegments ?? DEFAULT_CONFIG.maxSegments
-  const targetItems = segmentSize * maxSegments
+  const targetSegments = options.incremental ? 1 : maxSegments
+  const targetItems = segmentSize * targetSegments
   // Fetch extra candidates to account for deduplication and filtering (typically ~20% overhead)
   const candidateCount = Math.ceil(targetItems * 1.2)
 
@@ -375,7 +398,7 @@ async function presortFeedForUser(
   }> = []
 
   const availableSegments = Math.ceil(presortedItems.length / segmentSize)
-  const effectiveMaxSegments = Math.min(maxSegments, availableSegments)
+  const effectiveMaxSegments = Math.min(targetSegments, availableSegments)
 
   for (let i = 0; i < effectiveMaxSegments; i++) {
     const start = i * segmentSize
@@ -445,6 +468,7 @@ export async function runFeedPresortJob(options: FeedPresortJobOptions = {}) {
         batchSize: options.batchSize ?? DEFAULT_CONFIG.batchSize,
         segmentSize: options.segmentSize ?? DEFAULT_CONFIG.segmentSize,
         maxSegments: options.maxSegments ?? DEFAULT_CONFIG.maxSegments,
+        incremental: options.incremental ?? false,
       },
     },
     async () => {
@@ -461,8 +485,10 @@ export async function runFeedPresortJob(options: FeedPresortJobOptions = {}) {
 
       // Batch processing with jitter to prevent thundering herd
       // Jitter is proportional to job interval (10% of 30min = 3min max)
-      const jitter = Math.floor(Math.random() * DEFAULT_CONFIG.maxJitterMs)
-      await new Promise((resolve) => setTimeout(resolve, jitter))
+      if (!options.noJitter && process.env.JOB_RUNNER !== 'cli') {
+        const jitter = Math.floor(Math.random() * DEFAULT_CONFIG.maxJitterMs)
+        await new Promise((resolve) => setTimeout(resolve, jitter))
+      }
 
       let lastId: bigint | null = null
       let processedUsers = 0
@@ -470,6 +496,7 @@ export async function runFeedPresortJob(options: FeedPresortJobOptions = {}) {
       let totalSegments = 0
       let totalSkipped = 0
       let totalDuration = 0
+      let skippedUsers = 0
 
       // Pagination through all users
       for (;;) {
@@ -500,11 +527,23 @@ export async function runFeedPresortJob(options: FeedPresortJobOptions = {}) {
             totalSegments += metrics.segmentsGenerated
             totalSkipped += metrics.itemsSkipped
             totalDuration += metrics.durationMs
+            if (metrics.candidatesFetched === 0 && metrics.segmentsGenerated === 0) {
+              skippedUsers += 1
+            }
           }
         }
       }
 
       const avgDuration = processedUsers > 0 ? Math.round(totalDuration / processedUsers) : 0
+
+      console.log('[feed-presort] Summary', {
+        processedUsers,
+        skippedUsers,
+        totalCandidates,
+        totalSegments,
+        totalSkipped,
+        avgDurationMs: avgDuration
+      })
 
       return { 
         processedUsers,

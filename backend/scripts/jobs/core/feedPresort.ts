@@ -14,14 +14,17 @@ export const feedPresortJob: JobDefinition = {
     batchSize: 100,
     segmentSize: 20,
     maxSegments: 3,
-    incremental: false
+    incremental: true
   },
   run: async () => {
     const userId = parseBigIntArg('--userId');
     const batchSize = parseIntArg('--batchSize', 100);
     const segmentSize = parseIntArg('--segmentSize', 20);
     const maxSegments = parseIntArg('--maxSegments', 3);
-    const incremental = parseFlag('--incremental');
+    const incremental = process.argv.includes('--incremental=false') ? false : true;
+    const noJitter = parseFlag('--noJitter');
+
+    console.log('Running presort with options:', { userId, batchSize, segmentSize, maxSegments, incremental, noJitter });
 
     await runFeedPresortJob({
       userId,
@@ -29,6 +32,7 @@ export const feedPresortJob: JobDefinition = {
       segmentSize,
       maxSegments,
       incremental,
+      noJitter,
     });
   }
 };

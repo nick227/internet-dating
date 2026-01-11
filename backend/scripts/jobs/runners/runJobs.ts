@@ -4,6 +4,7 @@ import { loadEnv } from '../../../src/lib/jobs/shared/utils.js';
 import { getJob, getAllJobs, printUsage } from '../../../src/lib/jobs/shared/registry.js';
 
 loadEnv();
+process.env.JOB_RUNNER = 'cli';
 
 const PIPELINES: Record<string, string[]> = {
   matching: ['match-scores', 'compatibility'],
@@ -114,7 +115,10 @@ async function main() {
         continue;
       }
       console.log(`Running job: ${jobName}`);
+      const startedAt = Date.now();
       await job.run();
+      const durationMs = Date.now() - startedAt;
+      console.log(`Completed job: ${jobName} in ${(durationMs / 1000).toFixed(2)}s`);
     }
     console.log('All jobs completed.');
     return;
@@ -129,8 +133,10 @@ async function main() {
     return;
   }
 
+  const startedAt = Date.now();
   await job.run();
-  console.log(`Job "${command}" completed.`);
+  const durationMs = Date.now() - startedAt;
+  console.log(`Job "${command}" completed in ${(durationMs / 1000).toFixed(2)}s.`);
 }
 
 const isDirect = process.argv[1] === fileURLToPath(import.meta.url);

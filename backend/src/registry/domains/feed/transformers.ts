@@ -1,5 +1,6 @@
 // Feed item transformation functions
 import type { FeedItem } from './types.js';
+import type { HydratedFeedItem } from './hydration/index.js';
 import { FeedItemKind } from './constants.js';
 
 export type Phase1Item = {
@@ -22,7 +23,7 @@ export type Phase1Item = {
  * Transform hydrated feed item to Phase-1 lite format
  * Centralizes the duplicate transformation logic
  */
-export function toPhase1Item(item: FeedItem): Phase1Item {
+export function toPhase1Item(item: FeedItem | HydratedFeedItem): Phase1Item {
   if (item.type === 'post' && item.post) {
     return {
       id: String(item.post.id),
