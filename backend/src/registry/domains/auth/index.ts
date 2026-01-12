@@ -10,19 +10,16 @@ import {
 } from '../../../lib/auth/jwt.js';
 
 const getCookieOpts = (rememberMe: boolean = false) => {
-  // Cookie settings for Chrome compatibility:
-  // - Production: 'none' + secure (required for cross-site cookies)
-  // - Development: 'lax' + !secure (Chrome allows this for localhost)
-  // Note: Chrome is stricter about cookie timing and navigation context
+  // Cookie settings for same-domain deployment (Railway serves frontend + backend on same domain):
+  // - Use 'lax' for both dev and prod since frontend/backend share the same domain
+  // - 'none' is only needed for cross-domain cookies, which we don't have
+  // - secure: true still required in production for HTTPS
   const isProduction = process.env.NODE_ENV === 'production';
-  const sameSite = isProduction ? ('none' as const) : ('lax' as const);
   const base = {
     httpOnly: true,
-    sameSite,
-    secure: isProduction,
+    sameSite: 'lax' as const,  // Works for same-domain, more permissive than 'none'
+    secure: isProduction,      // Still require HTTPS in production
     path: '/',
-    // Add explicit domain for localhost (Chrome sometimes needs this)
-    ...(process.env.NODE_ENV !== 'production' ? {} : {}), // No domain for localhost
   };
   
   if (rememberMe) {
