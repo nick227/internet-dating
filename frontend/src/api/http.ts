@@ -48,6 +48,18 @@ export async function http<T>(
     : timeoutController.signal
 
   try {
+    // Log auth requests with cookie info for debugging
+    if (url.includes('/auth/')) {
+      const cookies = document.cookie;
+      const hasAuthCookies = cookies.includes('access_token') || cookies.includes('refresh_token');
+      console.log('[DEBUG] http: Auth request', { 
+        url, 
+        method, 
+        hasAuthCookies,
+        cookieCount: cookies.split(';').filter(c => c.trim()).length
+      });
+    }
+    
     const res = await fetch(url, {
       method,
       credentials: 'include',
@@ -59,6 +71,15 @@ export async function http<T>(
     })
     
     clearTimeout(timeoutId)
+    
+    // Log auth response for debugging
+    if (url.includes('/auth/')) {
+      console.log('[DEBUG] http: Auth response', { 
+        url, 
+        status: res.status,
+        ok: res.ok
+      });
+    }
 
     const data = await readResponseBody(res, url)
 

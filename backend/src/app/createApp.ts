@@ -22,9 +22,22 @@ export function createApp() {
   // Request logging AFTER parsing
   app.use((req, res, next) => {
     const start = Date.now();
+    
+    // Extra logging for /api/auth/me to debug timeout issue
+    if (req.url === '/api/auth/me') {
+      process.stdout.write(`[${new Date().toISOString()}] >>> START ${req.method} ${req.url}\n`);
+      process.stdout.write(`[request] Headers: ${JSON.stringify({ cookie: req.headers.cookie })}\n`);
+    }
+    
     res.on('finish', () => {
       const duration = Date.now() - start;
-      process.stdout.write(`[${new Date().toISOString()}] ${req.method} ${req.url} ${res.statusCode} ${duration}ms\n`);
+      const logLine = `[${new Date().toISOString()}] ${req.method} ${req.url} ${res.statusCode} ${duration}ms\n`;
+      
+      if (duration > 1000 || req.url === '/api/auth/me') {
+        process.stdout.write(`>>> ${logLine}`);
+      } else {
+        process.stdout.write(logLine);
+      }
     });
     next();
   });
@@ -32,6 +45,28 @@ export function createApp() {
   // Health check - minimal, synchronous
   app.get('/health', (_req, res) => {
     res.status(200).json({ ok: true });
+  });
+  
+  // Database health check
+  app.get('/health/db', async (_req, res) => {
+    try {
+      const start = Date.now();
+      const { prisma } = await import('../lib/prisma/client.js');
+      
+      // Simple query with timeout
+      const queryPromise = prisma.$queryRaw`SELECT 1 as result`;
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('DB query timeout')), 5000);
+      });
+      
+      await Promise.race([queryPromise, timeoutPromise]);
+      const duration = Date.now() - start;
+      
+      res.status(200).json({ ok: true, dbLatency: duration });
+    } catch (err) {
+      process.stderr.write(`[health/db] Database check failed: ${String(err)}\n`);
+      res.status(503).json({ ok: false, error: String(err) });
+    }
   });
 
   // Test route to verify requests reach the server

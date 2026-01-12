@@ -157,21 +157,49 @@ export const authDomain: DomainRegistry = {
       summary: 'Return current user id and role',
       tags: ['auth'],
       handler: async (req, res) => {
+        const startTime = Date.now();
         const userId = req.ctx?.userId;
+        
+        process.stdout.write(`[auth/me] Request received, userId=${userId ?? 'null'}\n`);
+        
         if (!userId) {
+          process.stdout.write('[auth/me] No userId in context, returning 401\n');
           return json(res, { error: 'User ID not found' }, 401);
         }
         
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { id: true, role: true }
-        });
-        
-        if (!user) {
-          return json(res, { error: 'User not found' }, 404);
+        try {
+          process.stdout.write(`[auth/me] Starting database query for userId=${userId}\n`);
+          
+          // Add timeout to database query (10 seconds)
+          const queryPromise = prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, role: true }
+          });
+          
+          const timeoutPromise = new Promise<null>((_, reject) => {
+            setTimeout(() => reject(new Error('Database query timeout')), 10000);
+          });
+          
+          const user = await Promise.race([queryPromise, timeoutPromise]);
+          
+          const duration = Date.now() - startTime;
+          process.stdout.write(`[auth/me] Database query completed in ${duration}ms\n`);
+          
+          if (!user) {
+            process.stdout.write(`[auth/me] User not found in database, userId=${userId}\n`);
+            return json(res, { error: 'User not found' }, 404);
+          }
+          
+          process.stdout.write(`[auth/me] Success, returning user data, duration=${duration}ms\n`);
+          return json(res, { userId: user.id, role: user.role });
+        } catch (err) {
+          const duration = Date.now() - startTime;
+          process.stderr.write(`[auth/me] Error after ${duration}ms: ${String(err)}\n`);
+          if (err instanceof Error && err.stack) {
+            process.stderr.write(`[auth/me] Stack: ${err.stack}\n`);
+          }
+          return json(res, { error: 'Internal server error' }, 500);
         }
-        
-        return json(res, { userId: user.id, role: user.role });
       }
     }
   ]

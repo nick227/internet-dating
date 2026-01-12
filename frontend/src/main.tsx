@@ -10,10 +10,17 @@ if (DEBUG) {
   console.log('[DEBUG] main.tsx: App starting', { timestamp: Date.now(), url: window.location.href })
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// Only enable StrictMode in development - it's safe in production but adds unnecessary overhead
+const AppRoot = import.meta.env.DEV ? (
   <React.StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <App />
     </BrowserRouter>
   </React.StrictMode>
+) : (
+  <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <App />
+  </BrowserRouter>
 )
+
+ReactDOM.createRoot(document.getElementById('root')!).render(AppRoot)
