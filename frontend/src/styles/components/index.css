@@ -14,6 +14,7 @@
 @import './navigation/index.css';
 @import './capture/index.css';
 @import './river/index.css';
+@import './grid/index.css';
 @import './comments/index.css';
 @import './mosaic/index.css';
 @import './overlays/index.css';

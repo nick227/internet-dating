@@ -11,7 +11,7 @@ import { hydrateFeedItems } from '../hydration/index.js';
 import { hydrateFeedItemsFromPresorted } from '../hydration/presorted.js';
 import { validatePresortedSegment } from '../validation.js';
 import { buildRelationshipFilters } from './seenService.js';
-import type { ViewerContext, FeedItem, FeedDebugSummary } from '../types.js';
+import type { ViewerContext, FeedItem, FeedItemOrGrid, FeedDebugSummary } from '../types.js';
 import type { HydratedFeedItem } from '../hydration/index.js';
 import type { PresortedFeedItem } from '../../../../services/feed/presortedFeedService.js';
 
@@ -73,15 +73,74 @@ function filterPresortedItems(
   relationshipPostIds: Set<bigint>,
   relationshipActorIds: Set<bigint>
 ): PresortedFeedItem[] {
-  return items.filter((item) => {
+  const filtered: PresortedFeedItem[] = [];
+
+  for (const item of items) {
     if (item.type === 'post') {
-      return !relationshipPostIds.has(BigInt(item.id));
+      if (!relationshipPostIds.has(BigInt(item.id))) filtered.push(item);
+      continue;
     }
     if (item.type === 'suggestion') {
-      return !relationshipActorIds.has(item.actorId);
+      if (!relationshipActorIds.has(item.actorId)) filtered.push(item);
+      continue;
     }
-    return true;
-  });
+    if (item.type === 'grid') {
+      const keptChildren = item.items.filter((child) => {
+        if (child.type === 'post') {
+          return !relationshipPostIds.has(BigInt(child.id));
+        }
+        if (child.type === 'suggestion') {
+          return !relationshipActorIds.has(child.actorId);
+        }
+        return true;
+      });
+      if (keptChildren.length > 0) {
+        const nextScore = keptChildren.reduce((max, child) => Math.max(max, child.score), 0);
+        filtered.push({ ...item, items: keptChildren, score: nextScore });
+      }
+      continue;
+    }
+    filtered.push(item);
+  }
+
+  return filtered;
+}
+
+function filterFeedItems(
+  items: FeedItemOrGrid[],
+  relationshipPostIds: Set<bigint>,
+  relationshipActorIds: Set<bigint>
+): FeedItemOrGrid[] {
+  const filtered: FeedItemOrGrid[] = [];
+
+  for (const item of items) {
+    if (item.type === 'post' && item.post) {
+      if (!relationshipPostIds.has(item.post.id)) filtered.push(item);
+      continue;
+    }
+    if (item.type === 'suggestion' && item.suggestion) {
+      if (!relationshipActorIds.has(item.suggestion.userId)) filtered.push(item);
+      continue;
+    }
+    if (item.type === 'grid') {
+      const keptChildren = item.grid.items.filter((child) => {
+        if (child.type === 'post' && child.post) {
+          return !relationshipPostIds.has(child.post.id);
+        }
+        if (child.type === 'suggestion' && child.suggestion) {
+          return !relationshipActorIds.has(child.suggestion.userId);
+        }
+        return true;
+      });
+      if (keptChildren.length > 0) {
+        filtered.push({ ...item, grid: { items: keptChildren } });
+      }
+      continue;
+    }
+    filtered.push(item);
+  }
+
+  return filtered;
 }
 
 /**
@@ -132,6 +191,22 @@ async function fetchPresortedFeed(
 
   const { segment: validSegment } = validation;
   const remaining = Math.max(limit - relationshipItems.length, 0);
+  const presortedPresentationByPostId = new Map<bigint, PresortedFeedItem['presentation']>();
+  for (const item of validSegment.items) {
+    if (item.type === 'post' && item.presentation) {
+      presortedPresentationByPostId.set(BigInt(item.id), item.presentation);
+    }
+  }
+
+  const enrichedRelationshipItems = relationshipItems.map((item) => {
+    if (item.type !== 'post' || item.presentation) return item;
+    const presentation = presortedPresentationByPostId.get(item.post?.id ?? 0n);
+    if (!presentation) return item;
+    return {
+      ...item,
+      presentation,
+    };
+  });
 
   // Filter out relationship items
   const filtered = filterPresortedItems(
@@ -146,7 +221,7 @@ async function fetchPresortedFeed(
   // Hydrate items
   const itemsToHydrate = remaining > 0 ? penalized.slice(0, remaining) : [];
   const [hydratedRelationship, hydratedPresorted] = await Promise.all([
-    relationshipItems.length ? hydrateFeedItems(ctx, relationshipItems) : Promise.resolve([]),
+    enrichedRelationshipItems.length ? hydrateFeedItems(ctx, enrichedRelationshipItems) : Promise.resolve([]),
     itemsToHydrate.length ? hydrateFeedItemsFromPresorted(ctx, itemsToHydrate) : Promise.resolve([]),
   ]);
 
@@ -174,15 +249,7 @@ async function fetchFallbackFeed(
   console.log('[feedService] Fallback feed used. First 5 items presentation:', ranked.slice(0, 5).map(i => ({ type: i.type, presentation: i.presentation, mediaType: i.post?.mediaType })));
 
   // Filter ranked items by relationship items
-  const filteredRanked = ranked.filter((item) => {
-    if (item.type === 'post' && item.post) {
-      return !relationshipPostIds.has(item.post.id);
-    }
-    if (item.type === 'suggestion' && item.suggestion) {
-      return !relationshipActorIds.has(item.suggestion.userId);
-    }
-    return true;
-  });
+  const filteredRanked = filterFeedItems(ranked, relationshipPostIds, relationshipActorIds);
 
   const combined = [...relationshipItems, ...filteredRanked];
   const itemsToHydrate = combined.slice(0, limit);

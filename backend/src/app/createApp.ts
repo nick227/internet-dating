@@ -11,9 +11,22 @@ import { mediaService, MediaError } from '../services/media/mediaService.js';
 
 export function createApp() {
   const app = express();
+  const devHttps = process.env.DEV_HTTPS === '1' || process.env.DEV_HTTPS === 'true';
+  const corsOriginEnv = process.env.CORS_ORIGIN;
+  const defaultCorsOrigin = devHttps ? 'https://localhost:5173' : 'http://localhost:5173';
+  const corsOrigins = corsOriginEnv
+    ? corsOriginEnv.split(',').map(origin => origin.trim()).filter(Boolean)
+    : [defaultCorsOrigin];
   
   // CORS must be first, before any request logging
-  app.use(cors({ origin: true, credentials: true }));
+  app.use(cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (corsOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  }));
   
   // Then parse body and cookies
   app.use(express.json({ limit: '2mb' }));

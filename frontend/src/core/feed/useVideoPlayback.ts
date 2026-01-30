@@ -39,7 +39,7 @@ export function useVideoPlayback(
             .catch(e => {
               // Autoplay failed (user interaction required, policy restriction, etc.)
               if (import.meta.env?.DEV) {
-                console.debug('[video] autoplay failed', e)
+                // console.debug('[video] autoplay failed', e)
               }
               setIsPlaying(false)
             })

@@ -6,7 +6,7 @@ type SequenceSlot = {
   mediaType?: 'video' | 'image' | 'text' | 'mixed' | 'any'
   source?: 'match' | 'suggested'
   count?: number
-  presentation?: 'single' | 'mosaic' | 'highlight'
+  presentation?: 'single' | 'mosaic' | 'grid' | 'highlight'
 }
 
 function expandSequence(sequence: readonly SequenceSlot[]) {
@@ -87,7 +87,7 @@ export function applyFeedSequence(rankedItems: FeedItem[]): FeedItem[] {
 
   const takeNextPostForLayout = (
     mediaType?: SequenceSlot['mediaType'],
-    presentation?: 'single' | 'mosaic' | 'highlight'
+    presentation?: 'single' | 'mosaic' | 'grid' | 'highlight'
   ): FeedItem | null => {
     if (!presentation) return takeNextPost(mediaType)
     const matched = takeNextPost(mediaType)

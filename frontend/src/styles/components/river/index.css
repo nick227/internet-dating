@@ -131,6 +131,8 @@
 .riverCard__videoControls--visible {
   opacity: 1;
   pointer-events: auto;
+  height: 75px;
+  margin: auto;
 }
 .riverCard__videoPlayBtn {
   width: var(--component-size-play-btn);

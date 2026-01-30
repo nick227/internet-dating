@@ -184,7 +184,7 @@ const schemas = {
   FeedPresentation: {
     type: 'object',
     properties: {
-      mode: { type: 'string', enum: ['single', 'mosaic', 'question', 'highlight'] },
+        mode: { type: 'string', enum: ['single', 'mosaic', 'grid', 'question', 'highlight'] },
       accent: { type: ['string', 'null'], enum: ['match', 'boost', 'new', null] }
     },
     required: ['mode']
@@ -252,7 +252,7 @@ const schemas = {
     },
     required: ['suggestions', 'nextCursorId']
   },
-  FeedItem: {
+  FeedItemLeaf: {
     type: 'object',
     properties: {
       type: { type: 'string', enum: ['post', 'suggestion', 'question'] },
@@ -261,6 +261,16 @@ const schemas = {
       question: { anyOf: [ref('FeedQuestion'), { type: 'null' }] }
     },
     required: ['type']
+  },
+  FeedCardType: { type: 'string', enum: ['single', 'grid'] },
+  FeedCard: {
+    type: 'object',
+    properties: {
+      cardType: ref('FeedCardType'),
+      presentation: { anyOf: [ref('FeedPresentation'), { type: 'null' }] },
+      items: { type: 'array', items: ref('FeedItemLeaf') }
+    },
+    required: ['cardType', 'items']
   },
   FeedDebug: {
     type: 'object',
@@ -316,7 +326,7 @@ const schemas = {
   FeedResponse: {
     type: 'object',
     properties: {
-      items: { type: 'array', items: ref('FeedItem') },
+      items: { type: 'array', items: ref('FeedCard') },
       nextCursorId: { anyOf: [ref('Id'), { type: 'null' }] },
       hasMorePosts: { type: 'boolean' },
       debug: { anyOf: [ref('FeedDebug'), { type: 'null' }] }

@@ -16,13 +16,23 @@ export type SeenRecordItem = {
 export async function recordSeenItems(
   userId: bigint | null,
   markSeen: boolean,
-  items: SeenRecordItem[]
+  items: Array<SeenRecordItem | { type: 'grid'; grid?: { items: SeenRecordItem[] } }>
 ): Promise<void> {
   if (!markSeen || !userId || items.length === 0) return;
 
   const seenItems: Array<{ itemType: 'POST' | 'SUGGESTION'; itemId: bigint }> = [];
 
   for (const item of items) {
+    if (item.type === 'grid') {
+      for (const child of item.grid?.items ?? []) {
+        if (child.type === 'post' && child.post) {
+          seenItems.push({ itemType: SeenItemType.POST, itemId: child.post.id });
+        } else if (child.type === 'suggestion' && child.suggestion) {
+          seenItems.push({ itemType: SeenItemType.SUGGESTION, itemId: child.suggestion.userId });
+        }
+      }
+      continue;
+    }
     if (item.type === 'post' && item.post) {
       seenItems.push({ itemType: SeenItemType.POST, itemId: item.post.id });
     } else if (item.type === 'suggestion' && item.suggestion) {
@@ -43,22 +53,24 @@ export function extractSeenItemsFromPhase1(
   phase1Json: string
 ): Array<{ itemType: 'POST' | 'SUGGESTION'; itemId: bigint }> {
   const parsed = JSON.parse(phase1Json) as {
-    items?: Array<{ id: string; kind: string }>;
+    items?: Array<{ cardType?: string; items?: Array<{ id: string; kind: string }> }>;
   };
 
   if (!parsed.items?.length) return [];
 
-  return parsed.items
-    .map((item) => {
-      if (item.kind === 'post') {
-        return { itemType: SeenItemType.POST, itemId: BigInt(item.id) };
+  const seen: Array<{ itemType: 'POST' | 'SUGGESTION'; itemId: bigint }> = [];
+
+  for (const card of parsed.items) {
+    for (const child of card.items ?? []) {
+      if (child.kind === 'post') {
+        seen.push({ itemType: SeenItemType.POST, itemId: BigInt(child.id) });
+      } else if (child.kind === 'profile') {
+        seen.push({ itemType: SeenItemType.SUGGESTION, itemId: BigInt(child.id) });
       }
-      if (item.kind === 'profile') {
-        return { itemType: SeenItemType.SUGGESTION, itemId: BigInt(item.id) };
-      }
-      return null;
-    })
-    .filter((item): item is { itemType: 'POST' | 'SUGGESTION'; itemId: bigint } => item !== null);
+    }
+  }
+
+  return seen;
 }
 
 /**

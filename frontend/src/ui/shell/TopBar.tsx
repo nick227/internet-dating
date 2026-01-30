@@ -47,7 +47,7 @@ export function TopBar({
           onClick={onUserClick}
           aria-disabled={user.loading}
         >
-          Home
+          Profile
         </a> / 
         <a
           className="topBar__link"

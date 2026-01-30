@@ -91,7 +91,7 @@ export type FeedCardContent = {
 }
 
 export type FeedCardPresentation = {
-  mode: 'single' | 'mosaic' | 'question' | 'highlight'
+  mode: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight'
   heroIndex?: number
   overlayStyle?: 'light' | 'dark'
   accent?: 'match' | 'boost' | 'new' | null
@@ -117,6 +117,7 @@ export type FeedCardFlags = {
   reason?: string
   optimistic?: boolean
   failed?: boolean // Set to true when optimistic post fails to confirm
+  grid?: boolean // Composite grid card
 }
 
 export type FeedCardQuestionOption = {

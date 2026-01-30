@@ -366,7 +366,7 @@ export function HeroMediaPicker({
                     const preview = media.thumbUrl ?? media.url
                     const isVideo = media.type === 'VIDEO'
                     return (
-                      <button
+                      <a
                         key={String(media.id)}
                         className="heroMediaPicker__item"
                         onClick={() => handleLibrarySelect(media.id)}
@@ -395,7 +395,7 @@ export function HeroMediaPicker({
                           />
                         )}
                         {isVideo && <div className="heroMediaPicker__badge">Video</div>}
-                      </button>
+                      </a>
                     )
                   })}
                 </div>

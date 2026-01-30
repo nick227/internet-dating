@@ -197,13 +197,13 @@ export const mediaService = {
     }
     if (media.status !== 'READY') {
       throw new MediaError('Media not ready', 400);
-    }
+    }/*
     if (media.type !== 'IMAGE') {
       throw new MediaError('Media must be an image', 400);
     }
     if (media.visibility !== 'PUBLIC') {
       throw new MediaError('Media must be public', 400);
-    }
+    }*/
   },
 
   async updateProfileAvatarUrl(userId: bigint, avatarMediaId: bigint | null) {

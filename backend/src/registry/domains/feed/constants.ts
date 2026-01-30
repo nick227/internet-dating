@@ -7,6 +7,7 @@ export const FeedItemType = {
   POST: 'post',
   SUGGESTION: 'suggestion',
   QUESTION: 'question',
+  GRID: 'grid',
 } as const;
 
 export const FeedItemKind = {
@@ -20,6 +21,7 @@ export const FeedSource = {
   MATCH: 'match',
   SUGGESTED: 'suggested',
   QUESTION: 'question',
+  GRID: 'grid',
 } as const;
 
 export const FeedTier = {

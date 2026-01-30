@@ -23,7 +23,7 @@ export type FeedMediaRecord = {
 }
 
 export type FeedPresentation = {
-  mode: 'single' | 'mosaic' | 'question' | 'highlight'
+  mode: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight'
   accent?: 'match' | 'boost' | 'new' | null
 }
 
@@ -84,6 +84,27 @@ export type FeedItem = {
   presentation?: FeedPresentation
 }
 
+export type FeedGridChildItem = {
+  type: 'post' | 'suggestion' | 'question'
+  post?: FeedPostCandidate
+  suggestion?: FeedSuggestionCandidate
+  question?: FeedQuestionCandidate
+  actorId: bigint
+  source: 'post' | 'match' | 'suggested' | 'question'
+  presentation?: FeedPresentation
+}
+
+export type FeedGridItem = {
+  type: 'grid'
+  grid: { items: FeedGridChildItem[] }
+  actorId: bigint
+  source: 'grid'
+  tier: 'self' | 'following' | 'followers' | 'everyone'
+  presentation?: FeedPresentation
+}
+
+export type FeedItemOrGrid = FeedItem | FeedGridItem
+
 export type FeedStats = {
   likeCount?: number
   commentCount?: number
@@ -122,7 +143,7 @@ export type FeedDebugSummary = {
     demotedSuggestions: number
   }
   ranking?: {
-    sourceSequence: Array<'post' | 'match' | 'suggested' | 'question'>
+    sourceSequence: Array<'post' | 'match' | 'suggested' | 'question' | 'grid'>
     actorCounts: Record<string, number>
     tierSequence?: Array<'self' | 'following' | 'followers' | 'everyone'>
     tierCounts?: Record<'self' | 'following' | 'followers' | 'everyone', number>

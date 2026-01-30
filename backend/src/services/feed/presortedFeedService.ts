@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma/client.js';
 
-export type PresortedFeedItem = {
+export type PresortedFeedLeafItem = {
   type: 'post' | 'suggestion' | 'question'
   id: string
   score: number
@@ -8,7 +8,7 @@ export type PresortedFeedItem = {
   source: 'post' | 'match' | 'suggested' | 'question'
   mediaType?: 'text' | 'image' | 'video' | 'mixed'
   presentation?: {
-    mode: 'single' | 'mosaic' | 'question' | 'highlight'
+    mode: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight'
     accent?: 'match' | 'boost' | 'new' | null
   }
   createdAt: number // Epoch ms
@@ -17,6 +17,21 @@ export type PresortedFeedItem = {
   actorAvatarUrl?: string | null
   textPreview?: string // Pre-truncated 150 chars
 }
+
+export type PresortedGridItem = {
+  type: 'grid'
+  id: string
+  score: number
+  actorId: bigint
+  source: 'grid'
+  presentation?: {
+    mode: 'grid'
+    accent?: 'match' | 'boost' | 'new' | null
+  }
+  items: PresortedFeedLeafItem[]
+}
+
+export type PresortedFeedItem = PresortedFeedLeafItem | PresortedGridItem
 
 export type PresortedFeedSegment = {
   id: bigint

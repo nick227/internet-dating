@@ -1,13 +1,17 @@
 // Feed response building and formatting
 import { recordFeedSeen } from '../../../../services/feed/feedSeenService.js';
-import { toPhase1Item, getNextPostCursorId, type Phase1Item } from '../transformers.js';
+import { toPhase1Card, getNextPostCursorId, type Phase1Card } from '../transformers.js';
 import { extractSeenItemsFromPhase1, recordSeenItems } from './seenService.js';
 import type { ViewerContext, FeedItem } from '../types.js';
 import type { HydratedFeedItem } from '../hydration/index.js';
 import type { PresortedFeedSegment } from '../../../../services/feed/presortedFeedService.js';
 
 export type FeedResponse = {
-  items: HydratedFeedItem[] | Phase1Item[];
+  items: Array<{
+    cardType: 'single' | 'grid';
+    presentation?: { mode: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight'; accent?: 'match' | 'boost' | 'new' | null } | null;
+    items: HydratedFeedItem[];
+  }> | Phase1Card[];
   nextCursorId: string | null;
   hasMorePosts?: boolean;
   debug?: unknown;
@@ -18,15 +22,41 @@ export type FeedResponse = {
  * Frontend expects card.presentation, but HydratedFeedItem has it nested
  */
 function flattenPresentation(item: HydratedFeedItem): HydratedFeedItem {
-  const presentation = 
-    item.post?.presentation ?? 
-    item.suggestion?.presentation ?? 
+  if (item.type === 'grid') return item;
+  const presentation =
+    item.post?.presentation ??
+    item.suggestion?.presentation ??
     item.question?.presentation;
-  
+
   return {
     ...item,
-    ...(presentation ? { presentation } : {})
+    ...(presentation ? { presentation } : {}),
   } as HydratedFeedItem;
+}
+
+function toFullCard(item: HydratedFeedItem): {
+  cardType: 'single' | 'grid';
+  presentation?: { mode: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight'; accent?: 'match' | 'boost' | 'new' | null } | null;
+  items: HydratedFeedItem[];
+} {
+  if (item.type === 'grid') {
+    return {
+      cardType: 'grid',
+      presentation: item.presentation ?? { mode: 'grid' },
+      items: item.grid.items,
+    };
+  }
+
+  return {
+    cardType: 'single',
+    presentation:
+      item.presentation ??
+      item.post?.presentation ??
+      item.suggestion?.presentation ??
+      item.question?.presentation ??
+      null,
+    items: [item],
+  };
 }
 
 /**
@@ -44,9 +74,10 @@ export async function buildFullResponse(
 
   // Flatten presentation to top level for frontend compatibility
   const flattenedItems = items.map(flattenPresentation);
+  const cards = flattenedItems.map(toFullCard);
 
   return {
-    items: flattenedItems,
+    items: cards,
     nextCursorId,
     hasMorePosts,
     ...(debug ? { debug } : {}),
@@ -60,11 +91,11 @@ export async function buildLiteResponse(
   ctx: ViewerContext,
   items: HydratedFeedItem[],
   limit: number
-): Promise<{ items: Phase1Item[]; nextCursorId: string | null }> {
+): Promise<{ items: Phase1Card[]; nextCursorId: string | null }> {
   await recordSeenItems(ctx.userId, ctx.markSeen ?? false, items);
 
-  const phase1Items = items.slice(0, limit).map(toPhase1Item);
   const nextCursorId = getNextPostCursorId(items);
+  const phase1Items = items.slice(0, limit).map(toPhase1Card);
 
   return {
     items: phase1Items,

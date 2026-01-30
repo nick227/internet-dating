@@ -244,7 +244,7 @@
   justify-content: center;
   background: rgba(15, 15, 25, 0.8);
   border: 1px solid var(--stroke, rgba(255, 255, 255, 0.12));
-  border-radius: 50%;
+  border-radius: 0;
   color: var(--text, rgba(255, 255, 255, 0.92));
   cursor: pointer;
   transition: background 0.2s, transform 0.2s;

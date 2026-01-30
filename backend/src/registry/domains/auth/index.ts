@@ -3,6 +3,7 @@ import { Auth } from '../../../lib/auth/rules.js';
 import { prisma } from '../../../lib/prisma/client.js';
 import { json } from '../../../lib/http/json.js';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import {
   signAccessToken,
   signRefreshToken,
@@ -15,10 +16,17 @@ const getCookieOpts = (rememberMe: boolean = false) => {
   // - 'none' is only needed for cross-domain cookies, which we don't have
   // - secure: true still required in production for HTTPS
   const isProduction = process.env.NODE_ENV === 'production';
+  const devHttps = process.env.DEV_HTTPS === '1' || process.env.DEV_HTTPS === 'true';
+  const sameSiteEnv = (process.env.COOKIE_SAMESITE || '').toLowerCase();
+  const sameSite =
+    sameSiteEnv === 'none' || sameSiteEnv === 'lax' || sameSiteEnv === 'strict'
+      ? (sameSiteEnv as 'none' | 'lax' | 'strict')
+      : ('lax' as const);
+  const secure = isProduction || devHttps || sameSite === 'none';
   const base = {
     httpOnly: true,
-    sameSite: 'lax' as const,  // Works for same-domain, more permissive than 'none'
-    secure: isProduction,      // Still require HTTPS in production
+    sameSite,                  // Works for same-domain, more permissive than 'none'
+    secure,                    // Require HTTPS in production or when dev HTTPS is enabled
     path: '/',
   };
   
@@ -64,8 +72,26 @@ export const authDomain: DomainRegistry = {
           res.cookie('refresh_token', signRefreshToken({ sub }), cookieOptions);
 
           return json(res, { userId: user.id, email: user.email });
-        } catch {
-          return json(res, { error: 'Unable to signup (email may already exist)' }, 409);
+        } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return json(res, { error: 'Unable to signup (email may already exist)' }, 409);
+          }
+          console.error('[auth/signup] Error creating user', { error });
+          if (process.env.NODE_ENV !== 'production' && error instanceof Prisma.PrismaClientKnownRequestError) {
+            return json(
+              res,
+              {
+                error: 'Unable to signup',
+                details: {
+                  code: error.code,
+                  meta: error.meta,
+                  clientVersion: error.clientVersion
+                }
+              },
+              500
+            );
+          }
+          return json(res, { error: 'Unable to signup' }, 500);
         }
       }
     },

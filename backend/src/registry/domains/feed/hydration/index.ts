@@ -1,7 +1,9 @@
 import { getCompatibilityMap, resolveCompatibility } from '../../../../services/compatibility/compatibilityService.js';
 import { toPublicMedia } from '../../../../services/media/presenter.js';
 import type {
+  FeedGridChildItem,
   FeedItem,
+  FeedItemOrGrid,
   FeedPostCandidate,
   FeedPresentation,
   FeedQuestionCandidate,
@@ -27,7 +29,7 @@ type HydratedSuggestion = FeedSuggestionCandidate & {
   presentation?: FeedPresentation;
 };
 
-export type HydratedFeedItem = {
+export type HydratedFeedLeafItem = {
   type: 'post' | 'suggestion' | 'question';
   post?: HydratedPost;
   suggestion?: HydratedSuggestion;
@@ -38,12 +40,45 @@ export type HydratedFeedItem = {
   presentation?: FeedPresentation; // Flattened to top level for frontend
 };
 
-export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem[]): Promise<HydratedFeedItem[]> {
+export type HydratedFeedGridItem = {
+  type: 'grid';
+  grid: { items: HydratedFeedLeafItem[] };
+  actorId: bigint;
+  source: 'grid';
+  tier: 'self' | 'following' | 'followers' | 'everyone';
+  presentation?: FeedPresentation;
+};
+
+export type HydratedFeedItem = HydratedFeedLeafItem | HydratedFeedGridItem;
+
+type FeedLeafItem = FeedItem | FeedGridChildItem;
+
+function getLeafKey(item: FeedLeafItem): string | null {
+  if (item.type === 'post' && item.post) return `post:${item.post.id.toString()}`;
+  if (item.type === 'suggestion' && item.suggestion) return `suggestion:${item.suggestion.userId.toString()}`;
+  if (item.type === 'question' && item.question) return `question:${item.question.id.toString()}`;
+  return null;
+}
+
+export async function hydrateFeedItems(
+  ctx: ViewerContext,
+  rankedItems: FeedItemOrGrid[]
+): Promise<HydratedFeedItem[]> {
+  const leafItems: FeedLeafItem[] = [];
+
+  for (const item of rankedItems) {
+    if (item.type === 'grid') {
+      leafItems.push(...item.grid.items);
+    } else {
+      leafItems.push(item);
+    }
+  }
+
   // Extract all posts and suggestions for batch hydration
   const posts: FeedPostCandidate[] = [];
   const suggestions: FeedSuggestionCandidate[] = [];
   
-  for (const item of rankedItems) {
+  for (const item of leafItems) {
     if (item.type === 'post' && item.post) {
       posts.push(item.post);
     } else if (item.type === 'suggestion' && item.suggestion) {
@@ -85,21 +120,21 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
       ? compatibilityResult.value
       : new Map<bigint, { score: number | null; status: 'READY' | 'INSUFFICIENT_DATA' }>();
   
-  // Hydrate items in ranked order
-  const hydrated: HydratedFeedItem[] = [];
-  
-  for (const item of rankedItems) {
+  const hydratedMap = new Map<string, HydratedFeedLeafItem>();
+
+  for (const item of leafItems) {
     if (item.type === 'post' && item.post) {
       const { score: _score, ...postBase } = item.post;
       const actorStats = statsByUserId.get(item.post.user.id) ?? null;
       const postStats = postStatsByPostId.get(item.post.id);
       const stats =
         actorStats || postStats ? { ...(actorStats ?? {}), ...(postStats ?? {}) } : null;
-      hydrated.push({
+      const tier = 'tier' in item ? item.tier : 'everyone';
+      hydratedMap.set(`post:${item.post.id.toString()}`, {
         type: 'post',
         actorId: item.actorId,
         source: item.source,
-        tier: item.tier,
+        tier,
         post: {
           ...postBase,
           media: postMediaByPostId.get(item.post.id) ?? [],
@@ -111,11 +146,12 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
       });
     } else if (item.type === 'suggestion' && item.suggestion) {
       const { score: _score, matchScore: _matchScore, ...suggestionBase } = item.suggestion;
-      hydrated.push({
+      const tier = 'tier' in item ? item.tier : 'everyone';
+      hydratedMap.set(`suggestion:${item.suggestion.userId.toString()}`, {
         type: 'suggestion',
         actorId: item.actorId,
         source: item.source,
-        tier: item.tier,
+        tier,
         suggestion: {
           ...suggestionBase,
           media: mediaByUserId.get(item.suggestion.userId) ?? [],
@@ -125,11 +161,12 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
         }
       });
     } else if (item.type === 'question' && item.question) {
-      hydrated.push({
+      const tier = 'tier' in item ? item.tier : 'everyone';
+      hydratedMap.set(`question:${item.question.id.toString()}`, {
         type: 'question',
         actorId: item.actorId,
         source: item.source,
-        tier: item.tier,
+        tier,
         question: {
           ...item.question,
           presentation: item.presentation ?? item.question.presentation
@@ -137,6 +174,42 @@ export async function hydrateFeedItems(ctx: ViewerContext, rankedItems: FeedItem
       });
     }
   }
-  
+
+  const hydrated: HydratedFeedItem[] = [];
+
+  for (const item of rankedItems) {
+    if (item.type === 'grid') {
+      const gridItems = item.grid.items
+        .map((child) => {
+          const key = getLeafKey(child);
+          return key ? hydratedMap.get(key) ?? null : null;
+        })
+        .filter((child): child is HydratedFeedLeafItem => child !== null);
+
+      if (gridItems.length > 0) {
+        const normalizedGridItems = gridItems.map((child) => {
+          if (child.presentation) return child;
+          const presentation =
+            child.post?.presentation ??
+            child.suggestion?.presentation ??
+            child.question?.presentation;
+          return presentation ? { ...child, presentation } : child;
+        });
+        hydrated.push({
+          type: 'grid',
+          grid: { items: normalizedGridItems },
+          actorId: item.actorId,
+          source: 'grid',
+          tier: item.tier,
+          presentation: item.presentation,
+        });
+      }
+    } else {
+      const key = getLeafKey(item);
+      const hydratedItem = key ? hydratedMap.get(key) : null;
+      if (hydratedItem) hydrated.push(hydratedItem);
+    }
+  }
+
   return hydrated;
 }

@@ -12,7 +12,7 @@ export type FeedSlot =
       // Restrict to posts by media type. "any" ignores type.
       mediaType?: 'video' | 'image' | 'text' | 'mixed' | 'any';
       // Optional presentation hint for the UI.
-      presentation?: 'single' | 'mosaic' | 'highlight';
+      presentation?: 'single' | 'mosaic' | 'grid' | 'highlight';
     }
   | {
       // Pulls from profile suggestions.
@@ -20,12 +20,37 @@ export type FeedSlot =
       count: number;
       // "match" = mutual like, "suggested" = non-match profile suggestion.
       source?: 'match' | 'suggested';
-      presentation?: 'single' | 'mosaic' | 'highlight';
+      presentation?: 'single' | 'mosaic' | 'grid' | 'highlight';
     }
   | {
       // Pulls from quiz questions (question cards).
       kind: 'question';
       count: number;
+    }
+  | {
+      // Composite grid slot (structural card with multiple items).
+      kind: 'grid';
+      // Total items to include in the grid.
+      size: number;
+      // Minimum viable items to render the grid.
+      minSize?: number;
+      // Require exact size; set false to allow partial grids.
+      strict?: boolean;
+      // Default homogeneous content type for the grid.
+      of: 'post' | 'suggestion' | 'question';
+      // Optional post media filter when of === 'post'.
+      mediaType?: 'video' | 'image' | 'text' | 'mixed' | 'any';
+      // Optional suggestion filter when of === 'suggestion'.
+      source?: 'match' | 'suggested';
+      // Optional mix constraints (opt-in mixed grids).
+      mix?: Array<
+        | { type: 'post'; mediaType?: 'video' | 'image' | 'text' | 'mixed' | 'any' }
+        | { type: 'suggestion'; source?: 'match' | 'suggested' }
+        | { type: 'question' }
+      >;
+      // Enforce unique actors within the grid if true.
+      distinctActors?: boolean;
+      presentation?: 'grid';
     };
 
 export type FeedCaps = {
@@ -57,18 +82,20 @@ export type FeedConfig = {
 // Sequence-first configuration:
 // Example: 2 video posts -> 1 mosaic post (image or mixed) -> 1 suggestion -> 1 quiz -> repeat.
 const sequence: FeedSlot[] = [
-  { kind: 'post', mediaType: 'video', count: 2, presentation: 'single' },
-  { kind: 'post', mediaType: 'mixed', count: 1, presentation: 'mosaic' },
-  { kind: 'post', mediaType: 'image', count: 1, presentation: 'mosaic' },
-  { kind: 'suggestion', count: 1, presentation: 'single' },
-  { kind: 'question', count: 1 }
+  { kind: 'post', mediaType: 'any', count: 1, presentation: 'highlight' },
+  { kind: 'suggestion', count: 3, presentation: 'single' },
+  { kind: 'grid', size: 3, minSize: 3, strict: false, of: 'suggestion', mediaType: 'any', distinctActors: true, presentation: 'grid' },
+  { kind: 'post', mediaType: 'any', count: 1, presentation: 'grid' },
+  { kind: 'post', mediaType: 'any', count: 1, presentation: 'mosaic' },
+  { kind: 'question', count: 1 },
+  { kind: 'post', mediaType: 'any', count: 1, presentation: 'single' }
 ];
 
 // Config affects ranking/merging only, never candidate inclusion.
 export const feedConfig = {
   sequence,
   caps: {
-    maxItemsPerResponse: 50,
+    maxItemsPerResponse: 5,
     maxPerActor: 3
   },
   seenWindowHours: 24,
@@ -84,4 +111,4 @@ export const feedConfig = {
 
 // Bump this version whenever you modify the sequence or weights
 // to ensure the presort job invalidates its cache.
-export const FEED_CONFIG_VERSION = 'v3';
+export const FEED_CONFIG_VERSION = 'v9';

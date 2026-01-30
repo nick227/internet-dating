@@ -1,7 +1,8 @@
 // Immediate logging to verify process starts
 process.stdout.write('[server] Starting application...\n');
 
-import { createServer } from 'node:http';
+import { createServer as createHttpServer } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { readFileSync } from 'node:fs';
 import { createApp } from './app/createApp.js';
 import { createWsServer } from './ws/index.js';
@@ -162,9 +163,21 @@ async function testMediaVolume() {
     // Test media volume before starting server
     await testMediaVolume();
 
+    const httpsKeyPath = process.env.HTTPS_KEY_PATH || process.env.SSL_KEY_PATH;
+    const httpsCertPath = process.env.HTTPS_CERT_PATH || process.env.SSL_CERT_PATH;
+    const useHttps = Boolean(httpsKeyPath && httpsCertPath);
+
     // Create app and server
     const app = createApp();
-    const server = createServer(app);
+    const server = useHttps
+      ? createHttpsServer(
+          {
+            key: readFileSync(httpsKeyPath as string),
+            cert: readFileSync(httpsCertPath as string),
+          },
+          app
+        )
+      : createHttpServer(app);
     
     // Create WebSocket server
     const wss = createWsServer(server);

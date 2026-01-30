@@ -8,7 +8,7 @@
 }
 .profile__hero {
   position: relative;
-  min-height: 820px; /* Minimum height for empty state - compact */
+  min-height: 850px; /* Minimum height for empty state - compact */
   max-height: none; /* Allow natural growth based on viewport width */
   border-bottom-left-radius: var(--r-4);
   border-bottom-right-radius: var(--r-4);
@@ -23,7 +23,7 @@
   gap: var(--s-2);
   padding: var(--s-2);
   z-index: 1;
-  height: 820px;
+  height: 800px;
   align-content: stretch;
 }
 .heroMosaic__media {

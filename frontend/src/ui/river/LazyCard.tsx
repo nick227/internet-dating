@@ -23,7 +23,8 @@ const cardComponents = {
   ad: lazy(() => import('./AdCard').then(m => ({ default: m.AdCard }))),
   suggestion: lazy(() => import('./SuggestionCard').then(m => ({ default: m.SuggestionCard }))),
   mosaic: lazy(() => import('./MosaicCard').then(m => ({ default: m.MosaicCard }))),
-} satisfies Record<FeedCardKind | 'mosaic', React.LazyExoticComponent<React.ComponentType<RiverCardRenderProps>>>
+  grid: lazy(() => import('./GridCard').then(m => ({ default: m.GridCard }))),
+} satisfies Record<FeedCardKind | 'mosaic' | 'grid', React.LazyExoticComponent<React.ComponentType<RiverCardRenderProps>>>
 
 const FallbackCard = lazy(() => import('./PostCard').then(m => ({ default: m.PostCard })))
 
@@ -45,9 +46,31 @@ export function LazyCard({
   const isFirstCard = position === 0
   const [shouldLoad, setShouldLoad] = useState(isFirstCard)
   const cardRef = useCardVisibility(setShouldLoad, shouldLoad)
+  const shouldLog = (() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return window.localStorage.getItem('debug:feed') === '1'
+    } catch {
+      return false
+    }
+  })()
 
-  // Smart component selection: Use MosaicCard if presentation.mode is 'mosaic'
-  const componentKey = card.presentation?.mode === 'mosaic' ? 'mosaic' : card.kind
+  // Smart component selection: Use layout-specific cards when presentation.mode is set
+  const componentKey =
+    card.presentation?.mode === 'mosaic'
+      ? 'mosaic'
+      : card.presentation?.mode === 'grid'
+        ? 'grid'
+        : card.kind
+  if (shouldLog && card.presentation?.mode === 'grid') {
+    console.log('[feed:grid] rendering', {
+      id: card.id,
+      kind: card.kind,
+      presentation: card.presentation,
+      mediaCount: card.media?.length ?? 0,
+      position,
+    })
+  }
   const Component = cardComponents[componentKey as keyof typeof cardComponents] || FallbackCard
 
   return (

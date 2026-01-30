@@ -1,0 +1,37 @@
+
+.grid__view{
+    background-color: red;
+    min-height: 480px;
+}
+.riverCard__mediaGrid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--s-3);
+}
+.riverCard__mediaGridPanel {
+  display: grid;
+  grid-template-columns: repeat(3, 33%);
+  grid-auto-rows: 292px;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  width: 100%;
+}
+.riverCard__mediaGridTile {
+  position: relative;
+  border-radius: var(--r-2);
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+}
+.riverCard__mediaGridTile--empty {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+}
+.riverCard__mediaGridImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.02);
+  filter: saturate(1.04) contrast(1.04);
+}

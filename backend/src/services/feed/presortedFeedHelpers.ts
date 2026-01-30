@@ -15,7 +15,15 @@ export async function applySeenPenalty(
   const postIds: bigint[] = []
   const suggestionIds: bigint[] = []
   for (const item of items) {
-    if (item.type === 'post') {
+    if (item.type === 'grid') {
+      for (const child of item.items) {
+        if (child.type === 'post') {
+          postIds.push(BigInt(child.id))
+        } else if (child.type === 'suggestion') {
+          suggestionIds.push(BigInt(child.id))
+        }
+      }
+    } else if (item.type === 'post') {
       postIds.push(BigInt(item.id))
     } else if (item.type === 'suggestion') {
       suggestionIds.push(BigInt(item.id))
@@ -30,6 +38,24 @@ export async function applySeenPenalty(
 
   // Apply seen penalty and re-sort
   const penalized = items.map((item) => {
+    if (item.type === 'grid') {
+      const updatedChildren = item.items.map((child) => {
+        let seenAt: Date | undefined
+        if (child.type === 'post') {
+          seenAt = postSeenMap.get(BigInt(child.id))
+        } else if (child.type === 'suggestion') {
+          seenAt = suggestionSeenMap.get(BigInt(child.id))
+        }
+        const isSeen = Boolean(seenAt && seenAt.getTime() >= cutoff)
+        const seenPenalty = isSeen ? feedConfig.scoring.weights.seenPenalty : 0
+        const adjustedScore = Math.max(0, child.score - seenPenalty)
+        return { ...child, score: adjustedScore }
+      })
+
+      const gridScore = updatedChildren.reduce((max, child) => Math.max(max, child.score), 0)
+      return { ...item, items: updatedChildren, score: gridScore }
+    }
+
     let seenAt: Date | undefined
     if (item.type === 'post') {
       seenAt = postSeenMap.get(BigInt(item.id))
@@ -65,7 +91,15 @@ export async function checkAllUnseen(
   const postIds: bigint[] = []
   const suggestionIds: bigint[] = []
   for (const item of topItems) {
-    if (item.type === 'post') {
+    if (item.type === 'grid') {
+      for (const child of item.items) {
+        if (child.type === 'post') {
+          postIds.push(BigInt(child.id))
+        } else if (child.type === 'suggestion') {
+          suggestionIds.push(BigInt(child.id))
+        }
+      }
+    } else if (item.type === 'post') {
       postIds.push(BigInt(item.id))
     } else if (item.type === 'suggestion') {
       suggestionIds.push(BigInt(item.id))
@@ -81,7 +115,16 @@ export async function checkAllUnseen(
   // Check if all are unseen
   for (const item of topItems) {
     let seenAt: Date | undefined
-    if (item.type === 'post') {
+    if (item.type === 'grid') {
+      for (const child of item.items) {
+        if (child.type === 'post') {
+          seenAt = postSeenMap.get(BigInt(child.id))
+        } else if (child.type === 'suggestion') {
+          seenAt = suggestionSeenMap.get(BigInt(child.id))
+        }
+        if (seenAt && seenAt.getTime() >= cutoff) break
+      }
+    } else if (item.type === 'post') {
       seenAt = postSeenMap.get(BigInt(item.id))
     } else if (item.type === 'suggestion') {
       seenAt = suggestionSeenMap.get(BigInt(item.id))

@@ -1,10 +1,12 @@
 import { feedConfig, type FeedSlot } from '../config.js';
-import type { FeedCandidateSet, FeedItem, ViewerContext } from '../types.js';
+import type { FeedCandidateSet, FeedGridChildItem, FeedItem, FeedItemOrGrid, ViewerContext } from '../types.js';
 
 type PostMediaType = Extract<FeedSlot, { kind: 'post' }>['mediaType'];
 type SuggestionSource = Extract<FeedSlot, { kind: 'suggestion' }>['source'];
 type PostSlot = Extract<FeedSlot, { kind: 'post' }>;
 type SuggestionSlot = Extract<FeedSlot, { kind: 'suggestion' }>;
+type GridSlot = Extract<FeedSlot, { kind: 'grid' }>;
+type GridMixEntry = NonNullable<GridSlot['mix']>[number];
 
 function isPostSlot(slot: FeedSlot): slot is PostSlot {
   return slot.kind === 'post';
@@ -12,6 +14,10 @@ function isPostSlot(slot: FeedSlot): slot is PostSlot {
 
 function isSuggestionSlot(slot: FeedSlot): slot is SuggestionSlot {
   return slot.kind === 'suggestion';
+}
+
+function isGridSlot(slot: FeedSlot): slot is GridSlot {
+  return slot.kind === 'grid';
 }
 
 function mulberry32(seed: number) {
@@ -26,7 +32,8 @@ function mulberry32(seed: number) {
 function expandSequence(sequence: readonly FeedSlot[]) {
   const expanded: FeedSlot[] = [];
   for (const slot of sequence) {
-    const count = slot.count && slot.count > 1 ? Math.floor(slot.count) : 1;
+    const count =
+      'count' in slot && slot.count && slot.count > 1 ? Math.floor(slot.count) : 1;
     for (let i = 0; i < count; i += 1) {
       expanded.push(slot);
     }
@@ -34,8 +41,8 @@ function expandSequence(sequence: readonly FeedSlot[]) {
   return expanded;
 }
 
-export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet): FeedItem[] {
-  const items: FeedItem[] = [];
+export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet): FeedItemOrGrid[] {
+  const items: FeedItemOrGrid[] = [];
   const seed = Number.isFinite(_ctx.seed ?? NaN) ? Math.floor(_ctx.seed ?? 0) : null;
   const maxItems = Math.min(_ctx.take, feedConfig.caps.maxItemsPerResponse);
   
@@ -262,13 +269,192 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
     usedSuggestionIds.size < suggestionItems.length ||
     usedQuestionIds.size < questionItems.length;
 
+  const buildGridItem = (slot: GridSlot): FeedItemOrGrid | null => {
+    const gridItems: FeedGridChildItem[] = [];
+    const gridActors = new Set<bigint>();
+    let attempts = 0;
+    const maxAttempts = Math.max(slot.size * 5, slot.size);
+    const strict = slot.strict !== false;
+    const minSize = strict
+      ? slot.size
+      : Math.max(1, Math.min(slot.size, slot.minSize ?? 1));
+    const localPostIndices = new Map(postIndices);
+    const localSuggestionIndices = new Map(suggestionIndices);
+    const localActorCounts = new Map(actorCounts);
+    const localQuestionIndexRef = { value: questionIndexRef.value };
+    const localSelectedPostIds = new Set<bigint>();
+    const localSelectedSuggestionIds = new Set<bigint>();
+    const localSelectedQuestionIds = new Set<bigint>();
+
+    const localTakeNextPost = (mediaType?: PostMediaType) => {
+      const key = !mediaType || mediaType === 'any' ? 'all' : mediaType;
+      const bucket = postBuckets.get(key) ?? [];
+      let index = localPostIndices.get(key) ?? 0;
+      while (index < bucket.length) {
+        const item = bucket[index];
+        index += 1;
+        if (usedPostIds.has(item.post!.id) || localSelectedPostIds.has(item.post!.id)) continue;
+        const actorCount = localActorCounts.get(item.actorId) ?? 0;
+        if (actorCount >= feedConfig.caps.maxPerActor) continue;
+        localPostIndices.set(key, index);
+        return item;
+      }
+      localPostIndices.set(key, index);
+      return null;
+    };
+
+    const localTakeNextPostForLayout = (
+      mediaType?: PostMediaType,
+      presentation?: PostSlot['presentation']
+    ) => {
+      if (!presentation) return localTakeNextPost(mediaType);
+      const matched = localTakeNextPost(mediaType);
+      if (matched) return matched;
+      if (mediaType && mediaType !== 'any') {
+        return localTakeNextPost('any');
+      }
+      return null;
+    };
+
+    const localTakeNextSuggestion = (source?: SuggestionSource) => {
+      const key = source ?? 'all';
+      const bucket = suggestionBuckets.get(key) ?? [];
+      let index = localSuggestionIndices.get(key) ?? 0;
+      while (index < bucket.length) {
+        const item = bucket[index];
+        index += 1;
+        if (usedSuggestionIds.has(item.actorId) || localSelectedSuggestionIds.has(item.actorId)) continue;
+        const actorCount = localActorCounts.get(item.actorId) ?? 0;
+        if (actorCount >= feedConfig.caps.maxPerActor) continue;
+        localSuggestionIndices.set(key, index);
+        return item;
+      }
+      localSuggestionIndices.set(key, index);
+      return null;
+    };
+
+    const localTakeNextQuestion = () => {
+      let index = localQuestionIndexRef.value;
+      while (index < questionItems.length) {
+        const item = questionItems[index];
+        index += 1;
+        if (usedQuestionIds.has(item.question!.id) || localSelectedQuestionIds.has(item.question!.id)) continue;
+        localQuestionIndexRef.value = index;
+        return item;
+      }
+      localQuestionIndexRef.value = index;
+      return null;
+    };
+
+    const takeNextByMixEntry = (entry: GridMixEntry): FeedItem | null => {
+      if (entry.type === 'post') {
+        return localTakeNextPostForLayout(entry.mediaType, undefined);
+      }
+      if (entry.type === 'suggestion') {
+        return localTakeNextSuggestion(entry.source);
+      }
+      return localTakeNextQuestion();
+    };
+
+    const takeNextByGridDefault = (slot: GridSlot): FeedItem | null => {
+      if (slot.of === 'post') {
+        return localTakeNextPostForLayout(slot.mediaType, undefined);
+      }
+      if (slot.of === 'suggestion') {
+        return localTakeNextSuggestion(slot.source);
+      }
+      return localTakeNextQuestion();
+    };
+
+    const takeNextFallbackAny = (): FeedItem | null =>
+      localTakeNextPostForLayout('any', undefined) ??
+      localTakeNextSuggestion() ??
+      localTakeNextQuestion();
+
+    while (gridItems.length < slot.size && attempts < maxAttempts) {
+      const mixEntry = slot.mix ? slot.mix[gridItems.length % slot.mix.length] : null;
+      let candidate = mixEntry ? takeNextByMixEntry(mixEntry) : takeNextByGridDefault(slot);
+      if (!candidate && mixEntry) {
+        candidate = takeNextFallbackAny();
+      }
+
+      attempts += 1;
+      if (!candidate) break;
+
+      if (slot.distinctActors && gridActors.has(candidate.actorId)) {
+        continue;
+      }
+
+      gridActors.add(candidate.actorId);
+      gridItems.push({
+        type: candidate.type,
+        post: candidate.post,
+        suggestion: candidate.suggestion,
+        question: candidate.question,
+        actorId: candidate.actorId,
+        source: candidate.source,
+        presentation: candidate.presentation,
+      });
+
+      const actorCount = localActorCounts.get(candidate.actorId) ?? 0;
+      localActorCounts.set(candidate.actorId, actorCount + 1);
+
+      if (candidate.type === 'post' && candidate.post) {
+        localSelectedPostIds.add(candidate.post.id);
+      } else if (candidate.type === 'suggestion' && candidate.suggestion) {
+        localSelectedSuggestionIds.add(candidate.actorId);
+      } else if (candidate.type === 'question' && candidate.question) {
+        localSelectedQuestionIds.add(candidate.question.id);
+      }
+    }
+
+    if (gridItems.length === 0) return null;
+    if (gridItems.length < minSize) {
+      console.info('[feed:grid] grid skipped', {
+        requested: slot.size,
+        minSize,
+        built: gridItems.length,
+        strict,
+        distinctActors: slot.distinctActors ?? false,
+      });
+      return null;
+    }
+
+    console.info('[feed:grid] grid built', {
+      size: gridItems.length,
+      distinctActors: slot.distinctActors ?? false,
+      mixed: Boolean(slot.mix?.length),
+    });
+
+    for (const child of gridItems) {
+      const actorCount = actorCounts.get(child.actorId) ?? 0;
+      actorCounts.set(child.actorId, actorCount + 1);
+      if (child.type === 'post' && child.post) {
+        usedPostIds.add(child.post.id);
+      } else if (child.type === 'suggestion' && child.suggestion) {
+        usedSuggestionIds.add(child.actorId);
+      } else if (child.type === 'question' && child.question) {
+        usedQuestionIds.add(child.question.id);
+      }
+    }
+
+    return {
+      type: 'grid',
+      grid: { items: gridItems },
+      actorId: 0n,
+      source: 'grid',
+      tier: 'everyone',
+      presentation: { mode: 'grid' },
+    };
+  };
+
   if (sequence.length > 0) {
     let slotIndex = 0;
     let idleCount = 0;
 
     while (items.length < maxItems && hasRemaining()) {
       const slot = sequence[slotIndex % sequence.length];
-      let chosen: FeedItem | null = null;
+      let chosen: FeedItemOrGrid | null = null;
 
       if (slot.kind === 'post') {
         chosen = takeNextPostForLayout(slot.mediaType, slot.presentation);
@@ -276,6 +462,8 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
         chosen = takeNextSuggestion(slot.source);
       } else if (slot.kind === 'question') {
         chosen = takeNextQuestion();
+      } else if (slot.kind === 'grid') {
+        chosen = buildGridItem(slot);
       }
 
       slotIndex += 1;
@@ -287,17 +475,21 @@ export function mergeAndRank(_ctx: ViewerContext, candidates: FeedCandidateSet):
       }
 
       idleCount = 0;
-      const actorCount = actorCounts.get(chosen.actorId) ?? 0;
-      actorCounts.set(chosen.actorId, actorCount + 1);
-      const presentation =
-        slot.kind === 'post' || slot.kind === 'suggestion'
-          ? slot.presentation
-          : undefined;
-      items.push(
-        presentation
-          ? { ...chosen, presentation: { mode: presentation } }
-          : chosen
-      );
+      if (chosen.type !== 'grid') {
+        const actorCount = actorCounts.get(chosen.actorId) ?? 0;
+        actorCounts.set(chosen.actorId, actorCount + 1);
+        const presentation =
+          slot.kind === 'post' || slot.kind === 'suggestion'
+            ? slot.presentation
+            : undefined;
+        items.push(
+          presentation
+            ? { ...chosen, presentation: { mode: presentation } }
+            : chosen
+        );
+      } else {
+        items.push(chosen);
+      }
     }
   } else {
     // Minimal fallback when sequence is empty.

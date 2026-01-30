@@ -1,9 +1,9 @@
 // Feed item transformation functions
-import type { FeedItem } from './types.js';
+import type { FeedGridChildItem, FeedItemOrGrid } from './types.js';
 import type { HydratedFeedItem } from './hydration/index.js';
 import { FeedItemKind } from './constants.js';
 
-export type Phase1Item = {
+export type Phase1LeafItem = {
   id: string;
   kind: 'post' | 'profile' | 'question';
   actor: {
@@ -14,7 +14,7 @@ export type Phase1Item = {
   textPreview: string | null;
   createdAt: number;
   presentation: {
-    mode: 'single' | 'mosaic' | 'question' | 'highlight';
+    mode: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight';
     accent?: 'match' | 'boost' | 'new' | null;
   } | null;
 };
@@ -23,7 +23,9 @@ export type Phase1Item = {
  * Transform hydrated feed item to Phase-1 lite format
  * Centralizes the duplicate transformation logic
  */
-export function toPhase1Item(item: FeedItem | HydratedFeedItem): Phase1Item {
+export function toPhase1LeafItem(
+  item: FeedItemOrGrid | HydratedFeedItem | FeedGridChildItem
+): Phase1LeafItem {
   if (item.type === 'post' && item.post) {
     return {
       id: String(item.post.id),
@@ -72,6 +74,38 @@ export function toPhase1Item(item: FeedItem | HydratedFeedItem): Phase1Item {
   throw new Error(`Unknown item type: ${(item as { type: string }).type}`);
 }
 
+export type Phase1Card = {
+  cardType: 'single' | 'grid';
+  presentation?: {
+    mode: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight';
+    accent?: 'match' | 'boost' | 'new' | null;
+  } | null;
+  items: Phase1LeafItem[];
+};
+
+export function toPhase1Card(item: FeedItemOrGrid | HydratedFeedItem): Phase1Card {
+  if (item.type === 'grid') {
+    return {
+      cardType: 'grid',
+      presentation: item.presentation ?? { mode: 'grid' },
+      items: item.grid.items.map((child) => toPhase1LeafItem(child)),
+    };
+  }
+
+  const presentation =
+    item.presentation ??
+    item.post?.presentation ??
+    item.suggestion?.presentation ??
+    item.question?.presentation ??
+    null;
+
+  return {
+    cardType: 'single',
+    presentation,
+    items: [toPhase1LeafItem(item)],
+  };
+}
+
 /**
  * Truncate text to specified length with ellipsis
  */
@@ -84,13 +118,25 @@ function truncateText(text: string | null | undefined, maxLength: number): strin
 /**
  * Extract next post cursor from items
  */
+// Cursor should always reflect the most recent post ID, never the grid wrapper.
 export function getNextPostCursorId(
-  items: Array<{ type: string; post?: { id: bigint } }>
+  items: Array<
+    | { type: string; post?: { id: bigint } }
+    | { items?: Array<{ type: string; post?: { id: bigint } }> }
+  >
 ): string | null {
   for (let i = items.length - 1; i >= 0; i -= 1) {
     const item = items[i];
-    if (item.type === 'post' && item.post) {
+    if ('type' in item && item.type === 'post' && item.post) {
       return String(item.post.id);
+    }
+    if ('items' in item && item.items?.length) {
+      for (let j = item.items.length - 1; j >= 0; j -= 1) {
+        const child = item.items[j];
+        if (child.type === 'post' && child.post) {
+          return String(child.post.id);
+        }
+      }
     }
   }
   return null;

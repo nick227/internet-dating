@@ -6,6 +6,8 @@ import { getCandidates } from '../candidates/index.js';
 import { scoreCandidates } from '../scoring/index.js';
 import { mergeAndRank } from '../ranking/index.js';
 import { hydrateFeedItems } from '../hydration/index.js';
+import { FEED_CONFIG_VERSION } from '../config.js';
+import { FEED_PRESORT_MIN_SEGMENT_ITEMS } from '../constants.js';
 import { feedDomain } from '../index.js';
 import { invalidateAllSegmentsForUser, storePresortedSegment } from '../../../../services/feed/presortedFeedService.js';
 import type { ViewerContext } from '../types.js';
@@ -20,6 +22,40 @@ function createMockRequest(userId: bigint | null, take = 20, cursorId: bigint | 
       ...(cursorId ? { cursorId: String(cursorId) } : {})
     }
   } as unknown as Request;
+}
+
+function collectPostIds(
+  items: Array<{
+    cardType?: string;
+    items?: Array<{ type: string; post?: { id: string | bigint } }>;
+    type?: string;
+    post?: { id: string | bigint };
+    grid?: { items: Array<{ type: string; post?: { id: string | bigint } }> };
+  }>
+): string[] {
+  const ids: string[] = [];
+  for (const item of items) {
+    if (item.items?.length) {
+      for (const child of item.items) {
+        if (child.type === 'post' && child.post?.id != null) {
+          ids.push(String(child.post.id));
+        }
+      }
+      continue;
+    }
+    if (item.type === 'post' && item.post?.id != null) {
+      ids.push(String(item.post.id));
+      continue;
+    }
+    if (item.type === 'grid' && item.grid?.items?.length) {
+      for (const child of item.grid.items) {
+        if (child.type === 'post' && child.post?.id != null) {
+          ids.push(String(child.post.id));
+        }
+      }
+    }
+  }
+  return ids;
 }
 
 async function createVideoPost(params: {
@@ -312,13 +348,11 @@ test('Feed retrieval - basic functionality', async () => {
     const ranked = mergeAndRank(ctx, scored);
     const hydrated = await hydrateFeedItems(ctx, ranked);
 
-    // Verify posts are included
-    const postItems = hydrated.filter(item => item.type === 'post');
-    assert.ok(postItems.length >= 2, 'Should include at least 2 posts');
-    
-    const postIds = postItems.map(item => item.post?.id).filter(Boolean);
-    assert.ok(postIds.includes(post1.id), 'Should include post1');
-    assert.ok(postIds.includes(post2.id), 'Should include post2');
+    // Verify posts are included (top-level or grid children)
+    const postIds = collectPostIds(hydrated as Array<{ type: string; post?: { id: bigint } }>);
+    assert.ok(postIds.length >= 2, 'Should include at least 2 posts');
+    assert.ok(postIds.includes(String(post1.id)), 'Should include post1');
+    assert.ok(postIds.includes(String(post2.id)), 'Should include post2');
 
   } finally {
     await cleanupUsers([user1.id, user2.id]);
@@ -335,29 +369,13 @@ test('Feed ranking - sequence order respects counts', async () => {
     markSeen: false
   };
   const candidates = {
-    posts: [
-      {
-        id: BigInt(1),
-        text: 'Post 1',
-        createdAt: new Date(),
-        user: { id: BigInt(101), profile: { displayName: 'User 1' } },
-        mediaType: 'video' as const
-      },
-      {
-        id: BigInt(2),
-        text: 'Post 2',
-        createdAt: new Date(),
-        user: { id: BigInt(102), profile: { displayName: 'User 2' } },
-        mediaType: 'video' as const
-      },
-      {
-        id: BigInt(3),
-        text: 'Post 3',
-        createdAt: new Date(),
-        user: { id: BigInt(103), profile: { displayName: 'User 3' } },
-        mediaType: 'video' as const
-      }
-    ],
+    posts: Array.from({ length: 6 }, (_, i) => ({
+      id: BigInt(i + 1),
+      text: `Post ${i + 1}`,
+      createdAt: new Date(),
+      user: { id: BigInt(100 + i), profile: { displayName: `User ${i + 1}` } },
+      mediaType: 'video' as const
+    })),
     suggestions: [
       {
         userId: BigInt(201),
@@ -387,9 +405,41 @@ test('Feed ranking - sequence order respects counts', async () => {
 
   assert.deepStrictEqual(
     types.slice(0, 5),
-    ['post', 'post', 'post', 'suggestion', 'question'],
-    'Sequence should emit 3 posts -> 1 suggestion -> 1 question'
+    ['post', 'suggestion', 'grid', 'post', 'post'],
+    'Sequence should emit post -> suggestion -> grid -> post -> post'
   );
+});
+
+test('Feed ranking - grid slot emits composite item when size met', async () => {
+  const ctx: ViewerContext = {
+    userId: null,
+    take: 10,
+    cursorId: null,
+    debug: false,
+    seed: null,
+    markSeen: false
+  };
+  const candidates = {
+    posts: Array.from({ length: 5 }, (_, i) => ({
+      id: BigInt(i + 10),
+      text: `Post ${i + 1}`,
+      createdAt: new Date(),
+      user: { id: BigInt(100 + i), profile: { displayName: `User ${i + 1}` } },
+      mediaType: 'text' as const
+    })),
+    suggestions: [],
+    questions: []
+  };
+
+  const ranked = mergeAndRank(ctx, candidates);
+  const gridItem = ranked.find((item) => item.type === 'grid') as
+    | { type: 'grid'; grid: { items: Array<{ actorId: bigint }> } }
+    | undefined;
+
+  assert.ok(gridItem, 'Grid slot should emit a composite item when size is met');
+  assert.strictEqual(gridItem.grid.items.length, 4, 'Grid should include 4 items');
+  const actorIds = new Set(gridItem.grid.items.map((item) => item.actorId.toString()));
+  assert.strictEqual(actorIds.size, 4, 'Grid items should have distinct actors');
 });
 
 test('Feed ranking - maxPerActor enforcement', async () => {
@@ -497,16 +547,15 @@ test('Feed blocking - posts from blocked users are excluded', async () => {
     const ranked = mergeAndRank(ctx, scored);
     const hydrated = await hydrateFeedItems(ctx, ranked);
 
-    // Verify blocked post is excluded
-    const postItems = hydrated.filter(item => item.type === 'post');
-    const postIds = postItems.map(item => item.post?.id).filter(Boolean);
-    
+    // Verify blocked post is excluded (top-level or grid children)
+    const postIds = collectPostIds(hydrated as Array<{ type: string; post?: { id: bigint } }>);
+
     assert.ok(
-      !postIds.includes(blockedPost.id),
+      !postIds.includes(String(blockedPost.id)),
       'Should exclude post from blocked user'
     );
     assert.ok(
-      postIds.includes(otherPost.id),
+      postIds.includes(String(otherPost.id)),
       'Should include post from non-blocked user'
     );
 
@@ -519,7 +568,7 @@ test('Feed blocking - posts from blocked users are excluded', async () => {
   }
 });
 
-test('Feed pagination - cursor works correctly', async () => {
+test('Feed pagination - cursor uses last post in response order', async () => {
   const user = await prisma.user.create({
     data: {
       email: `test-pagination-${Date.now()}@example.com`,
@@ -530,34 +579,32 @@ test('Feed pagination - cursor works correctly', async () => {
 
   try {
     // Create multiple posts with delays to ensure different timestamps
-    const posts = [];
     for (let i = 0; i < 5; i++) {
       await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
-      const post = await createVideoPost({
+      await createVideoPost({
         userId: user.id,
         text: `Post ${i}`,
         visibility: 'PUBLIC'
       });
-      posts.push(post);
     }
 
-    const firstPage = await callFeed(user.id, { take: '2' });
+    const firstPage = await callFeed(user.id, { take: '5' });
     assert.strictEqual(firstPage.status, 200);
-    const firstPostIds = (firstPage.body.items as Array<{ type: string; post?: { id: string } }>)
-      .filter((item) => item.type === 'post' && item.post)
-      .map((item) => item.post!.id);
-
-    assert.strictEqual(firstPostIds.length, 2, 'First page should have 2 posts');
+    const firstPostIds = collectPostIds(firstPage.body.items as Array<{ type: string; post?: { id: string } }>);
+    assert.ok(firstPostIds.length > 0, 'First page should have at least 1 post');
     assert.ok(firstPage.body.nextCursorId, 'Should have next cursor');
+    assert.strictEqual(
+      firstPage.body.nextCursorId,
+      firstPostIds[firstPostIds.length - 1],
+      'Cursor should match last post ID in response order'
+    );
 
     const secondPage = await callFeed(user.id, {
-      take: '2',
+      take: '5',
       cursorId: String(firstPage.body.nextCursorId)
     });
     assert.strictEqual(secondPage.status, 200);
-    const secondPostIds = (secondPage.body.items as Array<{ type: string; post?: { id: string } }>)
-      .filter((item) => item.type === 'post' && item.post)
-      .map((item) => item.post!.id);
+    const secondPostIds = collectPostIds(secondPage.body.items as Array<{ type: string; post?: { id: string } }>);
 
     const overlap = firstPostIds.filter((id) => secondPostIds.includes(id));
     assert.strictEqual(overlap.length, 0, 'Pages should not overlap');
@@ -681,8 +728,26 @@ test('Feed response - returns items array with correct structure', async () => {
     assert.ok(Array.isArray(hydrated), 'Should return array');
     
     for (const item of hydrated) {
-      assert.ok(['post', 'suggestion', 'question'].includes(item.type), 'Item should have valid type');
-      
+      assert.ok(
+        ['post', 'suggestion', 'question', 'grid'].includes(item.type),
+        'Item should have valid type'
+      );
+
+      if (item.type === 'grid') {
+        assert.ok(item.grid?.items?.length, 'Grid item should have children');
+        for (const child of item.grid.items) {
+          assert.ok(['post', 'suggestion', 'question'].includes(child.type), 'Grid child type should be valid');
+          if (child.type === 'post') {
+            assert.ok(child.post !== undefined, 'Grid post should have post data');
+          } else if (child.type === 'suggestion') {
+            assert.ok(child.suggestion !== undefined, 'Grid suggestion should have suggestion data');
+          } else {
+            assert.ok(child.question !== undefined, 'Grid question should have question data');
+          }
+        }
+        continue;
+      }
+
       if (item.type === 'post') {
         assert.ok(item.post !== undefined, 'Post item should have post data');
         assert.ok(item.suggestion === undefined, 'Post item should not have suggestion data');
@@ -774,21 +839,20 @@ test('Feed tiers - ordering and visibility', async () => {
     const res = await callFeed(viewer.id, { take: '10' });
     assert.strictEqual(res.status, 200);
     const items = res.body.items as Array<{
-      type: string;
-      post?: { id: string; user: { id: string } };
+      cardType?: string;
+      items?: Array<{ type: string; post?: { id: string; user?: { id: string } } }>;
     }>;
 
     assert.ok(items.length >= 3, 'Should return feed items');
-    assert.strictEqual(items[0].type, 'post');
-    assert.strictEqual(items[0].post?.user.id, String(viewer.id));
-    assert.strictEqual(items[1].type, 'post');
-    assert.strictEqual(items[1].post?.user.id, String(following.id));
-    assert.strictEqual(items[2].type, 'post');
-    assert.strictEqual(items[2].post?.user.id, String(follower.id));
+    const firstThree = items.slice(0, 3).map((card) => card.items?.[0]).filter(Boolean);
+    assert.strictEqual(firstThree[0]?.type, 'post');
+    assert.strictEqual(firstThree[0]?.post?.user?.id, String(viewer.id));
+    assert.strictEqual(firstThree[1]?.type, 'post');
+    assert.strictEqual(firstThree[1]?.post?.user?.id, String(following.id));
+    assert.strictEqual(firstThree[2]?.type, 'post');
+    assert.strictEqual(firstThree[2]?.post?.user?.id, String(follower.id));
 
-    const postIds = items
-      .filter((item) => item.type === 'post' && item.post)
-      .map((item) => item.post!.id);
+    const postIds = collectPostIds(items as Array<{ items?: Array<{ type: string; post?: { id: string } }> }>);
 
     assert.ok(postIds.includes(String(selfPost.id)), 'Self post should appear');
     assert.ok(postIds.includes(String(followingPost.id)), 'Following private post should appear');
@@ -818,32 +882,30 @@ test('Feed presort - bypass when cursorId provided', async () => {
       }
     });
 
+    const presortedItems = Array.from({ length: FEED_PRESORT_MIN_SEGMENT_ITEMS }, () => ({
+      type: 'post' as const,
+      id: String(post.id),
+      score: 1,
+      actorId: user.id,
+      source: 'post' as const,
+      createdAt: Date.now(),
+      actorName: 'Presort User',
+      actorAvatarUrl: null,
+      textPreview: 'Presort post'
+    }));
+
     await storePresortedSegment({
       userId: user.id,
       segmentIndex: 0,
-      items: [
-        {
-          type: 'post',
-          id: String(post.id),
-          score: 1,
-          actorId: user.id,
-          source: 'post',
-          createdAt: Date.now(),
-          actorName: 'Presort User',
-          actorAvatarUrl: null,
-          textPreview: 'Presort post'
-        }
-      ],
+      items: presortedItems,
       phase1Json: null,
-      algorithmVersion: 'v1',
+      algorithmVersion: FEED_CONFIG_VERSION,
       expiresAt: new Date(Date.now() + 60_000)
     });
 
     const res = await callFeed(user.id, { take: '10', cursorId: String(post.id) });
     assert.strictEqual(res.status, 200);
-    const postIds = (res.body.items as Array<{ type: string; post?: { id: string } }>)
-      .filter((item) => item.type === 'post' && item.post)
-      .map((item) => item.post!.id);
+    const postIds = collectPostIds(res.body.items as Array<{ type: string; post?: { id: string } }>);
     assert.ok(!postIds.includes(String(post.id)), 'Cursor should bypass presort posts');
   } finally {
     await invalidateAllSegmentsForUser(user.id);
@@ -866,6 +928,13 @@ test('Feed presort - records seen entries', async () => {
       profile: { create: { displayName: 'Author', isVisible: true } }
     }
   });
+  const suggester = await prisma.user.create({
+    data: {
+      email: `test-presort-seen-${Date.now()}-suggester@example.com`,
+      passwordHash: 'hash',
+      profile: { create: { displayName: 'Suggester', isVisible: true } }
+    }
+  });
 
   try {
     const post = await prisma.post.create({
@@ -879,50 +948,96 @@ test('Feed presort - records seen entries', async () => {
     const phase1Json = JSON.stringify({
       items: [
         {
-          id: String(post.id),
-          kind: 'post',
-          actor: { id: String(author.id), name: 'Author', avatarUrl: null },
-          textPreview: 'Seen post',
-          createdAt: Date.now()
+          cardType: 'grid',
+          items: [
+            {
+              id: String(post.id),
+              kind: 'post',
+              actor: { id: String(author.id), name: 'Author', avatarUrl: null },
+              textPreview: 'Seen post',
+              createdAt: Date.now()
+            },
+            {
+              id: String(suggester.id),
+              kind: 'profile',
+              actor: { id: String(suggester.id), name: 'Suggester', avatarUrl: null },
+              textPreview: null,
+              createdAt: Date.now()
+            }
+          ]
         }
       ],
       nextCursorId: null
     });
 
+    const basePostItem = {
+      type: 'post' as const,
+      id: String(post.id),
+      score: 1,
+      actorId: author.id,
+      source: 'post' as const,
+      createdAt: Date.now(),
+      actorName: 'Author',
+      actorAvatarUrl: null,
+      textPreview: 'Seen post'
+    };
+
+    const gridItem = {
+      type: 'grid' as const,
+      id: `grid:post:${post.id}|suggestion:${suggester.id}`,
+      score: 1,
+      actorId: 0n,
+      source: 'grid' as const,
+      presentation: { mode: 'grid' as const },
+      items: [
+        basePostItem,
+        {
+          type: 'suggestion' as const,
+          id: String(suggester.id),
+          score: 1,
+          actorId: suggester.id,
+          source: 'suggested' as const,
+          createdAt: Date.now(),
+          actorName: 'Suggester',
+          actorAvatarUrl: null,
+          textPreview: null
+        }
+      ]
+    };
+
+    const presortedItems = Array.from({ length: FEED_PRESORT_MIN_SEGMENT_ITEMS - 1 }, () => basePostItem);
+    presortedItems.unshift(gridItem);
+
     await storePresortedSegment({
       userId: viewer.id,
       segmentIndex: 0,
-      items: [
-        {
-          type: 'post',
-          id: String(post.id),
-          score: 1,
-          actorId: author.id,
-          source: 'post',
-          createdAt: Date.now(),
-          actorName: 'Author',
-          actorAvatarUrl: null,
-          textPreview: 'Seen post'
-        }
-      ],
+      items: presortedItems,
       phase1Json,
-      algorithmVersion: 'v1',
+      algorithmVersion: FEED_CONFIG_VERSION,
       expiresAt: new Date(Date.now() + 60_000)
     });
 
     const res = await callFeed(viewer.id, { take: '2', lite: '1' });
     assert.strictEqual(res.status, 200);
 
-    const seen = await prisma.feedSeen.findFirst({
+    const seenPost = await prisma.feedSeen.findFirst({
       where: {
         viewerUserId: viewer.id,
         itemType: 'POST',
         itemId: post.id
       }
     });
-    assert.ok(seen, 'Seen record should be created for presort path');
+    const seenSuggestion = await prisma.feedSeen.findFirst({
+      where: {
+        viewerUserId: viewer.id,
+        itemType: 'SUGGESTION',
+        itemId: suggester.id
+      }
+    });
+    assert.ok(seenPost, 'Seen record should be created for grid post child');
+    assert.ok(seenSuggestion, 'Seen record should be created for grid suggestion child');
   } finally {
     await invalidateAllSegmentsForUser(viewer.id);
-    await cleanupUsers([viewer.id, author.id]);
+    await cleanupUsers([viewer.id, author.id, suggester.id]);
   }
 });

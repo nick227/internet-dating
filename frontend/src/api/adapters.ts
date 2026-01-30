@@ -39,7 +39,7 @@ type ApiFeedMediaEntry = {
 }
 
 type ApiFeedPresentation = {
-  mode?: 'single' | 'mosaic' | 'question' | 'highlight'
+  mode?: 'single' | 'mosaic' | 'grid' | 'question' | 'highlight'
   accent?: 'match' | 'boost' | 'new' | null
 } | null
 
@@ -99,7 +99,27 @@ const feedDebugLog = (...args: unknown[]) => {
   }
 }
 
-function validateFeedItem(item: ApiFeedResponse['items'][0], index: number): void {
+type ApiFeedLeafItem = {
+  type?: 'post' | 'suggestion' | 'question'
+  post?: ApiFeedResponse['items'][0]['post']
+  suggestion?: ApiFeedResponse['items'][0]['suggestion']
+  question?: ApiFeedResponse['items'][0]['question']
+  presentation?: ApiFeedPresentation
+}
+
+type ApiFeedCard = {
+  cardType?: 'single' | 'grid'
+  presentation?: ApiFeedPresentation
+  items?: ApiFeedLeafItem[]
+}
+
+type ApiFeedCardResponse = {
+  items: ApiFeedCard[]
+  nextCursorId?: string | null
+  hasMorePosts?: boolean
+}
+
+function validateFeedItem(item: ApiFeedLeafItem, index: number): void {
   if (!DEV) return
 
   if (!item.type) {
@@ -123,6 +143,7 @@ function validateFeedItem(item: ApiFeedResponse['items'][0], index: number): voi
       `[feed:adapter] Item at index ${index} has type "question" but question field is null/undefined`
     )
   }
+
 }
 
 function validateFeedPost(
@@ -157,7 +178,7 @@ function validateFeedSuggestion(
   // Check for expected but missing fields
   const hasMedia = 'media' in suggestion
   if (!hasMedia) {
-    console.debug(
+    feedDebugLog(
       `[feed:adapter] Suggestion ${userId} missing media field (not yet supported by backend)`
     )
   }
@@ -190,16 +211,20 @@ function validateFeedSuggestion(
  */
 type Phase1FeedResponse = {
   items: Array<{
-    id: string
-    kind: 'post' | 'profile' | 'question'
-    actor: {
-      id: string
-      name: string
-      avatarUrl: string | null
-    }
-    textPreview: string | null
-    createdAt: number // Epoch ms
+    cardType: 'single' | 'grid'
     presentation?: { mode: string; accent?: string | null } | null
+    items: Array<{
+      id: string
+      kind: 'post' | 'profile' | 'question'
+      actor: {
+        id: string
+        name: string
+        avatarUrl: string | null
+      }
+      textPreview: string | null
+      createdAt: number // Epoch ms
+      presentation?: { mode: string; accent?: string | null } | null
+    }>
   }>
   nextCursor?: string | null
   nextCursorId?: string | null
@@ -213,16 +238,49 @@ function isPhase1Response(res: unknown): res is Phase1FeedResponse {
   const r = res as Record<string, unknown>
   if (!Array.isArray(r.items)) return false
   if (r.items.length === 0) return false
-  const firstItem = r.items[0] as Record<string, unknown>
-  // Phase-1 has "kind" and "actor", Phase-2 has "type" and nested "post"/"suggestion"
-  return 'kind' in firstItem && 'actor' in firstItem && !('type' in firstItem)
+  const firstCard = r.items[0] as Record<string, unknown>
+  if (!Array.isArray(firstCard.items) || !('cardType' in firstCard)) return false
+  const firstLeaf = (firstCard.items[0] ?? {}) as Record<string, unknown>
+  return 'kind' in firstLeaf && 'actor' in firstLeaf && !('type' in firstLeaf)
 }
 
 /**
  * Adapt Phase-1 response (lite format) to FeedResponse
  */
 function adaptPhase1Response(res: Phase1FeedResponse): FeedResponse {
-  const items: FeedCard[] = res.items.map((item) => {
+  const kindCounts: Record<string, number> = {}
+  const items: FeedCard[] = res.items.map((card, index) => {
+    kindCounts[card.cardType] = (kindCounts[card.cardType] ?? 0) + 1
+    if (card.cardType === 'grid') {
+      const media = card.items
+        .map(child => {
+          const url = child.actor.avatarUrl ?? null
+          if (!url) return null
+          return {
+            id: `grid-avatar-${child.id}`,
+            type: 'IMAGE' as MediaType,
+            url,
+            thumbUrl: null,
+            width: null,
+            height: null,
+            durationSec: null,
+          }
+        })
+        .filter((entry): entry is FeedMedia => entry !== null)
+      return {
+        id: `grid-${index}`,
+        kind: 'post',
+        content: {
+          id: `grid-${index}`,
+          title: 'Highlights',
+        },
+        media,
+        presentation: { mode: 'grid' },
+        flags: { grid: true },
+      }
+    }
+
+    const item = card.items[0]
     const baseCard: FeedCard = {
       id: item.id,
       kind: item.kind === 'profile' ? 'profile' : item.kind === 'question' ? 'question' : 'post',
@@ -239,10 +297,10 @@ function adaptPhase1Response(res: Phase1FeedResponse): FeedResponse {
       // Phase-1: Minimal fields only
       // Media, stats, compatibility will be loaded in Phase-2
       media: [],
-      presentation: item.presentation
+      presentation: (card.presentation ?? item.presentation)
         ? {
-            mode: (item.presentation.mode as 'single' | 'mosaic' | 'question' | 'highlight') ?? 'single',
-            accent: (item.presentation.accent as 'match' | 'boost' | 'new' | null) ?? null,
+            mode: ((card.presentation ?? item.presentation)?.mode as 'single' | 'mosaic' | 'grid' | 'question' | 'highlight') ?? 'single',
+            accent: ((card.presentation ?? item.presentation)?.accent as 'match' | 'boost' | 'new' | null) ?? null,
           }
         : undefined,
     }
@@ -250,6 +308,7 @@ function adaptPhase1Response(res: Phase1FeedResponse): FeedResponse {
     return baseCard
   })
 
+  feedDebugLog('[DEBUG] adaptFeedResponse: Phase-1 item kinds', { kindCounts })
   return {
     items,
     nextCursor: res.nextCursorId ?? res.nextCursor ?? null,
@@ -268,7 +327,10 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
   if (isPhase1Response(res)) {
     feedDebugLog('[DEBUG] adaptFeedResponse: Detected Phase-1 format, adapting...')
     const result = adaptPhase1Response(res)
-    feedDebugLog('[DEBUG] adaptFeedResponse: Phase-1 adaptation complete', { itemsCount: result.items.length, nextCursor: result.nextCursor })
+    feedDebugLog('[DEBUG] adaptFeedResponse: Phase-1 adaptation complete', {
+      itemsCount: result.items.length,
+      nextCursor: result.nextCursor,
+    })
     return result
   }
   
@@ -279,9 +341,67 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
   let position = 0
 
   // Items are already ranked and interleaved by backend
-  for (let i = 0; i < res.items.length; i++) {
-    const item = res.items[i]
+  const itemTypeCounts: Record<string, number> = {}
+  const cardTypeCounts: Record<string, number> = {}
+
+  const cards = (res as unknown as ApiFeedCardResponse).items ?? []
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i]
+    const cardType = card.cardType ?? 'single'
+    cardTypeCounts[cardType] = (cardTypeCounts[cardType] ?? 0) + 1
+    const cardItems = card.items ?? []
+    if (cardItems.length === 0) continue
+
+    if (cardType === 'grid') {
+      const gridMedia: FeedMedia[] = []
+      const gridChildTypes: Record<string, number> = {}
+
+      for (const child of cardItems) {
+        const childType = child.type ?? 'unknown'
+        gridChildTypes[childType] = (gridChildTypes[childType] ?? 0) + 1
+        if (child.type === 'post' && child.post) {
+          const media = toFeedMediaFromEntries(child.post.media as ApiFeedMediaEntry[])
+          if (media[0]) {
+            gridMedia.push({
+              ...media[0],
+              id: `grid-post-${media[0].id}`,
+            })
+          }
+        } else if (child.type === 'suggestion' && child.suggestion) {
+          const media = toFeedMedia(child.suggestion.media as ApiFeedMedia[] | null)
+          if (media?.[0]) {
+            gridMedia.push({
+              ...media[0],
+              id: `grid-suggestion-${media[0].id}`,
+            })
+          }
+        }
+      }
+
+      feedDebugLog('[feed:adapter] Grid card adapted', {
+        index: i,
+        childTypes: gridChildTypes,
+        mediaCount: gridMedia.length,
+      })
+
+      items.push({
+        id: `grid-${i}`,
+        kind: 'post',
+        content: {
+          id: `grid-${i}`,
+          title: 'Highlights',
+        },
+        media: gridMedia,
+        presentation: toFeedPresentation(card.presentation) ?? { mode: 'grid' },
+        flags: { grid: true },
+      })
+      position += 1
+      continue
+    }
+
+    const item = cardItems[0]
     validateFeedItem(item, i)
+    itemTypeCounts[item.type ?? 'unknown'] = (itemTypeCounts[item.type ?? 'unknown'] ?? 0) + 1
 
     if (item.type === 'post' && item.post) {
       const p = item.post
@@ -291,7 +411,17 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
       const mediaArray = p.media.map(m => m.media)
       const apiPresentation =
         'presentation' in p ? (p as typeof p & { presentation?: ApiFeedPresentation }).presentation : null
-      const presentation = toFeedPresentation(apiPresentation) ?? toPresentation(media, position)
+      const itemPresentation =
+        'presentation' in item
+          ? (item as typeof item & { presentation?: ApiFeedPresentation }).presentation
+          : null
+      const cardPresentation =
+        'presentation' in card
+          ? (card as typeof card & { presentation?: ApiFeedPresentation }).presentation
+          : null
+      const presentation =
+        toFeedPresentation(cardPresentation ?? apiPresentation ?? itemPresentation) ??
+        toPresentation(media, position)
 
       // Type-safe field access with fallbacks
       const stats =
@@ -361,9 +491,18 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
 
       const apiPresentation =
         'presentation' in s ? (s as typeof s & { presentation?: ApiFeedPresentation }).presentation : null
+      const itemPresentation =
+        'presentation' in item
+          ? (item as typeof item & { presentation?: ApiFeedPresentation }).presentation
+          : null
+      const cardPresentation =
+        'presentation' in card
+          ? (card as typeof card & { presentation?: ApiFeedPresentation }).presentation
+          : null
       const fallbackPresentation = toPresentation(media, position, isMatch ? 'match' : undefined)
       const presentation =
-        toFeedPresentation(apiPresentation, isMatch ? 'match' : undefined) ?? fallbackPresentation
+        toFeedPresentation(cardPresentation ?? apiPresentation ?? itemPresentation, isMatch ? 'match' : undefined) ??
+        fallbackPresentation
 
       items.push({
         id: cardId,
@@ -397,6 +536,14 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
       const questionId = `question-${q.id}`
       const apiPresentation =
         'presentation' in q ? (q as typeof q & { presentation?: ApiFeedPresentation }).presentation : null
+      const itemPresentation =
+        'presentation' in item
+          ? (item as typeof item & { presentation?: ApiFeedPresentation }).presentation
+          : null
+      const cardPresentation =
+        'presentation' in card
+          ? (card as typeof card & { presentation?: ApiFeedPresentation }).presentation
+          : null
 
       items.push({
         id: questionId,
@@ -405,7 +552,7 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
           id: questionId,
           title: q.quizTitle ?? 'Quiz',
         },
-        presentation: toFeedPresentation(apiPresentation) ?? { mode: 'question' },
+        presentation: toFeedPresentation(cardPresentation ?? apiPresentation ?? itemPresentation) ?? { mode: 'question' },
         question: {
           id: String(q.id),
           quizId: q.quizId,
@@ -433,7 +580,12 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
     nextCursor: res.nextCursorId == null ? null : String(res.nextCursorId),
     hasMorePosts: res.hasMorePosts ?? undefined,
   }
-  feedDebugLog('[DEBUG] adaptFeedResponse: Phase-2 adaptation complete', { itemsCount: result.items.length, nextCursor: result.nextCursor })
+  feedDebugLog('[DEBUG] adaptFeedResponse: Phase-2 adaptation complete', {
+    itemsCount: result.items.length,
+    nextCursor: result.nextCursor,
+    itemTypes: itemTypeCounts,
+    cardTypes: cardTypeCounts,
+  })
   return result
 }
 

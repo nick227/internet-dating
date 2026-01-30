@@ -6,8 +6,8 @@ import { FEED_PRESORT_MIN_SEGMENT_ITEMS } from '../registry/domains/feed/constan
 import { scoreCandidatesWithoutSeen } from './feedPresortScoring.js'
 import { mergeAndRank } from '../registry/domains/feed/ranking/index.js'
 import { generatePhase1JSON, convertToPresortedItem } from './feedPresortPhase1.js'
-import { getPresortedSegment, storePresortedSegment, type PresortedFeedItem } from '../services/feed/presortedFeedService.js'
-import type { ViewerContext, FeedItem } from '../registry/domains/feed/types.js'
+import { getPresortedSegment, storePresortedSegment, type PresortedFeedItem, type PresortedFeedLeafItem } from '../services/feed/presortedFeedService.js'
+import type { ViewerContext, FeedItem, FeedItemOrGrid } from '../registry/domains/feed/types.js'
 import { hashKeyValues, isJobFresh, upsertJobFreshness } from '../lib/jobs/shared/freshness.js'
 import { logger } from '../lib/logger/logger.js'
 
@@ -94,9 +94,9 @@ async function buildFeedPresortInputHash(
  * Deduplicate feed items by unique identifier
  * Preserves first occurrence (highest ranked item wins)
  */
-function deduplicateFeedItems(items: FeedItem[]): { items: FeedItem[]; duplicateCount: number } {
+function deduplicateFeedItems(items: FeedItemOrGrid[]): { items: FeedItemOrGrid[]; duplicateCount: number } {
   const seen = new Set<string>()
-  const deduplicated: FeedItem[] = []
+  const deduplicated: FeedItemOrGrid[] = []
   let duplicateCount = 0
 
   for (const item of items) {
@@ -108,6 +108,16 @@ function deduplicateFeedItems(items: FeedItem[]): { items: FeedItem[]; duplicate
       key = `suggestion:${item.suggestion.userId}`
     } else if (item.type === 'question' && item.question) {
       key = `question:${item.question.id}`
+    } else if (item.type === 'grid') {
+      const childKeys = item.grid.items
+        .map((child) => {
+          if (child.type === 'post' && child.post) return `post:${child.post.id}`
+          if (child.type === 'suggestion' && child.suggestion) return `suggestion:${child.suggestion.userId}`
+          if (child.type === 'question' && child.question) return `question:${child.question.id}`
+          return null
+        })
+        .filter((childKey): childKey is string => childKey !== null)
+      key = `grid:${childKeys.join('|')}`
     } else {
       // Invalid item structure - skip it
       logger.warn('Skipping feed item with invalid structure', { 
@@ -169,7 +179,7 @@ async function fetchActorProfiles(
  * Pure transformation function - all data fetching done beforehand
  */
 function convertFeedItemsToPresorted(
-  items: FeedItem[],
+  items: FeedItemOrGrid[],
   actorMap: Map<bigint, { name: string; avatarUrl: string | null }>
 ): { items: PresortedFeedItem[]; skippedCount: number } {
   const presortedItems: PresortedFeedItem[] = []
@@ -179,6 +189,84 @@ function convertFeedItemsToPresorted(
     const actor = actorMap.get(item.actorId)
     
     try {
+      if (item.type === 'grid') {
+        const gridChildren: PresortedFeedLeafItem[] = []
+
+        for (const child of item.grid.items) {
+          const childActor = actorMap.get(child.actorId)
+
+          if (child.type === 'post' && child.post) {
+            gridChildren.push(
+              convertToPresortedItem(
+                {
+                  type: 'post',
+                  id: child.post.id,
+                  actorId: child.actorId,
+                  source: child.source,
+                  post: child.post,
+                  mediaType: child.post.mediaType,
+                  presentation: child.presentation ?? child.post.presentation,
+                  score: child.post.score ?? 0,
+                },
+                childActor?.name ?? null,
+                childActor?.avatarUrl ?? null
+              )
+            )
+          } else if (child.type === 'suggestion' && child.suggestion) {
+            gridChildren.push(
+              convertToPresortedItem(
+                {
+                  type: 'suggestion',
+                  id: child.suggestion.userId,
+                  actorId: child.actorId,
+                  source: child.source,
+                  suggestion: child.suggestion,
+                  presentation: child.presentation ?? child.suggestion.presentation,
+                  score: child.suggestion.score ?? 0,
+                },
+                childActor?.name ?? null,
+                childActor?.avatarUrl ?? null
+              )
+            )
+          } else if (child.type === 'question' && child.question) {
+            gridChildren.push(
+              convertToPresortedItem(
+                {
+                  type: 'question',
+                  id: child.question.id,
+                  actorId: child.actorId,
+                  source: child.source,
+                  question: child.question,
+                  presentation: child.presentation ?? child.question.presentation,
+                  score: 0,
+                },
+                childActor?.name ?? null,
+                childActor?.avatarUrl ?? null
+              )
+            )
+          }
+        }
+
+        if (gridChildren.length === 0) {
+          skippedCount++
+          continue
+        }
+
+        const gridScore = gridChildren.reduce((max, child) => Math.max(max, child.score), 0)
+        const gridId = `grid:${gridChildren.map((child) => `${child.type}:${child.id}`).join('|')}`
+
+        presortedItems.push({
+          type: 'grid',
+          id: gridId,
+          score: gridScore,
+          actorId: 0n,
+          source: 'grid',
+          presentation: { mode: 'grid' },
+          items: gridChildren,
+        })
+        continue
+      }
+
       // Extract item-specific data based on type
       let itemId: bigint
       let itemData: Parameters<typeof convertToPresortedItem>[0]
@@ -404,7 +492,16 @@ async function presortFeedForUser(
   const { items: deduplicated, duplicateCount } = deduplicateFeedItems(ranked)
 
   // 5. Fetch actor profiles in batch
-  const actorIds = Array.from(new Set(deduplicated.map((item) => item.actorId)))
+  const actorIds = Array.from(
+    new Set(
+      deduplicated.flatMap((item) => {
+        if (item.type === 'grid') {
+          return item.grid.items.map((child) => child.actorId)
+        }
+        return [item.actorId]
+      })
+    )
+  )
   const actorMap = await fetchActorProfiles(actorIds)
 
   // 6. Convert to presorted format
