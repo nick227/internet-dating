@@ -318,10 +318,15 @@ export const api = {
     return http<ApiRateResponse>(`${API_BASE_URL}${path}`, 'POST', { body, signal })
   },
   posts: {
-    create: async (body: ApiPostCreateBody & { tags?: string[] }, signal?: AbortSignal) => {
+    create: async (
+      body: ApiPostCreateBody & { tags?: string[] },
+      signal?: AbortSignal,
+      options?: { timeout?: number }
+    ) => {
       const res = await http<ApiPostCreateResponse>(`${API_BASE_URL}${API_PATHS.postCreate}`, 'POST', {
         body,
         signal,
+        timeout: options?.timeout,
       })
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('feed:cache-bust', { detail: { reason: 'post-create' } }))

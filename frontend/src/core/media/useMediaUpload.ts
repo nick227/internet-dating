@@ -26,7 +26,7 @@ export type MediaUploadError = {
 }
 
 const POLL_INTERVAL_MS = 750
-const MAX_WAIT_MS = 60_000
+const MAX_WAIT_MS = 180_000
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 

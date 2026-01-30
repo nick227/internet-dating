@@ -157,6 +157,7 @@ export function usePostSubmission() {
         }
 
         // Create post via API
+        const postTimeoutMs = embedUrls.length > 0 ? 120_000 : 60_000
         const postResult = await api.posts.create(
           {
             text: text.trim() || null,
@@ -166,7 +167,8 @@ export function usePostSubmission() {
             tags: normalizedTags.length ? normalizedTags : undefined,
             targetUserId: finalTargetUserId || undefined,
           },
-          controller.signal
+          controller.signal,
+          { timeout: postTimeoutMs }
         )
 
         // Trigger feed refresh to replace optimistic post with real one
