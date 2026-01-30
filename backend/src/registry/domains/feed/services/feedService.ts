@@ -225,7 +225,24 @@ async function fetchPresortedFeed(
     itemsToHydrate.length ? hydrateFeedItemsFromPresorted(ctx, itemsToHydrate) : Promise.resolve([]),
   ]);
 
-  console.log('[feedService] Presorted feed used. Items:', hydratedPresorted.length, 'First 3 items:', hydratedPresorted.slice(0, 3).map(i => ({ type: i.type, presentation: i.post?.presentation || i.suggestion?.presentation, mediaType: i.post ? 'mediaType not in hydrated' : undefined })));
+  const getHydratedPresentation = (item: HydratedFeedItem) => {
+    if (item.type === 'grid') return item.presentation;
+    if (item.type === 'post' && item.post) return item.post.presentation ?? item.presentation;
+    if (item.type === 'suggestion' && item.suggestion) return item.suggestion.presentation ?? item.presentation;
+    if (item.type === 'question' && item.question) return item.question.presentation ?? item.presentation;
+    return item.presentation;
+  };
+
+  console.log(
+    '[feedService] Presorted feed used. Items:',
+    hydratedPresorted.length,
+    'First 3 items:',
+    hydratedPresorted.slice(0, 3).map((item) => ({
+      type: item.type,
+      presentation: getHydratedPresentation(item),
+      mediaType: item.type === 'post' ? 'mediaType not in hydrated' : undefined
+    }))
+  );
 
   return {
     items: [...hydratedRelationship, ...hydratedPresorted],
@@ -246,7 +263,14 @@ async function fetchFallbackFeed(
   const scored = await scoreCandidates(ctx, candidates);
   const ranked = mergeAndRank(ctx, scored);
   
-  console.log('[feedService] Fallback feed used. First 5 items presentation:', ranked.slice(0, 5).map(i => ({ type: i.type, presentation: i.presentation, mediaType: i.post?.mediaType })));
+  console.log(
+    '[feedService] Fallback feed used. First 5 items presentation:',
+    ranked.slice(0, 5).map((item) => ({
+      type: item.type,
+      presentation: item.presentation,
+      mediaType: item.type === 'post' && item.post ? item.post.mediaType : undefined
+    }))
+  );
 
   // Filter ranked items by relationship items
   const filteredRanked = filterFeedItems(ranked, relationshipPostIds, relationshipActorIds);

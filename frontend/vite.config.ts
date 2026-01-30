@@ -6,6 +6,7 @@ import { inlineShellPlugin } from './vite-plugin-inline-shell'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { ServerOptions } from 'node:https'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -16,14 +17,14 @@ export default defineConfig(({ mode }) => {
   const certPath = env.VITE_DEV_CERT_PATH || defaultCertPath
   const keyPath = env.VITE_DEV_KEY_PATH || defaultKeyPath
   const apiTarget = env.VITE_API_TARGET || (devHttps ? 'https://localhost:4000' : 'http://localhost:4000')
-  const httpsConfig =
+  const httpsConfig: ServerOptions | undefined =
     devHttps && fs.existsSync(certPath) && fs.existsSync(keyPath)
       ? {
           cert: fs.readFileSync(certPath),
           key: fs.readFileSync(keyPath),
         }
       : devHttps
-        ? true
+        ? {}
         : undefined
 
   return {

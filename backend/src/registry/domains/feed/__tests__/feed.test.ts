@@ -10,6 +10,7 @@ import { FEED_CONFIG_VERSION } from '../config.js';
 import { FEED_PRESORT_MIN_SEGMENT_ITEMS } from '../constants.js';
 import { feedDomain } from '../index.js';
 import { invalidateAllSegmentsForUser, storePresortedSegment } from '../../../../services/feed/presortedFeedService.js';
+import type { PresortedFeedItem } from '../../../../services/feed/presortedFeedService.js';
 import type { ViewerContext } from '../types.js';
 import type { Request, Response } from 'express';
 
@@ -1000,12 +1001,15 @@ test('Feed presort - records seen entries', async () => {
           createdAt: Date.now(),
           actorName: 'Suggester',
           actorAvatarUrl: null,
-          textPreview: null
+          textPreview: undefined
         }
       ]
     };
 
-    const presortedItems = Array.from({ length: FEED_PRESORT_MIN_SEGMENT_ITEMS - 1 }, () => basePostItem);
+    const presortedItems: PresortedFeedItem[] = Array.from(
+      { length: FEED_PRESORT_MIN_SEGMENT_ITEMS - 1 },
+      () => basePostItem
+    );
     presortedItems.unshift(gridItem);
 
     await storePresortedSegment({

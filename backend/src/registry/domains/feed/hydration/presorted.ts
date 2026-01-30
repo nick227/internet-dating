@@ -1,5 +1,14 @@
 import { hydrateFeedItems, type HydratedFeedItem } from './index.js';
-import type { ViewerContext } from '../types.js';
+import type {
+  FeedGridChildItem,
+  FeedItem,
+  FeedItemOrGrid,
+  FeedPostCandidate,
+  FeedPresentation,
+  FeedQuestionCandidate,
+  FeedSuggestionCandidate,
+  ViewerContext
+} from '../types.js';
 import type { PresortedFeedItem, PresortedFeedLeafItem } from '../../../../services/feed/presortedFeedService.js';
 import { prisma } from '../../../../lib/prisma/client.js';
 
@@ -24,17 +33,7 @@ export async function hydrateFeedItemsFromPresorted(
  */
 async function convertPresortedToFeedItems(
   presortedItems: PresortedFeedItem[]
-): Promise<Array<{
-  type: 'post' | 'suggestion' | 'question' | 'grid';
-  post?: any;
-  suggestion?: any;
-  question?: any;
-  grid?: { items: Array<{ type: 'post' | 'suggestion' | 'question'; post?: any; suggestion?: any; question?: any; actorId: bigint; source: 'post' | 'match' | 'suggested' | 'question'; presentation?: any }> };
-  actorId: bigint;
-  source: 'post' | 'match' | 'suggested' | 'question' | 'grid';
-  tier: 'everyone';
-  presentation?: any;
-}>> {
+): Promise<FeedItemOrGrid[]> {
   const postIds: bigint[] = [];
   const suggestionIds: bigint[] = [];
   const questionIds: bigint[] = [];
@@ -125,104 +124,143 @@ async function convertPresortedToFeedItems(
   const suggestionMap = new Map(suggestions.map((s) => [s.userId, s]));
   const questionMap = new Map(questions.map((q) => [q.id, q]));
 
-  const buildFeedItemFromPresorted = (presorted: PresortedFeedLeafItem) => {
+  const buildPostCandidate = (
+    presorted: PresortedFeedLeafItem,
+    post: typeof posts[number]
+  ): FeedPostCandidate => ({
+    id: post.id,
+    text: post.text,
+    createdAt: post.createdAt,
+    user: post.user,
+    mediaType: presorted.mediaType,
+    presentation: presorted.presentation as FeedPresentation | undefined,
+    score: presorted.score
+  });
+
+  const buildSuggestionCandidate = (
+    presorted: PresortedFeedLeafItem,
+    suggestion: typeof suggestions[number]
+  ): FeedSuggestionCandidate => ({
+    userId: suggestion.userId,
+    displayName: suggestion.displayName,
+    bio: suggestion.bio,
+    locationText: suggestion.locationText,
+    intent: suggestion.intent,
+    source: presorted.source === 'match' || presorted.source === 'suggested' ? presorted.source : undefined,
+    score: presorted.score,
+    presentation: presorted.presentation as FeedPresentation | undefined
+  });
+
+  const buildQuestionCandidate = (
+    presorted: PresortedFeedLeafItem,
+    question: typeof questions[number]
+  ): FeedQuestionCandidate => ({
+    id: question.id,
+    quizId: question.quizId,
+    quizTitle: question.quiz.title,
+    prompt: question.prompt,
+    options: question.options,
+    order: question.order,
+    presentation: presorted.presentation as FeedPresentation | undefined
+  });
+
+  const buildFeedItemFromPresorted = (presorted: PresortedFeedLeafItem): FeedItem | null => {
     if (presorted.type === 'post') {
       const post = postMap.get(BigInt(presorted.id));
       if (!post) return null;
+      const postCandidate = buildPostCandidate(presorted, post);
       return {
         type: 'post' as const,
-        post: {
-          id: post.id,
-          text: post.text,
-          createdAt: post.createdAt,
-          user: post.user,
-          mediaType: presorted.mediaType,
-          score: presorted.score,
-          presentation: presorted.presentation,
-        },
+        post: postCandidate,
         actorId: presorted.actorId,
         source: presorted.source,
         tier: 'everyone' as const,
-        presentation: presorted.presentation,
+        presentation: presorted.presentation as FeedPresentation | undefined,
       };
     }
     if (presorted.type === 'suggestion') {
       const suggestion = suggestionMap.get(BigInt(presorted.id));
       if (!suggestion) return null;
+      const suggestionCandidate = buildSuggestionCandidate(presorted, suggestion);
       return {
         type: 'suggestion' as const,
-        suggestion: {
-          userId: suggestion.userId,
-          displayName: suggestion.displayName,
-          bio: suggestion.bio,
-          locationText: suggestion.locationText,
-          intent: suggestion.intent,
-          source: presorted.source,
-          score: presorted.score,
-          presentation: presorted.presentation,
-        },
+        suggestion: suggestionCandidate,
         actorId: presorted.actorId,
         source: presorted.source,
         tier: 'everyone' as const,
-        presentation: presorted.presentation,
+        presentation: presorted.presentation as FeedPresentation | undefined,
       };
     }
     const question = questionMap.get(BigInt(presorted.id));
     if (!question) return null;
+    const questionCandidate = buildQuestionCandidate(presorted, question);
     return {
       type: 'question' as const,
-      question: {
-        id: question.id,
-        quizId: question.quizId,
-        quizTitle: question.quiz.title,
-        prompt: question.prompt,
-        options: question.options,
-        order: question.order,
-        presentation: presorted.presentation,
-      },
+      question: questionCandidate,
       actorId: presorted.actorId,
       source: 'question' as const,
       tier: 'everyone' as const,
-      presentation: presorted.presentation,
+      presentation: presorted.presentation as FeedPresentation | undefined,
+    };
+  };
+
+  const buildGridChildFromPresorted = (
+    presorted: PresortedFeedLeafItem
+  ): FeedGridChildItem | null => {
+    if (presorted.type === 'post') {
+      const post = postMap.get(BigInt(presorted.id));
+      if (!post) return null;
+      const postCandidate = buildPostCandidate(presorted, post);
+      return {
+        type: 'post',
+        post: postCandidate,
+        actorId: presorted.actorId,
+        source: presorted.source,
+        presentation: presorted.presentation as FeedPresentation | undefined
+      };
+    }
+    if (presorted.type === 'suggestion') {
+      const suggestion = suggestionMap.get(BigInt(presorted.id));
+      if (!suggestion) return null;
+      const suggestionCandidate = buildSuggestionCandidate(presorted, suggestion);
+      return {
+        type: 'suggestion',
+        suggestion: suggestionCandidate,
+        actorId: presorted.actorId,
+        source: presorted.source,
+        presentation: presorted.presentation as FeedPresentation | undefined
+      };
+    }
+    const question = questionMap.get(BigInt(presorted.id));
+    if (!question) return null;
+    const questionCandidate = buildQuestionCandidate(presorted, question);
+    return {
+      type: 'question',
+      question: questionCandidate,
+      actorId: presorted.actorId,
+      source: 'question',
+      presentation: presorted.presentation as FeedPresentation | undefined
     };
   };
 
   // Convert to FeedItems
-  const feedItems: Array<{
-    type: 'post' | 'suggestion' | 'question' | 'grid';
-    post?: any;
-    suggestion?: any;
-    question?: any;
-    grid?: { items: Array<{ type: 'post' | 'suggestion' | 'question'; post?: any; suggestion?: any; question?: any; actorId: bigint; source: 'post' | 'match' | 'suggested' | 'question'; presentation?: any }> };
-    actorId: bigint;
-    source: 'post' | 'match' | 'suggested' | 'question' | 'grid';
-    tier: 'everyone';
-    presentation?: any;
-  }> = [];
+  const feedItems: FeedItemOrGrid[] = [];
 
   for (const presorted of presortedItems) {
     if (presorted.type === 'grid') {
       const gridChildren = presorted.items
-        .map((child) => buildFeedItemFromPresorted(child))
-        .filter((child): child is Exclude<typeof child, null> => child !== null);
+        .map((child) => buildGridChildFromPresorted(child))
+        .filter((child): child is FeedGridChildItem => child !== null);
       if (gridChildren.length > 0) {
         feedItems.push({
           type: 'grid' as const,
           grid: {
-            items: gridChildren.map((child) => ({
-              type: child.type,
-              post: child.post,
-              suggestion: child.suggestion,
-              question: child.question,
-              actorId: child.actorId,
-              source: child.source,
-              presentation: child.presentation,
-            })),
+            items: gridChildren,
           },
           actorId: presorted.actorId,
           source: 'grid',
           tier: 'everyone',
-          presentation: presorted.presentation,
+          presentation: presorted.presentation as FeedPresentation | undefined,
         });
       }
       continue;

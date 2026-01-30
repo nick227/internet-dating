@@ -99,6 +99,8 @@ const feedDebugLog = (...args: unknown[]) => {
   }
 }
 
+const isNotNull = <T>(value: T | null | undefined): value is T => value != null
+
 type ApiFeedLeafItem = {
   type?: 'post' | 'suggestion' | 'question'
   post?: ApiFeedResponse['items'][0]['post']
@@ -256,7 +258,7 @@ function adaptPhase1Response(res: Phase1FeedResponse): FeedResponse {
         .map(child => {
           const url = child.actor.avatarUrl ?? null
           if (!url) return null
-          return {
+          const entry: FeedMedia = {
             id: `grid-avatar-${child.id}`,
             type: 'IMAGE' as MediaType,
             url,
@@ -265,8 +267,9 @@ function adaptPhase1Response(res: Phase1FeedResponse): FeedResponse {
             height: null,
             durationSec: null,
           }
+          return entry
         })
-        .filter((entry): entry is FeedMedia => entry !== null)
+        .filter(isNotNull)
       return {
         id: `grid-${index}`,
         kind: 'post',
@@ -368,12 +371,16 @@ export function adaptFeedResponse(res: ApiFeedResponse | Phase1FeedResponse): Fe
             })
           }
         } else if (child.type === 'suggestion' && child.suggestion) {
-          const media = toFeedMedia(child.suggestion.media as ApiFeedMedia[] | null)
-          if (media?.[0]) {
-            gridMedia.push({
-              ...media[0],
-              id: `grid-suggestion-${media[0].id}`,
-            })
+          if ('media' in child.suggestion) {
+            const media = toFeedMedia(
+              (child.suggestion as typeof child.suggestion & { media?: ApiFeedMedia[] }).media
+            )
+            if (media && media.length > 0) {
+              gridMedia.push({
+                ...media[0],
+                id: `grid-suggestion-${media[0].id}`,
+              })
+            }
           }
         }
       }

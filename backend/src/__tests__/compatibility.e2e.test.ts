@@ -7,6 +7,7 @@ import { getCandidates } from '../registry/domains/feed/candidates/index.js';
 import { scoreCandidates } from '../registry/domains/feed/scoring/index.js';
 import { mergeAndRank } from '../registry/domains/feed/ranking/index.js';
 import { hydrateFeedItems } from '../registry/domains/feed/hydration/index.js';
+import type { HydratedFeedLeafItem } from '../registry/domains/feed/hydration/index.js';
 import type { Request } from 'express';
 
 function uniqueKey(prefix: string) {
@@ -213,7 +214,12 @@ test('Feed suggestions include compatibility summary', async () => {
     const hydrated = await hydrateFeedItems(ctx, ranked);
 
     const suggestion = hydrated.find(
-      (item) => item.type === 'suggestion' && item.suggestion?.userId === candidate.id
+      (item): item is HydratedFeedLeafItem =>
+        !!(
+          item.type === 'suggestion' &&
+          item.suggestion &&
+          item.suggestion.userId === candidate.id
+        )
     );
 
     assert.ok(suggestion?.suggestion?.compatibility, 'Compatibility should be hydrated on suggestion');

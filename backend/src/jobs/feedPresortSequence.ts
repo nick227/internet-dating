@@ -1,17 +1,15 @@
 import { feedConfig } from '../registry/domains/feed/config.js'
+import type { FeedSlot } from '../registry/domains/feed/config.js'
 import type { FeedItem } from '../registry/domains/feed/types.js'
 
-type SequenceSlot = {
-  kind: 'post' | 'suggestion' | 'question'
-  mediaType?: 'video' | 'image' | 'text' | 'mixed' | 'any'
-  source?: 'match' | 'suggested'
-  count?: number
-  presentation?: 'single' | 'mosaic' | 'grid' | 'highlight'
-}
+type SequenceSlot = Exclude<FeedSlot, { kind: 'grid' }>
+type PostMediaType = Extract<FeedSlot, { kind: 'post' }>['mediaType']
+type SuggestionSource = Extract<FeedSlot, { kind: 'suggestion' }>['source']
 
-function expandSequence(sequence: readonly SequenceSlot[]) {
+function expandSequence(sequence: readonly FeedSlot[]) {
   const expanded: SequenceSlot[] = []
   for (const slot of sequence) {
+    if (slot.kind === 'grid') continue
     const count = slot.count && slot.count > 1 ? Math.floor(slot.count) : 1
     for (let i = 0; i < count; i += 1) {
       expanded.push(slot)
@@ -67,7 +65,7 @@ export function applyFeedSequence(rankedItems: FeedItem[]): FeedItem[] {
   const questionItems = rankedItems.filter((item) => item.type === 'question')
   const questionIndexRef = { value: 0 }
 
-  const takeNextPost = (mediaType?: SequenceSlot['mediaType']): FeedItem | null => {
+  const takeNextPost = (mediaType?: PostMediaType): FeedItem | null => {
     const key = !mediaType || mediaType === 'any' ? 'all' : mediaType
     const bucket = postBuckets.get(key) ?? []
     let index = postIndices.get(key) ?? 0
@@ -86,7 +84,7 @@ export function applyFeedSequence(rankedItems: FeedItem[]): FeedItem[] {
   }
 
   const takeNextPostForLayout = (
-    mediaType?: SequenceSlot['mediaType'],
+    mediaType?: PostMediaType,
     presentation?: 'single' | 'mosaic' | 'grid' | 'highlight'
   ): FeedItem | null => {
     if (!presentation) return takeNextPost(mediaType)
@@ -98,7 +96,7 @@ export function applyFeedSequence(rankedItems: FeedItem[]): FeedItem[] {
     return null
   }
 
-  const takeNextSuggestion = (source?: SequenceSlot['source']): FeedItem | null => {
+  const takeNextSuggestion = (source?: SuggestionSource): FeedItem | null => {
     const key = source ?? 'all'
     const bucket = suggestionBuckets.get(key) ?? []
     let index = suggestionIndices.get(key) ?? 0
