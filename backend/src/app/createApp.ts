@@ -19,13 +19,18 @@ export function createApp() {
     : [defaultCorsOrigin];
   
   // CORS must be first, before any request logging
-  app.use(cors({
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      if (corsOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
+  app.use(cors((req, cb) => {
+    const origin = req.header('Origin');
+    if (!origin) {
+      return cb(null, { origin: true, credentials: true });
+    }
+    if (corsOrigins.includes(origin)) {
+      return cb(null, { origin: true, credentials: true });
+    }
+    if (isSameHostOrigin(origin, req.headers.host)) {
+      return cb(null, { origin: true, credentials: true });
+    }
+    return cb(new Error('Not allowed by CORS'));
   }));
   
   // Then parse body and cookies
@@ -257,4 +262,14 @@ function resolveFrontendDist(): string | null {
   }
   
   return null;
+}
+
+function isSameHostOrigin(origin: string, hostHeader: string | undefined): boolean {
+  if (!hostHeader) return false;
+  try {
+    const originUrl = new URL(origin);
+    return originUrl.host === hostHeader;
+  } catch {
+    return false;
+  }
 }

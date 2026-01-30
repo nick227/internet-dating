@@ -27,8 +27,8 @@ const allSchedules: ScheduleDefinition[] = [
   {
     id: 'daily-full-sync',
     name: 'Daily Full Sync',
-    description: 'Run all jobs once per day at 2am UTC',
-    cron: '0 2 * * *',
+    description: 'Run all jobs once per day at midnight UTC',
+    cron: '0 0 * * *',
     timezone: 'UTC',
     executionMode: 'ALL_JOBS'
   },
